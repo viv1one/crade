@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { ChatMessage, ChatTask } from "@/lib/ai";
 
 const TASK_OPTIONS: { value: ChatTask; label: string }[] = [
@@ -16,8 +16,29 @@ export function ChatPanel() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [meta, setMeta] = useState<{ provider: string; model: string } | null>(null);
+
+  const loadHistory = useCallback(async (forSymbol: string) => {
+    setHistoryLoaded(false);
+    try {
+      const res = await fetch(`/api/chat/history?symbol=${encodeURIComponent(forSymbol)}`);
+      const data = await res.json();
+      setMessages(Array.isArray(data.messages) ? data.messages : []);
+    } catch {
+      setMessages([]);
+    } finally {
+      setHistoryLoaded(true);
+    }
+  }, []);
+
+  // Load once on mount for the default (no-symbol) context. Re-loads again
+  // whenever the symbol field is committed (blur), since history is scoped
+  // per symbol server-side.
+  useEffect(() => {
+    loadHistory("");
+  }, [loadHistory]);
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
@@ -58,6 +79,7 @@ export function ChatPanel() {
         <input
           value={symbol}
           onChange={(e) => setSymbol(e.target.value)}
+          onBlur={(e) => loadHistory(e.target.value.trim().toUpperCase())}
           placeholder="Symbol (optional), e.g. RELIANCE.NS"
           className="flex-1 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
         />
@@ -75,7 +97,10 @@ export function ChatPanel() {
       </div>
 
       <div className="flex flex-col gap-2 rounded-lg border border-black/[.08] dark:border-white/[.145] p-4 min-h-40 max-h-96 overflow-y-auto">
-        {messages.length === 0 && (
+        {!historyLoaded && (
+          <p className="text-sm text-black/50 dark:text-white/50">Loading history…</p>
+        )}
+        {historyLoaded && messages.length === 0 && (
           <p className="text-sm text-black/50 dark:text-white/50">
             Ask about a stock, e.g. &ldquo;why did this move today?&rdquo;
           </p>

@@ -4,14 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Crade is a personal research-and-alerts PWA for Indian equities: watchlists, technical/fundamental
-screens, an AI chat layer that explains moves or summarizes a stock, push notifications when a watched
-condition triggers, and a **paper-trading** portfolio for practicing buy/sell decisions with fake money.
-It is explicitly **not** a real-money trading system — there is no broker integration and no order
-routing. The user's actual broker (Groww) is a separate app entirely; Crade's "Buy"/"Sell" only ever
-simulate a fill at the last fetched quote. Real order placement is a deliberately deferred, much heavier
-compliance surface (SEBI's algo-trading framework became mandatory April 1, 2026 — see `docs/plan.md`
-§7 before ever wiring up an actual broker API).
+Crade is a personal research-and-alerts PWA for Indian equities: real email/password accounts,
+watchlists, an AI chat layer (grounded in real price data) that explains moves or summarizes a stock,
+price/RSI/volume alerts that push a browser notification when triggered, strategy backtesting, and a
+**paper-trading** portfolio for practicing buy/sell decisions with fake money. It is explicitly **not**
+a real-money trading system — there is no broker integration and no order routing. The user's actual
+broker (Groww) is a separate app entirely; Crade's "Buy"/"Sell" only ever simulate a fill at the last
+fetched quote. Real order placement is a deliberately deferred, much heavier compliance surface (SEBI's
+algo-trading framework became mandatory April 1, 2026 — see `docs/plan.md` §7 before ever wiring up an
+actual broker API).
 
 The original product plan (tech-stack rationale, MongoDB schema, market-data licensing constraints,
 phased roadmap) lives in `docs/plan.md`. Read it before making architectural decisions — this file
@@ -24,14 +25,17 @@ covers only what the plan doesn't: how the code that now exists is actually orga
 - `npm start` — run a production build
 - `npm run lint` — ESLint (flat config in `eslint.config.mjs`, extends `next/core-web-vitals` + `next/typescript`)
 - `npx tsc --noEmit` — type-check without emitting (no separate `typecheck` script yet)
-- `npm test` — runs `vitest run` (currently covers `lib/paper-trading/store.test.ts`)
+- `npm test` — runs `vitest run` (paper-trading, market-data fallback, backtest engine/indicators/ML, event engine)
 - `npx vitest run lib/paper-trading/store.test.ts -t "rejects a buy"` — run a single test by name
 
 Requires a populated `.env.local` (see `.env.example`) — at minimum `MONGODB_URI` — before `dev`/`build`
 will run without throwing (every API route under `app/api/` touches Mongo via `lib/db`). AI chat
 (`app/api/chat`) additionally needs at least one working provider key (`NIM_API_KEY`, `ANTHROPIC_API_KEY`,
 or `OPENAI_API_KEY`) — without one, `/api/chat` returns a 502 with a clear error rather than failing
-silently, and the chat panel surfaces that error in the UI.
+silently, and the chat panel surfaces that error in the UI. Push notifications need `VAPID_PUBLIC_KEY` /
+`VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` (a real `mailto:`/`https:` URI — no angle brackets, `web-push`
+rejects those) plus `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (same value as `VAPID_PUBLIC_KEY`, browser-exposed).
+The alert cron endpoint needs `CRON_SECRET` if you want it to reject unauthenticated callers (see below).
 
 ## Architecture
 
@@ -48,20 +52,36 @@ touching call sites.
   - `mongodb.ts` — singleton `MongoClient` promise (`clientPromise`), cached on `global` in dev to
     survive HMR reloads. Import this, never construct a new client elsewhere.
   - `collections.ts` — typed collection accessors (`getCollections()`) and the document interfaces for
-    every Mongo collection: `users`, `watchlists`, `paper_portfolios`, `alerts`, `price_cache`,
-    `ai_sessions`, `push_subscriptions`, `journal_entries`. `watchlists` and `paper_portfolios` are keyed
-    by `ownerId` — currently the anonymous device id from `lib/identity/`, not a real `User._id` (see
-    below). `price_cache.fetchedAt` is meant to be a **TTL-indexed** field (create that index in Atlas /
-    a migration script — it's not created automatically here) so cached candles expire instead of
-    growing forever; `lib/market-data/cache.ts` also enforces a 5-minute TTL in application code as a
-    stopgap.
+    every Mongo collection: `users`, `sessions`, `watchlists`, `paper_portfolios`, `alerts`, `price_cache`,
+    `backtests`, `portfolio_backtests`, `ai_sessions`, `push_subscriptions`, `journal_entries`.
+    `watchlists`, `paper_portfolios`, `backtests`, and `portfolio_backtests` are all keyed by `ownerId:
+    string`, which is `User._id.toString()`; `alerts`, `ai_sessions`, and `push_subscriptions` are keyed
+    by `userId: ObjectId` directly. `price_cache.fetchedAt` is meant to be a **TTL-indexed** field
+    (create that index in Atlas / a migration script — it's not created automatically here) so cached
+    candles expire instead of growing forever; `lib/market-data/cache.ts` also enforces a 5-minute TTL in
+    application code as a stopgap.
 
-- **`lib/identity/device-id.ts`** — `getOrCreateDeviceId()` issues/reads an httpOnly `crade_device_id`
-  cookie. This is **not real authentication** — there's no login, no password, nothing to distinguish
-  one visitor from another beyond "same browser, same cookie." It exists purely so `watchlists` and
-  `paper_portfolios` have something to key documents on before real auth is built. Only callable from
-  Route Handlers / Server Actions (`cookies()` is read-only in Server Components). When real auth lands,
-  swap `ownerId` to a `User._id.toString()` and this module goes away.
+- **`lib/auth/`** — real auth, hand-rolled rather than a library (Auth.js v5 was considered but skipped
+  to avoid its beta-version and Edge-runtime friction; this app's existing patterns are already
+  lightweight/hand-rolled, e.g. the old device-id cookie this replaced).
+  - `password.ts` — `hashPassword`/`verifyPassword` using Node's built-in `crypto.scrypt` (no native
+    deps, unlike bcrypt). Stored as `"saltHex:hashHex"`.
+  - `session.ts` — `createSession(userId)` inserts a `sessions` doc (`tokenHash` = SHA-256 of a random
+    32-byte token; the raw token is what actually lives in the `crade_session` httpOnly cookie, so a DB
+    read alone can't be replayed as a valid cookie) and sets the cookie. `getCurrentUser()` returns
+    `SessionUser | null`; `requireUser()` throws `UnauthorizedError` instead. Both only work from Route
+    Handlers / Server Actions (`cookies()` is read-only in Server Components).
+  - `api.ts` — `requireUserOrResponse()`: the Route Handler idiom used everywhere per-user data is
+    touched — `const user = await requireUserOrResponse(); if (user instanceof NextResponse) return
+    user;` — turns "not logged in" into a 401 in one line instead of a repeated try/catch per route.
+  - `app/api/auth/{signup,login,logout,me}/route.ts` + `app/login/page.tsx` + `app/signup/page.tsx` +
+    `app/account-nav.tsx` (email + logout, shown in the main page nav).
+  - `middleware.ts` (project root) — redirects to `/login` when the `crade_session` cookie is *absent*.
+    This is a fast, Edge-safe UX redirect only, **not** the authoritative check — it never touches Mongo,
+    so an expired/invalid-but-present cookie still gets past it. `requireUserOrResponse()` in each Route
+    Handler is what actually enforces access control. API routes are excluded from the middleware
+    matcher; they gate themselves individually (`/api/quote`, `/api/history` intentionally stay public —
+    stateless market-data lookups, no per-user data involved).
 
 - **`lib/market-data/`**
   - `types.ts` — the `MarketDataProvider` interface: `getQuote`, `getHistorical`, `getFundamentals`.
@@ -86,14 +106,40 @@ touching call sites.
     tries the paid tier first. Providers without an API key configured are skipped, not errored — but if
     *every* configured key fails or none are configured, `chat()` throws and `app/api/chat/route.ts`
     turns that into a 502 with the underlying error message.
-  - `app/api/chat/route.ts` + `app/chat-panel.tsx` — the UI: free-text symbol field, a `ChatTask`
-    selector, and message history kept in component state only (not persisted to `ai_sessions` yet,
-    unlike watchlist/portfolio).
+  - `app/api/chat/route.ts` + `app/chat-panel.tsx` — free-text symbol field, a `ChatTask` selector, and
+    message history. History is **persisted per (user, symbol)** to `ai_sessions` — one growing
+    document per symbol you've chatted about (empty-string symbol = the general/no-symbol bucket), not
+    one-doc-per-conversation. `app/api/chat/history/route.ts` (`GET ?symbol=`) loads it; the chat panel
+    loads on mount and again whenever the symbol field is blurred (not on every keystroke). The client
+    still sends the full running `messages` array on each turn (needed for LLM context) and the server
+    just persists whatever array results after appending the assistant reply — the client remains the
+    source of truth for a single in-flight conversation, Mongo is just where it's saved across reloads.
+  - `lib/ai/context.ts` — `buildMarketContext(symbol)` fetches a real quote + 3-month historical
+    candles and formats them into the system prompt so the model reasons from actual numbers instead of
+    guessing. Deliberately does **not** attempt to fabricate "current news/events" context — there's no
+    news API wired in, and a small model asked to reason about current affairs it wasn't given will
+    confidently invent plausible-sounding fake headlines, which is worse than it saying it doesn't know.
 
-- **`lib/push/send.ts`** — `sendPushNotification(subscription, payload)`, thin wrapper around
-  `web-push` configured from `VAPID_*` env vars. Called by whatever background job evaluates alerts
-  (not yet implemented — see plan §6/§8: a cron or queue worker is meant to run this on each
-  price-cache refresh).
+- **`lib/push/`**
+  - `send.ts` — `sendPushNotification(subscription, payload)`, thin wrapper around `web-push` configured
+    from `VAPID_*` env vars.
+  - `subscribe-client.ts` (client-only) + `app/push-subscribe-button.tsx` — `enablePushNotifications()`
+    requests browser notification permission, subscribes via the service worker's `PushManager`, and
+    POSTs the subscription to `app/api/push/subscribe/route.ts`, which upserts it into
+    `push_subscriptions` keyed by `userId`. Shown on `/alerts`.
+  - `app/api/cron/evaluate-alerts/route.ts` — the job that actually triggers `sendPushNotification`.
+    Loads all `status: "active"` alerts, groups by symbol to avoid redundant fetches, evaluates each
+    condition (`price_above`/`price_below` against the live quote; `rsi_below` via
+    `lib/backtest/indicators.ts`'s `rsi()` over 3 months of daily bars; `volume_spike` as today's volume
+    vs. the 20-day average), and on trigger sets `status: "triggered"` + `lastTriggeredAt` and pushes to
+    every subscription for that user (pruning subscriptions that come back 404/410 — expired/unregistered
+    endpoints). Gated by `CRON_SECRET` (`Authorization: Bearer <secret>`) when that env var is set — this
+    is the header Vercel Cron sends automatically once you configure `CRON_SECRET` in the project's env
+    vars. Scheduled via `vercel.json` (`*/5 * * * *`); locally, hit it manually with the same header to
+    test. A "triggered" alert stays that way until the user flips it back to active/paused from
+    `app/alerts/alerts-panel.tsx` (`PATCH app/api/alerts/[id]/route.ts`).
+  - `app/api/alerts/route.ts` (list/create) + `app/api/alerts/[id]/route.ts` (pause/resume/delete) —
+    plain CRUD over the `alerts` collection, `userId`-scoped.
 
 - **`lib/paper-trading/`**
   - `types.ts` / `store.ts` — pure, framework-free simulation logic: `Holding`, `Trade`,
@@ -108,29 +154,42 @@ touching call sites.
   - `app/api/watchlist/route.ts` / `app/use-watchlist.ts` follow the same shape for the symbol list
     (full-array GET/POST, keyed by the same `ownerId`).
 
-### PWA / push plumbing
+### PWA plumbing
 
-- `public/manifest.json`, `public/sw.js` — service worker handles `push` and `notificationclick` only;
-  it does not currently do any asset caching/offline strategy.
+- `public/manifest.json`, `public/sw.js` — service worker handles `push` and `notificationclick`
+  (see `lib/push/` above) plus installability; no asset caching/offline strategy.
 - `app/register-sw.tsx` — client component, registers `/sw.js` on mount; included once in
   `app/layout.tsx`.
 - iOS Safari only receives web push once the PWA is added to the home screen (iOS 16.4+) — test this
   path explicitly, don't assume desktop Chrome behavior generalizes.
+
+### `lib/backtest/` + `app/backtest/` — strategy backtesting
+
+Not something I (this assistant) built — documented here so it isn't a surprise on the next pass.
+Single-symbol (`lib/backtest/engine.ts`) and multi-symbol/portfolio (`portfolio-engine.ts`) backtest
+runners over `STRATEGIES` (`strategies.ts`) and indicators (`indicators.ts`: `sma`, `rsi`, rolling
+high/low), plus an ML strategy under `lib/backtest/ml/` (logistic regression over hand-built features).
+Results persist to `backtests` / `portfolio_backtests` (`ownerId`-scoped, same as watchlist/portfolio),
+with an optional AI-generated review (`app/api/backtest/[id]/review/route.ts`, `chat(..., { task:
+"backtest_review" })`). UI lives at `/backtest` (`app/backtest/backtest-panel.tsx`,
+`equity-chart.tsx`). `lib/events/engine.ts` is a small generic pub/sub (unrelated to price alerts)
+used to fan out per-symbol backtest results to an aggregator.
 
 ### App structure
 
 `app/page.tsx` is a client component (`"use client"`) that owns the single `usePaperPortfolio()` hook
 instance and passes trade handlers/state down to `Watchlist` (fetch quotes, place simulated buy/sell,
 backed by `use-watchlist.ts`) and `Portfolio` (holdings, live unrealized P&L, trade history), plus
-mounts `ChatPanel` standalone. This is the one place in `app/` that isn't a server component —
-everything here is client-fetched state, not data-heavy server rendering. `app/error.tsx` is the
-route-segment error boundary (Next.js convention) for anything that throws during render.
+mounts `ChatPanel` and `AccountNav` standalone. This is the one place in `app/` that isn't a server
+component — everything here is client-fetched state, not data-heavy server rendering. `app/error.tsx`
+is the route-segment error boundary (Next.js convention) for anything that throws during render.
+`middleware.ts` gates every page except `/login` and `/signup` on the session cookie being present.
 
 ### What's not built yet
 
-Per the roadmap in `docs/plan.md` §8: real auth (still just the anonymous device-id cookie — see
-`lib/identity/`), alert UI/API routes and the alert-evaluation background job (so push notifications
-are wired end-to-end but nothing ever triggers `lib/push/send.ts`), AI chat history persistence to
-`ai_sessions`, and technical indicator/screening logic are all unimplemented. The `lib/` interfaces
-exist specifically so that work can build on stable seams rather than needing this document rewritten
-each time a data source or AI provider changes.
+Per the roadmap in `docs/plan.md` §8: technical indicator/screening logic on the watchlist itself
+(exists for backtesting, not surfaced live), email as an alert channel (`Alert.channel: "email"` is
+accepted by the API but nothing sends it — only `"push"` is wired), and multi-device push (a user can
+subscribe multiple browsers/devices; nothing yet lets them view/revoke individual subscriptions). The
+`lib/` interfaces exist specifically so that work can build on stable seams rather than needing this
+document rewritten each time a data source or AI provider changes.

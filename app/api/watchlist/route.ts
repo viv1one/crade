@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
-import { getOrCreateDeviceId } from "@/lib/identity/device-id";
+import { requireUserOrResponse } from "@/lib/auth/api";
 import { getCollections } from "@/lib/db/collections";
 
 const LIST_NAME = "default";
 
 export async function GET() {
-  const ownerId = await getOrCreateDeviceId();
+  const user = await requireUserOrResponse();
+  if (user instanceof NextResponse) return user;
+
   const { watchlists } = await getCollections();
-  const doc = await watchlists.findOne({ ownerId, name: LIST_NAME });
+  const doc = await watchlists.findOne({ ownerId: user.id, name: LIST_NAME });
   if (!doc) {
     return NextResponse.json({ symbols: [], isNew: true });
   }
@@ -15,7 +17,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const ownerId = await getOrCreateDeviceId();
+  const user = await requireUserOrResponse();
+  if (user instanceof NextResponse) return user;
+
   const body = await request.json();
   const symbols = body.symbols;
   if (!Array.isArray(symbols) || !symbols.every((s) => typeof s === "string")) {
@@ -24,8 +28,8 @@ export async function POST(request: Request) {
 
   const { watchlists } = await getCollections();
   await watchlists.updateOne(
-    { ownerId, name: LIST_NAME },
-    { $set: { ownerId, name: LIST_NAME, symbols } },
+    { ownerId: user.id, name: LIST_NAME },
+    { $set: { ownerId: user.id, name: LIST_NAME, symbols } },
     { upsert: true }
   );
   return NextResponse.json({ symbols, isNew: false });

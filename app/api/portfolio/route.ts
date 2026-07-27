@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getOrCreateDeviceId } from "@/lib/identity/device-id";
+import { requireUserOrResponse } from "@/lib/auth/api";
 import { getCollections } from "@/lib/db/collections";
 import { applyBuy, applySell, createEmptyPortfolio } from "@/lib/paper-trading/store";
 import type { PortfolioState } from "@/lib/paper-trading/types";
@@ -21,15 +21,18 @@ async function saveState(ownerId: string, state: PortfolioState) {
 }
 
 export async function GET() {
-  const ownerId = await getOrCreateDeviceId();
-  return NextResponse.json(await loadState(ownerId));
+  const user = await requireUserOrResponse();
+  if (user instanceof NextResponse) return user;
+  return NextResponse.json(await loadState(user.id));
 }
 
 // Server-authoritative: the client sends an intent (action + symbol/qty/price),
 // never a pre-computed state, so concurrent trades can't clobber each other's
 // cash/holdings math.
 export async function POST(request: Request) {
-  const ownerId = await getOrCreateDeviceId();
+  const user = await requireUserOrResponse();
+  if (user instanceof NextResponse) return user;
+  const ownerId = user.id;
   const body = await request.json();
   const current = await loadState(ownerId);
 

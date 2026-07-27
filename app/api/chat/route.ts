@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { ObjectId } from "mongodb";
+import { requireUserOrResponse } from "@/lib/auth/api";
+import { getCollections } from "@/lib/db/collections";
 import { chat } from "@/lib/ai";
 import type { ChatMessage, ChatTask } from "@/lib/ai";
 import { buildMarketContext } from "@/lib/ai/context";
@@ -21,10 +24,14 @@ const SYSTEM_PROMPT =
   "research tool, not a substitute for a licensed financial advisor.";
 
 export async function POST(request: Request) {
+  const user = await requireUserOrResponse();
+  if (user instanceof NextResponse) return user;
+
   const body = await request.json();
   const messages: ChatMessage[] = body.messages;
   const task: ChatTask = VALID_TASKS.includes(body.task) ? body.task : "chat";
   const symbol: string | undefined = typeof body.symbol === "string" ? body.symbol.trim() : undefined;
+  const symbolKey = symbol ? symbol.toUpperCase() : "";
 
   if (!Array.isArray(messages) || messages.length === 0) {
     return NextResponse.json({ error: "messages is required" }, { status: 400 });
@@ -40,6 +47,24 @@ export async function POST(request: Request) {
       [{ role: "system", content: systemContent }, ...messages],
       { task }
     );
+
+    const { aiSessions } = await getCollections();
+    const finalMessages = [...messages, { role: "assistant" as const, content: result.content }];
+    await aiSessions.updateOne(
+      { userId: new ObjectId(user.id), symbol: symbolKey },
+      {
+        $set: {
+          userId: new ObjectId(user.id),
+          symbol: symbolKey,
+          messages: finalMessages,
+          provider: result.provider,
+          model: result.model,
+        },
+        $setOnInsert: { createdAt: new Date() },
+      },
+      { upsert: true }
+    );
+
     return NextResponse.json(result);
   } catch (err) {
     return NextResponse.json(

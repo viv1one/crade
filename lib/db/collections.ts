@@ -1,6 +1,13 @@
 import { ObjectId } from "mongodb";
 import clientPromise from "./mongodb";
 import type { Holding, Trade } from "../paper-trading/types";
+import type {
+  BacktestConfig,
+  BacktestMetrics,
+  EquityPoint,
+  PortfolioBacktestConfig,
+  SymbolContribution,
+} from "../backtest/types";
 
 export interface User {
   _id: ObjectId;
@@ -14,18 +21,26 @@ export interface User {
   };
 }
 
+export interface Session {
+  _id: ObjectId;
+  userId: ObjectId;
+  // SHA-256 of the raw token that lives in the session cookie — never the
+  // raw token itself, so a DB read alone can't be replayed as a cookie.
+  tokenHash: string;
+  expiresAt: Date;
+  createdAt: Date;
+}
+
 export interface Watchlist {
   _id: ObjectId;
-  // Keyed by the anonymous device id (see lib/identity/device-id.ts) until
-  // real auth exists, at which point this becomes a User._id.toString().
-  ownerId: string;
+  ownerId: string; // User._id.toString() — see lib/auth/session.ts
   name: string;
   symbols: string[]; // e.g. "RELIANCE.NS", "TCS.NS"
 }
 
 export interface PaperPortfolio {
   _id: ObjectId;
-  ownerId: string; // same anonymous device id as Watchlist.ownerId
+  ownerId: string; // same as Watchlist.ownerId
   cash: number;
   holdings: Record<string, Holding>;
   trades: Trade[];
@@ -84,6 +99,28 @@ export interface PushSubscriptionDoc {
   createdAt: Date;
 }
 
+export interface Backtest {
+  _id: ObjectId;
+  ownerId: string; // same as Watchlist.ownerId
+  config: BacktestConfig;
+  equityCurve: EquityPoint[];
+  trades: Trade[];
+  metrics: BacktestMetrics;
+  aiReview?: { content: string; provider: string; model: string; createdAt: Date };
+  createdAt: Date;
+}
+
+export interface PortfolioBacktest {
+  _id: ObjectId;
+  ownerId: string; // same as Backtest.ownerId
+  config: PortfolioBacktestConfig;
+  equityCurve: EquityPoint[];
+  trades: Trade[];
+  metrics: BacktestMetrics;
+  bySymbol: SymbolContribution[];
+  createdAt: Date;
+}
+
 export interface JournalEntry {
   _id: ObjectId;
   userId: ObjectId;
@@ -102,10 +139,13 @@ export async function getCollections() {
   const db = await getDb();
   return {
     users: db.collection<User>("users"),
+    sessions: db.collection<Session>("sessions"),
     watchlists: db.collection<Watchlist>("watchlists"),
     paperPortfolios: db.collection<PaperPortfolio>("paper_portfolios"),
     alerts: db.collection<Alert>("alerts"),
     priceCache: db.collection<PriceCache>("price_cache"),
+    backtests: db.collection<Backtest>("backtests"),
+    portfolioBacktests: db.collection<PortfolioBacktest>("portfolio_backtests"),
     aiSessions: db.collection<AiSession>("ai_sessions"),
     pushSubscriptions: db.collection<PushSubscriptionDoc>("push_subscriptions"),
     journalEntries: db.collection<JournalEntry>("journal_entries"),
