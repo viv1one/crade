@@ -27,6 +27,9 @@ export function ScreenerPanel() {
   const [sortKey, setSortKey] = useState<SortKey>("changePercent");
   const [highlighted, setHighlighted] = useState<Set<string> | null>(null);
 
+  const [watchlist, setWatchlist] = useState<string[]>([]);
+  const [addingSymbol, setAddingSymbol] = useState<string | null>(null);
+
   async function load(refresh = false) {
     setLoading(true);
     setError(null);
@@ -44,9 +47,35 @@ export function ScreenerPanel() {
     }
   }
 
+  async function loadWatchlist() {
+    const res = await fetch("/api/watchlist");
+    const data = await res.json();
+    setWatchlist(data.isNew ? [] : data.symbols);
+  }
+
   useEffect(() => {
     load();
+    loadWatchlist();
   }, []);
+
+  async function addToWatchlist(symbol: string) {
+    if (watchlist.includes(symbol)) return;
+    setAddingSymbol(symbol);
+    try {
+      const next = [...watchlist, symbol];
+      const res = await fetch("/api/watchlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ symbols: next }),
+      });
+      if (!res.ok) throw new Error("Failed to add to watchlist");
+      setWatchlist(next);
+    } catch {
+      setError(`Failed to add ${symbol} to watchlist`);
+    } finally {
+      setAddingSymbol(null);
+    }
+  }
 
   const sectors = useMemo(() => [...new Set(rows.map((r) => r.sector))].sort(), [rows]);
 
@@ -138,20 +167,21 @@ export function ScreenerPanel() {
               <th className="p-3 text-right">Change</th>
               <th className="p-3 text-right">P/E</th>
               <th className="p-3 text-right">Mkt cap</th>
+              <th className="p-3"></th>
             </tr>
           </thead>
           <tbody>
             {!loaded &&
               Array.from({ length: 8 }).map((_, i) => (
                 <tr key={i} className="border-b border-black/[.05] dark:border-white/[.05]">
-                  <td className="p-3" colSpan={6}>
+                  <td className="p-3" colSpan={7}>
                     <div className="h-4 w-full animate-pulse rounded bg-black/[.05] dark:bg-white/[.06]" />
                   </td>
                 </tr>
               ))}
             {loaded && filtered.length === 0 && (
               <tr>
-                <td className="p-4 text-sm text-black/50 dark:text-white/50" colSpan={6}>
+                <td className="p-4 text-sm text-black/50 dark:text-white/50" colSpan={7}>
                   No stocks match these filters.
                 </td>
               </tr>
@@ -181,6 +211,19 @@ export function ScreenerPanel() {
                   {row.peRatio != null ? row.peRatio.toFixed(1) : "—"}
                 </td>
                 <td className="p-3 text-right font-mono">{formatMarketCap(row.marketCap)}</td>
+                <td className="p-3 text-right">
+                  {watchlist.includes(row.symbol) ? (
+                    <span className="text-xs text-green-600">✓ Added</span>
+                  ) : (
+                    <button
+                      onClick={() => addToWatchlist(row.symbol)}
+                      disabled={addingSymbol === row.symbol}
+                      className="text-xs rounded-full border border-black/[.08] dark:border-white/[.145] px-3 py-1.5 hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] transition-colors disabled:opacity-40"
+                    >
+                      {addingSymbol === row.symbol ? "Adding…" : "+ Watchlist"}
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
