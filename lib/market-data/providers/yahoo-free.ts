@@ -4,6 +4,7 @@ import type {
   MarketDataProvider,
   Quote,
 } from "../types";
+import { fetchWithRetry } from "../fetch-with-retry";
 
 // Free, keyless fallback for prototyping only — Yahoo Finance's public chart
 // endpoint, not licensed for redistribution. Swap for Kite Connect or a
@@ -17,7 +18,7 @@ export const yahooFreeProvider: MarketDataProvider = {
   name: "yahoo-free",
 
   async getQuote(symbol: string): Promise<Quote> {
-    const res = await fetch(`${CHART_URL}/${symbol}?range=1d&interval=1m`);
+    const res = await fetchWithRetry(`${CHART_URL}/${symbol}?range=1d&interval=1m`);
     if (!res.ok) {
       throw new Error(`yahoo-free getQuote failed for ${symbol}: ${res.status}`);
     }
@@ -44,7 +45,7 @@ export const yahooFreeProvider: MarketDataProvider = {
     interval: string,
     range: string
   ): Promise<HistoricalBar[]> {
-    const res = await fetch(
+    const res = await fetchWithRetry(
       `${CHART_URL}/${symbol}?interval=${interval}&range=${range}`
     );
     if (!res.ok) {
@@ -76,7 +77,7 @@ export const yahooFreeProvider: MarketDataProvider = {
 
   async getFundamentals(symbol: string): Promise<Fundamentals> {
     const modules = "defaultKeyStatistics,summaryDetail";
-    const res = await fetch(
+    const res = await fetchWithRetry(
       `${QUOTE_SUMMARY_URL}/${symbol}?modules=${modules}`
     );
     if (!res.ok) {

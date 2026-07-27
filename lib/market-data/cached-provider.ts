@@ -1,5 +1,10 @@
 import type { MarketDataProvider } from "./types";
-import { getCachedHistorical, setCachedHistorical } from "./cache";
+import {
+  getCachedFundamentals,
+  getCachedHistorical,
+  setCachedFundamentals,
+  setCachedHistorical,
+} from "./cache";
 
 // Wraps any MarketDataProvider so getHistorical results are read through the
 // Mongo price_cache collection (TTL-checked in application code — the
@@ -17,6 +22,24 @@ export function withHistoricalCache(provider: MarketDataProvider): MarketDataPro
       if (cached) return cached;
       const fresh = await provider.getHistorical(symbol, interval, range);
       await setCachedHistorical(symbol, interval, range, fresh, provider.name);
+      return fresh;
+    },
+  };
+}
+
+// Fundamentals get their own (much longer) cache — see FUNDAMENTALS_TTL_MS
+// in cache.ts. A failed getFundamentals call is never cached, so once the
+// underlying endpoint recovers, the very next call repopulates it.
+export function withFundamentalsCache(provider: MarketDataProvider): MarketDataProvider {
+  return {
+    name: provider.name,
+    getQuote: (symbol) => provider.getQuote(symbol),
+    getHistorical: (symbol, interval, range) => provider.getHistorical(symbol, interval, range),
+    async getFundamentals(symbol) {
+      const cached = await getCachedFundamentals(symbol);
+      if (cached) return cached;
+      const fresh = await provider.getFundamentals(symbol);
+      await setCachedFundamentals(symbol, fresh, provider.name);
       return fresh;
     },
   };

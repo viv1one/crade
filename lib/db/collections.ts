@@ -82,6 +82,17 @@ export interface PriceCache {
   fetchedAt: Date; // TTL-indexed field
 }
 
+export interface FundamentalsCacheEntry {
+  _id: ObjectId;
+  symbol: string;
+  marketCap?: number;
+  peRatio?: number;
+  eps?: number;
+  dividendYield?: number;
+  source: string;
+  fetchedAt: Date;
+}
+
 export interface ScreenerSnapshot {
   _id: ObjectId;
   universe: string; // e.g. "nifty50"
@@ -153,6 +164,7 @@ export async function getCollections() {
     alerts: db.collection<Alert>("alerts"),
     priceCache: db.collection<PriceCache>("price_cache"),
     screenerSnapshots: db.collection<ScreenerSnapshot>("screener_snapshots"),
+    fundamentalsCache: db.collection<FundamentalsCacheEntry>("fundamentals_cache"),
     backtests: db.collection<Backtest>("backtests"),
     portfolioBacktests: db.collection<PortfolioBacktest>("portfolio_backtests"),
     aiSessions: db.collection<AiSession>("ai_sessions"),

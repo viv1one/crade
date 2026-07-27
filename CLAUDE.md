@@ -86,21 +86,34 @@ touching call sites.
 - **`lib/market-data/`**
   - `types.ts` — the `MarketDataProvider` interface: `getQuote`, `getHistorical`, `getFundamentals`.
     Any new data source (Kite Connect, a licensed vendor) implements this interface.
-  - `providers/yahoo-free.ts` — the only real implementation: an unauthenticated Yahoo Finance chart-API
-    fallback. **Prototyping only** — NSE/Yahoo terms don't permit redistributing this data to other
-    users. Do not build multi-user features on top of it without swapping in a licensed provider first.
-    `getFundamentals` hits Yahoo's separate `quoteSummary` endpoint, which has been observed returning
-    `429` consistently (independent of this app's request volume — a single manual request fails too) —
-    treat fundamentals (P/E, market cap, dividend yield, EPS) as unreliable/frequently unavailable from
-    this provider; `getQuote`/`getHistorical` (the `chart` endpoint) are unaffected and reliable by
-    comparison. Callers should degrade gracefully when fundamentals are missing rather than failing
-    outright (see `lib/screener/fetch.ts` for the pattern).
-  - `cache.ts` / `cached-provider.ts` — `withHistoricalCache()` wraps a provider so `getHistorical`
-    reads/writes through the `price_cache` Mongo collection (5-minute TTL). `getQuote` is deliberately
-    **not** cached — paper-trading fills use the live quote price, so a stale cached quote would mean a
-    simulated trade at a misleading price.
-  - `index.ts` — exports `marketData`, the currently-active (cached) provider. Swap the implementation
-    here, not at call sites.
+  - `providers/yahoo-free.ts` — unauthenticated Yahoo Finance chart-API. **Prototyping only** — NSE/Yahoo
+    terms don't permit redistributing this data to other users. Do not build multi-user features on top
+    of it without swapping in a licensed provider first. Uses `fetch-with-retry.ts`
+    (`fetchWithRetry`) instead of raw `fetch`: retries 2x with short exponential backoff, but *only* on
+    `429`/network errors — anything else (404, bad response shape) fails immediately since retrying
+    those just wastes time. This meaningfully helps `getQuote`/`getHistorical` (the `chart` endpoint),
+    which has been observed 429-ing in short, recoverable bursts. `getFundamentals` (the separate
+    `quoteSummary` endpoint) has been observed under a *harder*, longer-lived block that 2 retries don't
+    clear — confirmed independent of this app's traffic (a single manual curl to the bare endpoint fails
+    the same way). Treat fundamentals (P/E, market cap, dividend yield, EPS) as the least reliable data
+    this provider returns; callers must degrade gracefully when they're missing rather than failing
+    outright (see `lib/screener/fetch.ts`).
+  - `providers/nse-free.ts` — NSE's own JSON endpoints as a fallback, fronted by an anti-bot cookie
+    check (`getSessionCookie()`). Also observed fully blocked at Akamai's edge (`403` on the homepage
+    itself, before a cookie can even be obtained) — this looks like a straight IP-range block on NSE's
+    side (common for cloud/datacenter egress IPs) rather than something retries fix; may behave
+    differently once deployed off a sandbox IP, but don't assume it works without checking.
+  - `fallback-provider.ts` — `withFallback([yahoo, nse])`: tries each provider in order per-method (a
+    quote can succeed on yahoo while historical falls through to nse, independently).
+  - `cache.ts` / `cached-provider.ts` — two independent cache wrappers, composed in `index.ts`:
+    `withHistoricalCache()` for `getHistorical` (5-minute TTL, `price_cache` collection) and
+    `withFundamentalsCache()` for `getFundamentals` (6-hour TTL, `fundamentals_cache` collection — much
+    longer, since P/E/market cap move slowly and the endpoint backing them is the fragile one; a failed
+    fetch is never cached, so the very next call after the endpoint recovers repopulates it). `getQuote`
+    is deliberately **not** cached at all — paper-trading fills use the live quote price, so a stale
+    cached quote would mean a simulated trade at a misleading price.
+  - `index.ts` — exports `marketData`, the fully-composed provider (`withFundamentalsCache(
+    withHistoricalCache(withFallback([yahoo, nse])))`). Swap/extend the chain here, not at call sites.
 
 - **`lib/ai/`**
   - `types.ts` — `ChatMessage`, `ChatTask` (`explain_move` | `summarize` | `chat` | `digest`),
