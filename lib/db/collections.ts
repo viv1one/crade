@@ -1,5 +1,6 @@
 import { ObjectId } from "mongodb";
 import clientPromise from "./mongodb";
+import type { Holding, Trade } from "../paper-trading/types";
 
 export interface User {
   _id: ObjectId;
@@ -15,9 +16,20 @@ export interface User {
 
 export interface Watchlist {
   _id: ObjectId;
-  userId: ObjectId;
+  // Keyed by the anonymous device id (see lib/identity/device-id.ts) until
+  // real auth exists, at which point this becomes a User._id.toString().
+  ownerId: string;
   name: string;
   symbols: string[]; // e.g. "RELIANCE.NS", "TCS.NS"
+}
+
+export interface PaperPortfolio {
+  _id: ObjectId;
+  ownerId: string; // same anonymous device id as Watchlist.ownerId
+  cash: number;
+  holdings: Record<string, Holding>;
+  trades: Trade[];
+  updatedAt: Date;
 }
 
 export type AlertCondition =
@@ -91,6 +103,7 @@ export async function getCollections() {
   return {
     users: db.collection<User>("users"),
     watchlists: db.collection<Watchlist>("watchlists"),
+    paperPortfolios: db.collection<PaperPortfolio>("paper_portfolios"),
     alerts: db.collection<Alert>("alerts"),
     priceCache: db.collection<PriceCache>("price_cache"),
     aiSessions: db.collection<AiSession>("ai_sessions"),

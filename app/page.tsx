@@ -2,6 +2,7 @@
 
 import { Watchlist } from "./watchlist";
 import { Portfolio } from "./portfolio";
+import { ChatPanel } from "./chat-panel";
 import { usePaperPortfolio } from "./use-paper-portfolio";
 
 export default function Home() {
@@ -15,8 +16,10 @@ export default function Home() {
         holdings={portfolio.holdings}
         trades={portfolio.trades}
         error={portfolio.error}
+        loaded={portfolio.loaded}
         onReset={portfolio.reset}
       />
+      <ChatPanel />
     </div>
   );
 }

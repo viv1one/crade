@@ -1,66 +1,53 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { applyBuy, applySell, createEmptyPortfolio } from "@/lib/paper-trading/store";
+import { createEmptyPortfolio } from "@/lib/paper-trading/store";
 import type { PortfolioState } from "@/lib/paper-trading/types";
 
-const STORAGE_KEY = "crade_paper_portfolio_v1";
-
-function loadPortfolio(): PortfolioState {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as PortfolioState) : createEmptyPortfolio();
-  } catch {
-    return createEmptyPortfolio();
-  }
+async function postTrade(body: Record<string, unknown>): Promise<PortfolioState> {
+  const res = await fetch("/api/portfolio", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Request failed");
+  return data;
 }
 
 export function usePaperPortfolio() {
-  // Start identical on server and first client render to avoid a hydration
-  // mismatch; the real (possibly non-empty) localStorage state loads right
-  // after mount.
   const [state, setState] = useState<PortfolioState>(createEmptyPortfolio());
   const [error, setError] = useState<string | null>(null);
-  const [hydrated, setHydrated] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    setState(loadPortfolio());
-    setHydrated(true);
+    fetch("/api/portfolio")
+      .then((res) => res.json())
+      .then((data: PortfolioState) => setState(data))
+      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load portfolio"))
+      .finally(() => setLoaded(true));
   }, []);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state, hydrated]);
 
   const buy = useCallback((symbol: string, qty: number, price: number) => {
     setError(null);
-    setState((prev) => {
-      try {
-        return applyBuy(prev, symbol, qty, price);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Trade failed");
-        return prev;
-      }
-    });
+    postTrade({ action: "buy", symbol, qty, price })
+      .then(setState)
+      .catch((err) => setError(err instanceof Error ? err.message : "Trade failed"));
   }, []);
 
   const sell = useCallback((symbol: string, qty: number, price: number) => {
     setError(null);
-    setState((prev) => {
-      try {
-        return applySell(prev, symbol, qty, price);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Trade failed");
-        return prev;
-      }
-    });
+    postTrade({ action: "sell", symbol, qty, price })
+      .then(setState)
+      .catch((err) => setError(err instanceof Error ? err.message : "Trade failed"));
   }, []);
 
   const reset = useCallback(() => {
     setError(null);
-    setState(createEmptyPortfolio());
+    postTrade({ action: "reset" })
+      .then(setState)
+      .catch((err) => setError(err instanceof Error ? err.message : "Reset failed"));
   }, []);
 
-  return { ...state, error, buy, sell, reset };
+  return { ...state, error, loaded, buy, sell, reset };
 }
