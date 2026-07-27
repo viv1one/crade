@@ -37,7 +37,7 @@ export function ChatPanel() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: nextMessages, task }),
+        body: JSON.stringify({ messages: nextMessages, task, symbol: symbol.trim() || undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Chat request failed");
