@@ -5,11 +5,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 Crade is a personal research-and-alerts PWA for Indian equities: watchlists, technical/fundamental
-screens, an AI chat layer that explains moves or summarizes a stock, and push notifications when a
-watched condition triggers. It is explicitly **not** an auto-trading system — v1 scope is read-only
-research + alerts. Auto-execution is a deliberately deferred, much heavier compliance surface (SEBI's
-algo-trading framework became mandatory April 1, 2026 — see `docs/plan.md` §7 before adding order
-placement of any kind).
+screens, an AI chat layer that explains moves or summarizes a stock, push notifications when a watched
+condition triggers, and a **paper-trading** portfolio for practicing buy/sell decisions with fake money.
+It is explicitly **not** a real-money trading system — there is no broker integration and no order
+routing. The user's actual broker (Groww) is a separate app entirely; Crade's "Buy"/"Sell" only ever
+simulate a fill at the last fetched quote. Real order placement is a deliberately deferred, much heavier
+compliance surface (SEBI's algo-trading framework became mandatory April 1, 2026 — see `docs/plan.md`
+§7 before ever wiring up an actual broker API).
 
 The original product plan (tech-stack rationale, MongoDB schema, market-data licensing constraints,
 phased roadmap) lives in `docs/plan.md`. Read it before making architectural decisions — this file
@@ -73,6 +75,16 @@ touching call sites.
   (not yet implemented — see plan §6/§8: a cron or queue worker is meant to run this on each
   price-cache refresh).
 
+- **`lib/paper-trading/`**
+  - `types.ts` / `store.ts` — pure, framework-free simulation logic: `Holding`, `Trade`,
+    `PortfolioState`, and `applyBuy`/`applySell`, which validate cash/quantity and update average cost
+    basis and realized P&L. No I/O — safe to unit test directly.
+  - Currently wired to the UI via `app/use-paper-portfolio.ts`, a client hook that persists
+    `PortfolioState` to `localStorage` (`crade_paper_portfolio_v1`), **not** Mongo — there's no auth
+    yet, so there's no `userId` to key a Mongo document on. When auth lands, migrate this hook to read
+    /write through an API route backed by a new `portfolios` collection instead of localStorage, and
+    the pure functions in `store.ts` can be reused as-is.
+
 ### PWA / push plumbing
 
 - `public/manifest.json`, `public/sw.js` — service worker handles `push` and `notificationclick` only;
@@ -82,9 +94,17 @@ touching call sites.
 - iOS Safari only receives web push once the PWA is added to the home screen (iOS 16.4+) — test this
   path explicitly, don't assume desktop Chrome behavior generalizes.
 
+### App structure
+
+`app/page.tsx` is a client component (`"use client"`) that owns the single `usePaperPortfolio()` hook
+instance and passes trade handlers/state down to `Watchlist` (fetch quotes, place simulated buy/sell)
+and `Portfolio` (holdings, live unrealized P&L, trade history). This is the one place in `app/` that
+isn't a server component — everything here is local UI state, not data-heavy server rendering.
+
 ### What's not built yet
 
-Per the roadmap in `docs/plan.md` §8: auth, watchlist/alert UI and API routes, the alert-evaluation
-background job, the AI chat panel, and technical indicator/screening logic are all unimplemented. The
-`lib/` interfaces above exist specifically so that work can build on stable seams rather than needing
-this document rewritten each time a data source or AI provider changes.
+Per the roadmap in `docs/plan.md` §8: auth, alert UI/API routes and the alert-evaluation background job,
+the AI chat panel, and technical indicator/screening logic are all unimplemented. Paper-trading state is
+also not yet per-user (see `lib/paper-trading/` above — it's a single shared `localStorage` account
+until auth exists). The `lib/` interfaces above exist specifically so that work can build on stable
+seams rather than needing this document rewritten each time a data source or AI provider changes.

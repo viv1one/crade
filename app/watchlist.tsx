@@ -8,14 +8,20 @@ interface Row {
   quote?: Quote;
   error?: string;
   loading: boolean;
+  qtyInput: string;
 }
 
 const DEFAULT_SYMBOLS = ["RELIANCE.NS", "TCS.NS", "INFY.NS"];
 
-export function Watchlist() {
+interface WatchlistProps {
+  onBuy: (symbol: string, qty: number, price: number) => void;
+  onSell: (symbol: string, qty: number, price: number) => void;
+}
+
+export function Watchlist({ onBuy, onSell }: WatchlistProps) {
   const [input, setInput] = useState("");
   const [rows, setRows] = useState<Row[]>(
-    DEFAULT_SYMBOLS.map((symbol) => ({ symbol, loading: false }))
+    DEFAULT_SYMBOLS.map((symbol) => ({ symbol, loading: false, qtyInput: "1" }))
   );
 
   async function fetchQuote(symbol: string) {
@@ -54,7 +60,7 @@ export function Watchlist() {
       setInput("");
       return;
     }
-    setRows((prev) => [...prev, { symbol, loading: false }]);
+    setRows((prev) => [...prev, { symbol, loading: false, qtyInput: "1" }]);
     setInput("");
   }
 
@@ -64,6 +70,18 @@ export function Watchlist() {
 
   function refreshAll() {
     rows.forEach((r) => fetchQuote(r.symbol));
+  }
+
+  function setQtyInput(symbol: string, qtyInput: string) {
+    setRows((prev) => prev.map((r) => (r.symbol === symbol ? { ...r, qtyInput } : r)));
+  }
+
+  function trade(row: Row, side: "buy" | "sell") {
+    if (!row.quote) return;
+    const qty = Math.floor(Number(row.qtyInput));
+    if (!Number.isFinite(qty) || qty <= 0) return;
+    if (side === "buy") onBuy(row.symbol, qty, row.quote.price);
+    else onSell(row.symbol, qty, row.quote.price);
   }
 
   return (
@@ -100,37 +118,67 @@ export function Watchlist() {
           </li>
         )}
         {rows.map((row) => (
-          <li key={row.symbol} className="flex items-center justify-between gap-4 p-4">
-            <div className="flex flex-col">
-              <span className="font-mono text-sm font-medium">{row.symbol}</span>
-              {row.error && (
-                <span className="text-xs text-red-500">{row.error}</span>
-              )}
-              {row.quote && (
-                <span
-                  className={`text-xs ${
-                    row.quote.change >= 0 ? "text-green-600" : "text-red-500"
-                  }`}
+          <li key={row.symbol} className="flex flex-col gap-3 p-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex flex-col">
+                <span className="font-mono text-sm font-medium">{row.symbol}</span>
+                {row.error && (
+                  <span className="text-xs text-red-500">{row.error}</span>
+                )}
+                {row.quote && (
+                  <span
+                    className={`text-xs ${
+                      row.quote.change >= 0 ? "text-green-600" : "text-red-500"
+                    }`}
+                  >
+                    {row.quote.price.toFixed(2)} ({row.quote.change >= 0 ? "+" : ""}
+                    {row.quote.changePercent.toFixed(2)}%)
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => fetchQuote(row.symbol)}
+                  disabled={row.loading}
+                  className="text-xs rounded-full border border-black/[.08] dark:border-white/[.145] px-3 py-1.5 hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] transition-colors disabled:opacity-50"
                 >
-                  {row.quote.price.toFixed(2)} ({row.quote.change >= 0 ? "+" : ""}
-                  {row.quote.changePercent.toFixed(2)}%)
-                </span>
-              )}
+                  {row.loading ? "Loading…" : "Fetch"}
+                </button>
+                <button
+                  onClick={() => removeSymbol(row.symbol)}
+                  className="text-xs text-black/50 dark:text-white/50 hover:text-red-500 transition-colors"
+                  aria-label={`Remove ${row.symbol}`}
+                >
+                  ✕
+                </button>
+              </div>
             </div>
+
             <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={row.qtyInput}
+                onChange={(e) => setQtyInput(row.symbol, e.target.value)}
+                className="w-20 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-2 py-1 text-xs outline-none focus:border-foreground"
+                aria-label={`Quantity for ${row.symbol}`}
+              />
               <button
-                onClick={() => fetchQuote(row.symbol)}
-                disabled={row.loading}
-                className="text-xs rounded-full border border-black/[.08] dark:border-white/[.145] px-3 py-1.5 hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] transition-colors disabled:opacity-50"
+                onClick={() => trade(row, "buy")}
+                disabled={!row.quote}
+                className="text-xs rounded-lg bg-green-600 text-white px-3 py-1.5 font-medium hover:bg-green-700 transition-colors disabled:opacity-40"
+                title={row.quote ? undefined : "Fetch a quote first"}
               >
-                {row.loading ? "Loading…" : "Fetch"}
+                Buy
               </button>
               <button
-                onClick={() => removeSymbol(row.symbol)}
-                className="text-xs text-black/50 dark:text-white/50 hover:text-red-500 transition-colors"
-                aria-label={`Remove ${row.symbol}`}
+                onClick={() => trade(row, "sell")}
+                disabled={!row.quote}
+                className="text-xs rounded-lg bg-red-600 text-white px-3 py-1.5 font-medium hover:bg-red-700 transition-colors disabled:opacity-40"
+                title={row.quote ? undefined : "Fetch a quote first"}
               >
-                ✕
+                Sell
               </button>
             </div>
           </li>
@@ -139,7 +187,7 @@ export function Watchlist() {
 
       <p className="text-xs text-black/40 dark:text-white/40">
         Quotes via the free Yahoo Finance fallback provider — prototyping only, not licensed for
-        redistribution. See docs/plan.md §4.
+        redistribution. Buy/Sell are simulated paper trades, not real orders. See docs/plan.md §4.
       </p>
     </div>
   );
