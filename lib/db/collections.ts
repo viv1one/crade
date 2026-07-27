@@ -8,6 +8,7 @@ import type {
   PortfolioBacktestConfig,
   SymbolContribution,
 } from "../backtest/types";
+import type { ScreenerRow } from "../screener/types";
 
 export interface User {
   _id: ObjectId;
@@ -81,6 +82,13 @@ export interface PriceCache {
   fetchedAt: Date; // TTL-indexed field
 }
 
+export interface ScreenerSnapshot {
+  _id: ObjectId;
+  universe: string; // e.g. "nifty50"
+  rows: ScreenerRow[];
+  fetchedAt: Date;
+}
+
 export interface AiSession {
   _id: ObjectId;
   userId: ObjectId;
@@ -144,6 +152,7 @@ export async function getCollections() {
     paperPortfolios: db.collection<PaperPortfolio>("paper_portfolios"),
     alerts: db.collection<Alert>("alerts"),
     priceCache: db.collection<PriceCache>("price_cache"),
+    screenerSnapshots: db.collection<ScreenerSnapshot>("screener_snapshots"),
     backtests: db.collection<Backtest>("backtests"),
     portfolioBacktests: db.collection<PortfolioBacktest>("portfolio_backtests"),
     aiSessions: db.collection<AiSession>("ai_sessions"),

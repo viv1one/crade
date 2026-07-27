@@ -89,6 +89,12 @@ touching call sites.
   - `providers/yahoo-free.ts` — the only real implementation: an unauthenticated Yahoo Finance chart-API
     fallback. **Prototyping only** — NSE/Yahoo terms don't permit redistributing this data to other
     users. Do not build multi-user features on top of it without swapping in a licensed provider first.
+    `getFundamentals` hits Yahoo's separate `quoteSummary` endpoint, which has been observed returning
+    `429` consistently (independent of this app's request volume — a single manual request fails too) —
+    treat fundamentals (P/E, market cap, dividend yield, EPS) as unreliable/frequently unavailable from
+    this provider; `getQuote`/`getHistorical` (the `chart` endpoint) are unaffected and reliable by
+    comparison. Callers should degrade gracefully when fundamentals are missing rather than failing
+    outright (see `lib/screener/fetch.ts` for the pattern).
   - `cache.ts` / `cached-provider.ts` — `withHistoricalCache()` wraps a provider so `getHistorical`
     reads/writes through the `price_cache` Mongo collection (5-minute TTL). `getQuote` is deliberately
     **not** cached — paper-trading fills use the live quote price, so a stale cached quote would mean a
@@ -153,6 +159,29 @@ touching call sites.
     business logic lives there anymore.
   - `app/api/watchlist/route.ts` / `app/use-watchlist.ts` follow the same shape for the symbol list
     (full-array GET/POST, keyed by the same `ownerId`).
+
+### `lib/screener/` — Nifty 50 screener with AI-assisted filtering
+
+- `universe.ts` — `NIFTY_50`: a **hardcoded snapshot** of Nifty 50 constituents (symbol/name/sector).
+  There's no bulk "list all NSE stocks" data source wired in, so this is the stock universe until one
+  exists. Index composition drifts over time — re-verify against NSE's published list periodically,
+  don't treat it as live/authoritative.
+- `fetch.ts` — `fetchScreenerData()`: a small worker-pool (concurrency 5, not `Promise.all` over all 50)
+  fetches quote + fundamentals per symbol. A missing quote drops the row; missing fundamentals just
+  leave those fields `undefined` (see the Yahoo `getFundamentals` note above — this happens routinely).
+- `app/api/screener/route.ts` — cached in the `screener_snapshots` collection, 10-minute TTL, `?refresh=
+  true` to force. Public (no auth) — same reasoning as `/api/quote`/`/api/history`: stateless market
+  data, not per-user.
+- `app/screener/screener-panel.tsx` — manual filters (sector, price range, max P/E, sort) plus
+  `ai-screener-query.tsx`.
+- `app/api/screener/ai-query/route.ts` — natural-language filtering, but **deliberately not** a
+  "which stocks will return well, how confident are you" feature: the system prompt explicitly forbids
+  claiming confidence about future returns (no model can back that up, and it's the kind of output
+  SEBI's Investment Adviser rules are about — see `docs/plan.md` §7 and the "no real trading" framing at
+  the top of this file). Instead it translates the question into concrete criteria against the real data
+  the client already has loaded, and every returned symbol is checked against that same dataset before
+  being shown — a hallucinated ticker not in the table gets filtered out, not displayed. Requires auth
+  (it's an AI-cost-incurring action, same as chat).
 
 ### PWA plumbing
 

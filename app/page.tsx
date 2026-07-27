@@ -18,6 +18,9 @@ export default function Home() {
           <Link href="/alerts" className="text-sm font-medium underline underline-offset-4 hover:no-underline">
             Alerts
           </Link>
+          <Link href="/screener" className="text-sm font-medium underline underline-offset-4 hover:no-underline">
+            Screener
+          </Link>
           <Link href="/backtest" className="text-sm font-medium underline underline-offset-4 hover:no-underline">
             Backtest a strategy →
           </Link>
