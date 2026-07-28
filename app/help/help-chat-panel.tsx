@@ -71,6 +71,7 @@ export function HelpChatPanel() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask a question about using the app…"
+          aria-label="Ask a question about using the app"
           className="flex-1 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
         />
         <button

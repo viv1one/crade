@@ -60,7 +60,7 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
 
   function trade(symbol: string, side: "buy" | "sell") {
     const row = getRow(symbol);
-    if (!row.quote) return;
+    if (!row.quote || row.quote.stale) return;
     const qty = Math.floor(Number(row.qtyInput));
     if (!Number.isFinite(qty) || qty <= 0) return;
     if (side === "buy") onBuy(symbol, qty, row.quote.price);
@@ -120,6 +120,14 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
                     >
                       {row.quote.price.toFixed(2)} ({row.quote.change >= 0 ? "+" : ""}
                       {row.quote.changePercent.toFixed(2)}%)
+                      {row.quote.stale && (
+                        <span
+                          className="ml-1 text-yellow-600"
+                          title="Live data unavailable — showing the last known price"
+                        >
+                          (stale)
+                        </span>
+                      )}
                     </span>
                   )}
                 </div>
@@ -153,17 +161,17 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
                 />
                 <button
                   onClick={() => trade(symbol, "buy")}
-                  disabled={!row.quote}
+                  disabled={!row.quote || row.quote.stale}
                   className="text-xs rounded-lg bg-green-600 text-white px-3 py-1.5 font-medium hover:bg-green-700 transition-colors disabled:opacity-40"
-                  title={row.quote ? undefined : "Fetch a quote first"}
+                  title={!row.quote ? "Fetch a quote first" : row.quote.stale ? "Quote is stale — can't trade on it" : undefined}
                 >
                   Buy
                 </button>
                 <button
                   onClick={() => trade(symbol, "sell")}
-                  disabled={!row.quote}
+                  disabled={!row.quote || row.quote.stale}
                   className="text-xs rounded-lg bg-red-600 text-white px-3 py-1.5 font-medium hover:bg-red-700 transition-colors disabled:opacity-40"
-                  title={row.quote ? undefined : "Fetch a quote first"}
+                  title={!row.quote ? "Fetch a quote first" : row.quote.stale ? "Quote is stale — can't trade on it" : undefined}
                 >
                   Sell
                 </button>

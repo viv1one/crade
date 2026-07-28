@@ -5,6 +5,12 @@ export interface Quote {
   changePercent: number;
   volume: number;
   asOf: Date;
+  // Set when this is a last-known-good quote served because a live fetch
+  // failed (see withStaleQuoteFallback) — never set on a genuinely live
+  // quote. Callers that use this for anything price-sensitive (e.g. a
+  // paper-trade fill) should check this and refuse/warn, not trade on it
+  // silently.
+  stale?: boolean;
 }
 
 export interface HistoricalBar {

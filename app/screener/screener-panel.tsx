@@ -113,6 +113,7 @@ export function ScreenerPanel() {
         <select
           value={sector}
           onChange={(e) => setSector(e.target.value)}
+          aria-label="Filter by sector"
           className="rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
         >
           <option value="">All sectors</option>
@@ -127,6 +128,7 @@ export function ScreenerPanel() {
           onChange={(e) => setMinPrice(e.target.value)}
           type="number"
           placeholder="Min price"
+          aria-label="Minimum price"
           className="w-28 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
         />
         <input
@@ -134,6 +136,7 @@ export function ScreenerPanel() {
           onChange={(e) => setMaxPrice(e.target.value)}
           type="number"
           placeholder="Max price"
+          aria-label="Maximum price"
           className="w-28 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
         />
         <input
@@ -141,11 +144,13 @@ export function ScreenerPanel() {
           onChange={(e) => setMaxPE(e.target.value)}
           type="number"
           placeholder="Max P/E"
+          aria-label="Maximum P/E ratio"
           className="w-28 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
         />
         <select
           value={sortKey}
           onChange={(e) => setSortKey(e.target.value as SortKey)}
+          aria-label="Sort by"
           className="rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
         >
           <option value="changePercent">Sort: % change</option>

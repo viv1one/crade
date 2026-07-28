@@ -105,15 +105,28 @@ touching call sites.
     differently once deployed off a sandbox IP, but don't assume it works without checking.
   - `fallback-provider.ts` — `withFallback([yahoo, nse])`: tries each provider in order per-method (a
     quote can succeed on yahoo while historical falls through to nse, independently).
-  - `cache.ts` / `cached-provider.ts` — two independent cache wrappers, composed in `index.ts`:
-    `withHistoricalCache()` for `getHistorical` (5-minute TTL, `price_cache` collection) and
-    `withFundamentalsCache()` for `getFundamentals` (6-hour TTL, `fundamentals_cache` collection — much
-    longer, since P/E/market cap move slowly and the endpoint backing them is the fragile one; a failed
-    fetch is never cached, so the very next call after the endpoint recovers repopulates it). `getQuote`
-    is deliberately **not** cached at all — paper-trading fills use the live quote price, so a stale
-    cached quote would mean a simulated trade at a misleading price.
-  - `index.ts` — exports `marketData`, the fully-composed provider (`withFundamentalsCache(
-    withHistoricalCache(withFallback([yahoo, nse])))`). Swap/extend the chain here, not at call sites.
+  - `cache.ts` / `cached-provider.ts` — two independent cache wrappers: `withHistoricalCache()` for
+    `getHistorical` (5-minute TTL, `price_cache` collection) and `withFundamentalsCache()` for
+    `getFundamentals` (6-hour TTL, `fundamentals_cache` collection — much longer, since P/E/market cap
+    move slowly and the endpoint backing them is the fragile one; a failed fetch is never cached, so
+    the very next call after the endpoint recovers repopulates it). `getQuote` is deliberately **not**
+    cached at all as a primary path — paper-trading fills use the live quote price, so a stale cached
+    quote presented as fresh would mean a simulated trade at a misleading price.
+  - `coalesce.ts` — `withCoalescing()`: dedupes identical *concurrent* calls (same symbol/args) onto
+    one in-flight promise, per-process only, not a durable cache. Free reliability win — e.g. the
+    dashboard's watchlist and market-movers widgets both requesting the same symbol's quote at page
+    load become one network call. Does not cache a rejection; a failed call doesn't poison the next one
+    (see `coalesce.test.ts`).
+  - `stale-fallback.ts` — `withStaleQuoteFallback()`: the one exception to "`getQuote` is never
+    cached." On a **successful** live quote, stashes it as "last known good" (fire-and-forget, doesn't
+    block the response). On a **failed** live fetch, falls back to that last-known quote instead of a
+    hard error — but marks it `stale: true` (see `types.ts`) and caps it at 24h old (older than that,
+    it's not used and the original error surfaces instead). This is read-only resilience for an
+    outage, not a way to make degraded data look fresh: `app/watchlist.tsx` checks `quote.stale` and
+    disables Buy/Sell on that row rather than letting a trade price off it silently.
+  - `index.ts` — exports `marketData`, the fully-composed provider, outer to inner: `withCoalescing(
+    withFundamentalsCache(withHistoricalCache(withStaleQuoteFallback(withFallback([yahoo, nse])))))`.
+    Swap/extend the chain here, not at call sites.
 
 - **`lib/ai/`**
   - `types.ts` — `ChatMessage`, `ChatTask` (`explain_move` | `summarize` | `chat` | `digest`),
@@ -285,14 +298,24 @@ component — everything here is client-fetched state, not data-heavy server ren
 is the route-segment error boundary (Next.js convention) for anything that throws during render.
 `middleware.ts` gates every page except `/login` and `/signup` on the session cookie being present.
 
-The top of the home page is a dashboard cluster (`alerts-summary.tsx` + `market-movers.tsx`) added so
-the most time-sensitive info doesn't require navigating to `/alerts`/`/screener` first: `AlertsSummary`
-renders nothing if there's nothing to show, but surfaces `status: "triggered"` alerts as a prominent
-banner (that's genuinely urgent — an alert fired) ahead of a plain active-count line; `MarketMovers`
-pulls top-3 gainers/losers from the same cached `/api/screener` data the full screener page uses. Both
-degrade to rendering nothing on failure rather than showing an error — this is a summary widget, not
-the source of truth, so silence is the right failure mode (the full page still has the real error
-state).
+The top of the home page is a dashboard cluster (`alerts-summary.tsx` + `market-movers.tsx` +
+`market-digest.tsx`) added so the most time-sensitive info doesn't require navigating to
+`/alerts`/`/screener` first: `AlertsSummary` renders nothing if there's nothing to show, but surfaces
+`status: "triggered"` alerts as a prominent banner (that's genuinely urgent — an alert fired) ahead of
+a plain active-count line; `MarketMovers` pulls top-3 gainers/losers from the same cached
+`/api/screener` data the full screener page uses. Both degrade to rendering nothing on failure rather
+than showing an error — this is a summary widget, not the source of truth, so silence is the right
+failure mode (the full page still has the real error state).
+
+`MarketDigest` is on-demand (a button, not auto-generated on page load — no reason to spend a chat
+call nobody asked for) and reuses the `"digest"` `ChatTask` that existed in `lib/ai/types.ts` but had
+no caller until this. `app/api/digest/route.ts` reads the same `screener_snapshots` doc `/api/screener`
+populates, but — unlike that route — enforces its own hour-old cutoff and refuses rather than silently
+narrating stale data as "today's movement" (found this gap by testing it against a snapshot from
+earlier in the session; it generated a plausible-sounding digest from hours-old data with no
+indication anything was off, which is the same category of problem as the market-data/news/help-chat
+fabrication issues elsewhere in this file — the fix here isn't a prompt change, it's not asking the
+model to reason about freshness at all and just gating the data before it gets there).
 
 ### What's not built yet
 

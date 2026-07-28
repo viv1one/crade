@@ -58,6 +58,7 @@ export function AiScreenerQuery({ rows, onResult, onClear }: AiScreenerQueryProp
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           placeholder="e.g. 5 stocks with positive momentum and a reasonable P/E"
+          aria-label="Ask the AI to filter stocks"
           className="flex-1 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
         />
         <button

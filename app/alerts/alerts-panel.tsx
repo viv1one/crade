@@ -92,11 +92,13 @@ export function AlertsPanel() {
           value={symbol}
           onChange={(e) => setSymbol(e.target.value)}
           placeholder="Symbol, e.g. RELIANCE.NS"
+          aria-label="Symbol"
           className="flex-1 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
         />
         <select
           value={conditionType}
           onChange={(e) => setConditionType(e.target.value as ConditionType)}
+          aria-label="Alert condition"
           className="rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
         >
           {Object.entries(CONDITION_LABELS).map(([type, label]) => (
@@ -110,6 +112,7 @@ export function AlertsPanel() {
           onChange={(e) => setValue(e.target.value)}
           type="number"
           placeholder="Value"
+          aria-label="Condition value"
           className="w-28 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
         />
         <button

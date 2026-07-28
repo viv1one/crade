@@ -8,6 +8,7 @@ import { usePaperPortfolio } from "./use-paper-portfolio";
 import { AccountNav } from "./account-nav";
 import { AlertsSummary } from "./alerts-summary";
 import { MarketMovers } from "./market-movers";
+import { MarketDigest } from "./market-digest";
 import { ShareWatchlist } from "./share-watchlist";
 
 export default function Home() {
@@ -38,6 +39,7 @@ export default function Home() {
       <div className="w-full max-w-2xl flex flex-col gap-6">
         <AlertsSummary />
         <MarketMovers />
+        <MarketDigest />
       </div>
       <Watchlist onBuy={portfolio.buy} onSell={portfolio.sell} />
       <ShareWatchlist />

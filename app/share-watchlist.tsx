@@ -52,6 +52,7 @@ export function ShareWatchlist() {
     <div className="w-full max-w-2xl text-sm">
       <button
         onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
         className="text-xs text-black/50 dark:text-white/50 underline underline-offset-4 hover:no-underline"
       >
         {expanded ? "Hide sharing" : `Share this watchlist${shares.length > 0 ? ` (${shares.length})` : ""}`}
@@ -65,6 +66,7 @@ export function ShareWatchlist() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Invite by email"
+              aria-label="Email to invite"
               className="flex-1 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-1.5 text-xs outline-none focus:border-foreground"
             />
             <button
@@ -85,6 +87,7 @@ export function ShareWatchlist() {
                   <span>{s.invitedEmail}</span>
                   <button
                     onClick={() => revoke(s._id)}
+                    aria-label={`Revoke access for ${s.invitedEmail}`}
                     className="text-black/40 dark:text-white/40 hover:text-red-500 transition-colors"
                   >
                     Revoke

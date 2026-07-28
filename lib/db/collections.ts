@@ -107,6 +107,17 @@ export interface FundamentalsCacheEntry {
   fetchedAt: Date;
 }
 
+export interface LastKnownQuote {
+  _id: ObjectId;
+  symbol: string;
+  price: number;
+  change: number;
+  changePercent: number;
+  volume: number;
+  asOf: Date; // the original market timestamp of this quote
+  fetchedAt: Date; // when we stored it — bounds how stale a fallback can be
+}
+
 export interface ScreenerSnapshot {
   _id: ObjectId;
   universe: string; // e.g. "nifty50"
@@ -186,6 +197,7 @@ export async function getCollections() {
     alerts: db.collection<Alert>("alerts"),
     priceCache: db.collection<PriceCache>("price_cache"),
     screenerSnapshots: db.collection<ScreenerSnapshot>("screener_snapshots"),
+    lastKnownQuotes: db.collection<LastKnownQuote>("last_known_quotes"),
     newsCache: db.collection<NewsCacheEntry>("news_cache"),
     fundamentalsCache: db.collection<FundamentalsCacheEntry>("fundamentals_cache"),
     backtests: db.collection<Backtest>("backtests"),
