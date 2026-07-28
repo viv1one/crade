@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { MarkdownContent } from "./markdown-content";
 
 export function MarketDigest() {
   const [content, setContent] = useState<string | null>(null);
@@ -38,7 +39,7 @@ export function MarketDigest() {
       {error && <p className="text-xs text-red-500">{error}</p>}
       {content && (
         <div className="rounded-lg border border-black/[.08] dark:border-white/[.145] p-3 flex flex-col gap-2">
-          <p className="text-sm">{content}</p>
+          <MarkdownContent content={content} />
           <div className="flex items-center justify-between">
             {fetchedAt && (
               <span className="text-xs text-black/40 dark:text-white/40">

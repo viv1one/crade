@@ -147,8 +147,19 @@ touching call sites.
     just persists whatever array results after appending the assistant reply — the client remains the
     source of truth for a single in-flight conversation, Mongo is just where it's saved across reloads.
   - `lib/ai/context.ts` — `buildMarketContext(symbol)` fetches a real quote + 3-month historical
-    candles, plus recent news headlines (`lib/news/`, see below), and formats them into the system
-    prompt so the model reasons from actual data instead of guessing. **Fabrication is a real,
+    candles, fundamentals (P/E, market cap, EPS, dividend yield), plus recent news headlines
+    (`lib/news/`, see below), and formats them into the system prompt so the model reasons from actual
+    data instead of guessing — the system prompt explicitly tells it to weigh trend + fundamentals +
+    headlines together for growth/strategy questions, not just price movement alone. Fundamentals are
+    the most fragile field on this provider (see `lib/market-data/` below) so they're included only
+    when actually available; when not, the model has been verified to say so plainly ("I don't have
+    the current P/E ratio...") rather than inventing a number — same discipline as the news section.
+    Chat responses render through `app/markdown-content.tsx` (`react-markdown` + app-styled
+    components), not raw text — model output routinely includes markdown (bold, lists) that showed as
+    literal `**`/`-` characters before this. Reused for every place AI text is displayed: the main
+    chat, `/help`'s chat, the backtest AI review, and the market digest — if you add another AI-output
+    render point, use this component rather than dropping `{result.content}` directly into JSX.
+    **Fabrication is a real,
     observed risk, not a theoretical one** — even with an explicit "say you don't know" instruction,
     `meta/llama-3.1-8b-instruct` was caught inventing plausible-sounding fake headlines (complete with
     sources and dates) when the underlying data fetch had silently failed and no context was passed at

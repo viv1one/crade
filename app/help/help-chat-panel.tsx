@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { ChatMessage } from "@/lib/ai";
+import { MarkdownContent } from "../markdown-content";
 
 export function HelpChatPanel() {
   const [input, setInput] = useState("");
@@ -50,13 +51,13 @@ export function HelpChatPanel() {
         {messages.map((m, i) => (
           <div
             key={i}
-            className={`text-sm rounded-lg px-3 py-2 max-w-[85%] ${
+            className={`rounded-lg px-3 py-2 max-w-[85%] ${
               m.role === "user"
-                ? "self-end bg-foreground text-background"
+                ? "self-end bg-foreground text-background text-sm"
                 : "self-start bg-black/[.05] dark:bg-white/[.06]"
             }`}
           >
-            {m.content}
+            {m.role === "assistant" ? <MarkdownContent content={m.content} /> : m.content}
           </div>
         ))}
         {loading && (

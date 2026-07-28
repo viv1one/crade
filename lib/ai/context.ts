@@ -8,17 +8,41 @@ function newsQueryFor(symbol: string): string {
   return `${name} stock`;
 }
 
-// Grounds the chat model in real numbers (and now real headlines) instead
-// of letting it improvise. News comes from a live feed (see lib/news/), so
-// the model can actually reference current events for once — but it only
-// ever sees headlines, not full articles, so it's told not to claim deeper
-// analysis than a headline supports.
+function formatFundamentals(f: Awaited<ReturnType<typeof marketData.getFundamentals>>): string | null {
+  const lines: string[] = [];
+  if (f.peRatio != null) lines.push(`- P/E ratio: ${f.peRatio.toFixed(1)}`);
+  if (f.marketCap != null) lines.push(`- Market cap: ₹${(f.marketCap / 1e7).toFixed(0)} crore`);
+  if (f.eps != null) lines.push(`- EPS: ₹${f.eps.toFixed(2)}`);
+  if (f.dividendYield != null) lines.push(`- Dividend yield: ${(f.dividendYield * 100).toFixed(2)}%`);
+  return lines.length > 0 ? lines.join("\n") : null;
+}
+
+// Grounds the chat model in real numbers (price, fundamentals, and now real
+// headlines) instead of letting it improvise. News comes from a live feed
+// (see lib/news/), so the model can actually reference current events for
+// once — but it only ever sees headlines, not full articles, so it's told
+// not to claim deeper analysis than a headline supports. Fundamentals are
+// the least reliable field on this provider (see lib/market-data/providers/
+// yahoo-free.ts) so they're included only when actually available, same
+// graceful-degradation pattern as the screener.
 export async function buildMarketContext(symbol: string): Promise<string | null> {
   try {
     const [quote, bars] = await Promise.all([
       marketData.getQuote(symbol),
       marketData.getHistorical(symbol, "1d", "3mo"),
     ]);
+
+    let fundamentalsSection = "";
+    try {
+      const fundamentals = await marketData.getFundamentals(symbol);
+      const formatted = formatFundamentals(fundamentals);
+      if (formatted) {
+        fundamentalsSection = `\n\nFundamentals for ${symbol}:\n${formatted}`;
+      }
+    } catch {
+      // Fundamentals are the most fragile data source here — proceed
+      // without them rather than failing the whole context.
+    }
 
     let newsSection = "";
     try {
@@ -45,7 +69,7 @@ export async function buildMarketContext(symbol: string): Promise<string | null>
       return (
         `Current data for ${symbol}: price ₹${quote.price.toFixed(2)}, ` +
         `${quote.change >= 0 ? "+" : ""}${quote.changePercent.toFixed(2)}% today. ` +
-        `No historical bars available.${newsSection}\n\n${trailer}`
+        `No historical bars available.${fundamentalsSection}${newsSection}\n\n${trailer}`
       );
     }
 
@@ -63,7 +87,10 @@ export async function buildMarketContext(symbol: string): Promise<string | null>
         `- 3-month range: ₹${periodLow.toFixed(2)} - ₹${periodHigh.toFixed(2)}`,
         `- 3-month change: ${periodChangePct >= 0 ? "+" : ""}${periodChangePct.toFixed(2)}%`,
         `- Last ${Math.min(10, closes.length)} daily closes: ${recentCloses}`,
-      ].join("\n") + newsSection + `\n\n${trailer}`
+      ].join("\n") +
+      fundamentalsSection +
+      newsSection +
+      `\n\n${trailer}`
     );
   } catch {
     return null;
