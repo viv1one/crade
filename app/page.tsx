@@ -30,6 +30,9 @@ export default function Home() {
           <Link href="/backtest" className="text-sm font-medium underline underline-offset-4 hover:no-underline">
             Backtest a strategy →
           </Link>
+          <Link href="/help" className="text-sm font-medium underline underline-offset-4 hover:no-underline">
+            Help
+          </Link>
         </div>
       </nav>
       <div className="w-full max-w-2xl flex flex-col gap-6">

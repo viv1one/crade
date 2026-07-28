@@ -217,6 +217,20 @@ get added.
   viewer's page load adds to the same free-provider request load as the owner's own watchlist would —
   relevant to the rate-limiting risk discussed in `docs/enterprise-plan.md` §1.
 
+### `/help` — app-usage chatbot, deliberately separate from the stock-research chat
+
+`app/api/help-chat/route.ts` is its own route with its own system prompt, not a mode of
+`app/api/chat/route.ts`. It only knows a hardcoded feature list (kept in the system prompt itself,
+duplicated in prose in `app/help/page.tsx`'s `SECTIONS` — if you add/change a feature, update both)
+and is explicitly told to redirect stock-specific questions to the real AI Chat/Screener rather than
+attempt them without market-data grounding. No chat history persistence — this doesn't need
+`ai_sessions` the way per-symbol research conversations do. One thing worth knowing if you touch the
+prompt again: the model initially invented plausible-but-wrong UI element names (a "Create Alert
+button" that doesn't exist) when only given a prose description of the flow — fixed by explicitly
+telling it not to reference button/field names beyond what's literally listed in the prompt. Same
+family of issue as the market-data fabrication bug documented above; small models embellish specifics
+that weren't given to them unless told not to, repeatedly, across different features.
+
 ### `lib/screener/` — Nifty 50 screener with AI-assisted filtering
 
 - `universe.ts` — `NIFTY_50`: a **hardcoded snapshot** of Nifty 50 constituents (symbol/name/sector).
