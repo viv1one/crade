@@ -6,6 +6,8 @@ import { Portfolio } from "./portfolio";
 import { ChatPanel } from "./chat-panel";
 import { usePaperPortfolio } from "./use-paper-portfolio";
 import { AccountNav } from "./account-nav";
+import { AlertsSummary } from "./alerts-summary";
+import { MarketMovers } from "./market-movers";
 
 export default function Home() {
   const portfolio = usePaperPortfolio();
@@ -26,6 +28,10 @@ export default function Home() {
           </Link>
         </div>
       </nav>
+      <div className="w-full max-w-2xl flex flex-col gap-6">
+        <AlertsSummary />
+        <MarketMovers />
+      </div>
       <Watchlist onBuy={portfolio.buy} onSell={portfolio.sell} />
       <Portfolio
         cash={portfolio.cash}

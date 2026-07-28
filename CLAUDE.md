@@ -245,6 +245,15 @@ component — everything here is client-fetched state, not data-heavy server ren
 is the route-segment error boundary (Next.js convention) for anything that throws during render.
 `middleware.ts` gates every page except `/login` and `/signup` on the session cookie being present.
 
+The top of the home page is a dashboard cluster (`alerts-summary.tsx` + `market-movers.tsx`) added so
+the most time-sensitive info doesn't require navigating to `/alerts`/`/screener` first: `AlertsSummary`
+renders nothing if there's nothing to show, but surfaces `status: "triggered"` alerts as a prominent
+banner (that's genuinely urgent — an alert fired) ahead of a plain active-count line; `MarketMovers`
+pulls top-3 gainers/losers from the same cached `/api/screener` data the full screener page uses. Both
+degrade to rendering nothing on failure rather than showing an error — this is a summary widget, not
+the source of truth, so silence is the right failure mode (the full page still has the real error
+state).
+
 ### What's not built yet
 
 Per the roadmap in `docs/plan.md` §8: technical indicator/screening logic on the watchlist itself
