@@ -19,9 +19,13 @@ const SYSTEM_PROMPT =
   "below, base your analysis on it and give a direct, specific take (e.g. what the trend and " +
   "range suggest, what would make it more/less attractive) rather than deflecting to generic " +
   "advice to consult someone else. Frame it as analysis of the data, not as a directive — don't " +
-  "say things like \"buy N shares now\". If a question needs current news or events you weren't " +
-  "given data for, say plainly that you don't have that, instead of guessing. This is a personal " +
-  "research tool, not a substitute for a licensed financial advisor.";
+  "say things like \"buy N shares now\". You may be given recent news headlines below — those are " +
+  "titles only, not full articles, so don't claim to know more than a headline states. Never " +
+  "invent specific facts — prices, headlines, dates, figures, events — that are not explicitly " +
+  "given to you in this prompt. If you don't have something, the only acceptable answer is to say " +
+  "so plainly; a plausible-sounding guess is not an acceptable substitute, even if the user seems " +
+  "to want a definite answer. This is a personal research tool, not a substitute for a licensed " +
+  "financial advisor.";
 
 export async function POST(request: Request) {
   const user = await requireUserOrResponse();
@@ -38,9 +42,21 @@ export async function POST(request: Request) {
   }
 
   const marketContext = symbol ? await buildMarketContext(symbol) : null;
-  const systemContent = marketContext
-    ? `${SYSTEM_PROMPT}\n\n${marketContext}`
-    : SYSTEM_PROMPT;
+  let systemContent = SYSTEM_PROMPT;
+  if (marketContext) {
+    systemContent += `\n\n${marketContext}`;
+  } else if (symbol) {
+    // buildMarketContext returned null: the data source failed outright for
+    // this symbol (observed: NSE/Yahoo both erroring). Say so explicitly and
+    // forcefully — leaving this implicit is what let the model fabricate
+    // plausible-sounding fake headlines/prices instead of admitting it had
+    // nothing.
+    systemContent +=
+      `\n\nNo market data could be retrieved for ${symbol} right now — the data source is ` +
+      `temporarily unavailable. You have zero information about this specific stock beyond its ` +
+      `ticker symbol. Do not state or imply any price, trend, headline, or fact about it. Tell the ` +
+      `user the data is temporarily unavailable instead of answering.`;
+  }
 
   try {
     const result = await chat(

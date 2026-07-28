@@ -9,6 +9,7 @@ import type {
   SymbolContribution,
 } from "../backtest/types";
 import type { ScreenerRow } from "../screener/types";
+import type { NewsItem } from "../news/types";
 
 export interface User {
   _id: ObjectId;
@@ -100,6 +101,13 @@ export interface ScreenerSnapshot {
   fetchedAt: Date;
 }
 
+export interface NewsCacheEntry {
+  _id: ObjectId;
+  query: string;
+  items: NewsItem[];
+  fetchedAt: Date;
+}
+
 export interface AiSession {
   _id: ObjectId;
   userId: ObjectId;
@@ -164,6 +172,7 @@ export async function getCollections() {
     alerts: db.collection<Alert>("alerts"),
     priceCache: db.collection<PriceCache>("price_cache"),
     screenerSnapshots: db.collection<ScreenerSnapshot>("screener_snapshots"),
+    newsCache: db.collection<NewsCacheEntry>("news_cache"),
     fundamentalsCache: db.collection<FundamentalsCacheEntry>("fundamentals_cache"),
     backtests: db.collection<Backtest>("backtests"),
     portfolioBacktests: db.collection<PortfolioBacktest>("portfolio_backtests"),

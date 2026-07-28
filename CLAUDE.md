@@ -134,10 +134,28 @@ touching call sites.
     just persists whatever array results after appending the assistant reply — the client remains the
     source of truth for a single in-flight conversation, Mongo is just where it's saved across reloads.
   - `lib/ai/context.ts` — `buildMarketContext(symbol)` fetches a real quote + 3-month historical
-    candles and formats them into the system prompt so the model reasons from actual numbers instead of
-    guessing. Deliberately does **not** attempt to fabricate "current news/events" context — there's no
-    news API wired in, and a small model asked to reason about current affairs it wasn't given will
-    confidently invent plausible-sounding fake headlines, which is worse than it saying it doesn't know.
+    candles, plus recent news headlines (`lib/news/`, see below), and formats them into the system
+    prompt so the model reasons from actual data instead of guessing. **Fabrication is a real,
+    observed risk, not a theoretical one** — even with an explicit "say you don't know" instruction,
+    `meta/llama-3.1-8b-instruct` was caught inventing plausible-sounding fake headlines (complete with
+    sources and dates) when the underlying data fetch had silently failed and no context was passed at
+    all. Two things fixed it: (1) when `buildMarketContext` returns `null` because the data source
+    failed outright for a requested symbol, `app/api/chat/route.ts` now says so *explicitly and
+    forcefully* in the system prompt ("no data could be retrieved... do not state or imply any price,
+    trend, headline, or fact") rather than silently falling back to the bare system prompt and leaving
+    a gap for the model to fill in; (2) the base system prompt's anti-fabrication line was strengthened
+    from a soft suggestion to "a plausible-sounding guess is not an acceptable substitute." If you touch
+    this flow again, re-test the failure path specifically (a symbol whose `getQuote`/`getHistorical`
+    both fail — not just the happy path), since that's exactly where this broke last time.
+
+- **`lib/news/`** — `getNews(query)` (cached, `news_cache`, 30-min TTL) backed by `google-news.ts`,
+  which scrapes Google News RSS (free, keyless, unofficial — no stable contract, Google can change the
+  feed shape without notice). Chosen specifically because, unlike Yahoo/NSE (see `lib/market-data/`
+  above), it has not been observed rate-limited or IP-blocked from this app's environment. Only
+  headlines/source/date are extracted, never full article text — `buildMarketContext` passes that
+  through to the model with an explicit "titles only, don't claim to know more than a headline states"
+  instruction. `newsQueryFor(symbol)` in `context.ts` resolves a company name via `NIFTY_50` for a more
+  relevant search query, falling back to the bare ticker for symbols outside that list.
 
 - **`lib/push/`**
   - `send.ts` — `sendPushNotification(subscription, payload)`, thin wrapper around `web-push` configured
