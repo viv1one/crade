@@ -191,6 +191,32 @@ touching call sites.
   - `app/api/watchlist/route.ts` / `app/use-watchlist.ts` follow the same shape for the symbol list
     (full-array GET/POST, keyed by the same `ownerId`).
 
+### Sharing (`shares` collection) — read-only peer invites, not a team/org model
+
+Per `docs/enterprise-plan.md` Phase 1: any user can invite another person (by email) to view their
+watchlist read-only. Deliberately **not** an organization/tenancy system — no shared workspace, no
+roles, just per-resource, per-invitee grants. Currently only `resourceType: "watchlist"` exists;
+`ShareResourceType` in `lib/db/collections.ts` is where a second resource type (e.g. `"alerts"`) would
+get added.
+
+- **Matched by email, not a userId link.** A `Share` doc only has `invitedEmail` — no acceptance step,
+  no dependency on the invitee having an account yet at invite time. `app/api/shares/shared-with-me`
+  resolves matches by comparing the *current* logged-in user's email against `invitedEmail` at read
+  time. This means changing your account email changes what's shared with you — acceptable for now,
+  but a real gap if email changes become common.
+- **`app/api/shared/[ownerId]/watchlist/route.ts` is the one and only authoritative permission
+  check** — it looks up a matching `Share` before returning anything, 403s otherwise. There's no other
+  route that can reach another user's watchlist; if you add a new way to view shared data, it must go
+  through an equivalent check, not assume the frontend won't render it.
+  - Verified live: an invited viewer (matched by email) gets `200` with real data; an uninvited third
+    account gets `403`; revoking the share (`DELETE app/api/shares/[id]/route.ts`) immediately cuts off
+    access on the next request — there's no caching of the permission check.
+- **`app/share-watchlist.tsx`** (on the home page, collapsed by default) — invite/list/revoke, owner's
+  view. **`app/shared/page.tsx`** — "shared with me" list. **`app/shared/[ownerId]/watchlist/page.tsx`**
+  — the actual read-only view, still fetches live quotes per symbol (via the public `/api/quote`), so a
+  viewer's page load adds to the same free-provider request load as the owner's own watchlist would —
+  relevant to the rate-limiting risk discussed in `docs/enterprise-plan.md` §1.
+
 ### `lib/screener/` — Nifty 50 screener with AI-assisted filtering
 
 - `universe.ts` — `NIFTY_50`: a **hardcoded snapshot** of Nifty 50 constituents (symbol/name/sector).

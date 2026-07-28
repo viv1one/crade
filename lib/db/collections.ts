@@ -33,6 +33,19 @@ export interface Session {
   createdAt: Date;
 }
 
+export type ShareResourceType = "watchlist";
+
+export interface Share {
+  _id: ObjectId;
+  ownerId: string; // who owns the resource being shared — User._id.toString()
+  resourceType: ShareResourceType;
+  // Matched by email at read time (see app/api/shares/shared-with-me), not
+  // a userId link — works whether or not the invited person has an account
+  // yet, and doesn't need a separate "accept" step for read-only access.
+  invitedEmail: string;
+  createdAt: Date;
+}
+
 export interface Watchlist {
   _id: ObjectId;
   ownerId: string; // User._id.toString() — see lib/auth/session.ts
@@ -168,6 +181,7 @@ export async function getCollections() {
     users: db.collection<User>("users"),
     sessions: db.collection<Session>("sessions"),
     watchlists: db.collection<Watchlist>("watchlists"),
+    shares: db.collection<Share>("shares"),
     paperPortfolios: db.collection<PaperPortfolio>("paper_portfolios"),
     alerts: db.collection<Alert>("alerts"),
     priceCache: db.collection<PriceCache>("price_cache"),

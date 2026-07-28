@@ -8,6 +8,7 @@ import { usePaperPortfolio } from "./use-paper-portfolio";
 import { AccountNav } from "./account-nav";
 import { AlertsSummary } from "./alerts-summary";
 import { MarketMovers } from "./market-movers";
+import { ShareWatchlist } from "./share-watchlist";
 
 export default function Home() {
   const portfolio = usePaperPortfolio();
@@ -23,6 +24,9 @@ export default function Home() {
           <Link href="/screener" className="text-sm font-medium underline underline-offset-4 hover:no-underline">
             Screener
           </Link>
+          <Link href="/shared" className="text-sm font-medium underline underline-offset-4 hover:no-underline">
+            Shared with me
+          </Link>
           <Link href="/backtest" className="text-sm font-medium underline underline-offset-4 hover:no-underline">
             Backtest a strategy →
           </Link>
@@ -33,6 +37,7 @@ export default function Home() {
         <MarketMovers />
       </div>
       <Watchlist onBuy={portfolio.buy} onSell={portfolio.sell} />
+      <ShareWatchlist />
       <Portfolio
         cash={portfolio.cash}
         holdings={portfolio.holdings}
