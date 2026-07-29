@@ -146,6 +146,18 @@ export const STRATEGIES: Record<StrategyId, StrategyDef> = {
       { key: "topN", label: "Hold top N", default: 5, min: 1, max: 20 },
     ],
   },
+  size_factor: {
+    id: "size_factor",
+    name: "Size Factor (Small-Cap)",
+    description:
+      "Cross-sectional size premium: ranks the NIFTY 50 universe by market cap (smallest first) and " +
+      "holds the topN smallest, equal-weighted, rebalanced monthly. Market cap is the least reliable " +
+      "field this app's fundamentals providers return — a symbol missing it is excluded from " +
+      "ranking, not treated as zero.",
+    kind: "cross_sectional",
+    needsFundamentals: true,
+    paramSchema: [{ key: "topN", label: "Hold top N", default: 5, min: 1, max: 20 }],
+  },
 };
 
 // auxiliaryBars is only populated for strategies whose StrategyDef sets

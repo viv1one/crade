@@ -1,14 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { getScoreFn } from "./cross-sectional-strategies";
-import type { HistoricalBar } from "../market-data/types";
+import type { Fundamentals, HistoricalBar } from "../market-data/types";
 import type { RankContext } from "./types";
 
 function bars(closes: number[]): HistoricalBar[] {
   return closes.map((c, i) => ({ time: i, open: c, high: c, low: c, close: c, volume: 0 }));
 }
 
-function ctx(barsBySymbol: Record<string, HistoricalBar[]>, params: Record<string, number>): RankContext {
-  return { barsBySymbol, fundamentalsBySymbol: {}, universe: [], params };
+function ctx(
+  barsBySymbol: Record<string, HistoricalBar[]>,
+  params: Record<string, number>,
+  fundamentalsBySymbol: Record<string, Fundamentals | undefined> = {}
+): RankContext {
+  return { barsBySymbol, fundamentalsBySymbol, universe: [], params };
 }
 
 describe("momentum_factor score", () => {
@@ -162,6 +166,30 @@ describe("betting_against_beta score", () => {
   it("excludes a symbol with insufficient history", () => {
     const scoreFn = getScoreFn("betting_against_beta");
     const context = ctx({ A: bars([100, 101, 102]) }, { lookback: 9 });
+    expect(scoreFn("A", context)).toBeUndefined();
+  });
+});
+
+describe("size_factor score", () => {
+  it("scores the smaller-market-cap symbol higher", () => {
+    const scoreFn = getScoreFn("size_factor");
+    const context = ctx(
+      { Small: bars([100]), Big: bars([100]) },
+      {},
+      {
+        Small: { symbol: "Small", marketCap: 1_000_000 },
+        Big: { symbol: "Big", marketCap: 1_000_000_000 },
+      }
+    );
+
+    const scoreSmall = scoreFn("Small", context)!;
+    const scoreBig = scoreFn("Big", context)!;
+    expect(scoreSmall).toBeGreaterThan(scoreBig);
+  });
+
+  it("excludes a symbol with no marketCap in its fundamentals", () => {
+    const scoreFn = getScoreFn("size_factor");
+    const context = ctx({ A: bars([100]) }, {}, { A: { symbol: "A" } });
     expect(scoreFn("A", context)).toBeUndefined();
   });
 });

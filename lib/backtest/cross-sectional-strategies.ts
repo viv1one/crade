@@ -139,6 +139,12 @@ function lowVolatilityScore(symbol: string, ctx: RankContext): number | undefine
   return latest === undefined ? undefined : -latest; // lower volatility ranks higher
 }
 
+function sizeFactorScore(symbol: string, ctx: RankContext): number | undefined {
+  const marketCap = ctx.fundamentalsBySymbol[symbol]?.marketCap;
+  if (marketCap === undefined || marketCap <= 0) return undefined; // excluded, not treated as zero
+  return -marketCap; // smaller cap ranks higher
+}
+
 // Populated incrementally as each cross-sectional strategy is
 // implemented — mirrors strategies.ts's generateSignals() switch, just
 // keyed by lookup instead since strategies register a whole ScoreFn
@@ -149,6 +155,7 @@ const SCORE_FUNCTIONS: Partial<Record<StrategyId, ScoreFn>> = {
   short_term_reversal: shortTermReversalScore,
   low_volatility: lowVolatilityScore,
   betting_against_beta: bettingAgainstBetaScore,
+  size_factor: sizeFactorScore,
 };
 
 export function getScoreFn(strategyId: StrategyId): ScoreFn {
