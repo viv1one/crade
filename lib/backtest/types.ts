@@ -22,6 +22,7 @@ export type StrategyId =
   | "momentum_style_rotation"
   | "turn_of_month"
   | "payday_anomaly"
+  | "option_expiry_week"
   | "january_barometer"
   | "twelve_month_cycle"
   | "overnight_anomaly"

@@ -1,5 +1,5 @@
 import type { HistoricalBar } from "../market-data/types";
-import { calendarMonth, calendarYear, isPaydayWindow, isTurnOfMonth } from "./calendar";
+import { calendarMonth, calendarYear, isExpiryWeek, isPaydayWindow, isTurnOfMonth } from "./calendar";
 import { rollingHigh, rollingLow, rsi, sma, trailingReturn, volatility } from "./indicators";
 import { generateMlSignals } from "./ml/strategy";
 import type { Signal, StrategyDef, StrategyId, StrategyParams } from "./types";
@@ -112,6 +112,17 @@ export const STRATEGIES: Record<StrategyId, StrategyDef> = {
       "despite similar date math.",
     kind: "single_symbol",
     paramSchema: [{ key: "windowDays", label: "Window days", default: 1, min: 0, max: 5 }],
+  },
+  option_expiry_week: {
+    id: "option_expiry_week",
+    name: "Option-Expiration Week",
+    description:
+      "Buy during the daysBefore trading days leading into the monthly F&O expiry, flat otherwise.",
+    kind: "single_symbol",
+    approximation:
+      "Expiry date computed via the last-Thursday-of-month convention, not NSE's actual published " +
+      "expiry calendar — doesn't account for holiday shifts.",
+    paramSchema: [{ key: "daysBefore", label: "Days before expiry", default: 3, min: 1, max: 10 }],
   },
   momentum_reversal_vol: {
     id: "momentum_reversal_vol",
@@ -336,6 +347,8 @@ export function generateSignals(
       return turnOfMonthSignals(bars, params);
     case "payday_anomaly":
       return paydayAnomalySignals(bars, params);
+    case "option_expiry_week":
+      return optionExpiryWeekSignals(bars, params);
     case "january_barometer":
       return januaryBarometerSignals(bars);
     case "overnight_anomaly":
@@ -414,6 +427,10 @@ function turnOfMonthSignals(bars: HistoricalBar[], params: StrategyParams): Sign
 
 function paydayAnomalySignals(bars: HistoricalBar[], params: StrategyParams): Signal[] {
   return bars.map((bar) => (isPaydayWindow(bar.time, params.windowDays) ? "buy" : "sell"));
+}
+
+function optionExpiryWeekSignals(bars: HistoricalBar[], params: StrategyParams): Signal[] {
+  return bars.map((bar) => (isExpiryWeek(bar.time, params.daysBefore) ? "buy" : "sell"));
 }
 
 function momentumReversalVolSignals(bars: HistoricalBar[], params: StrategyParams): Signal[] {

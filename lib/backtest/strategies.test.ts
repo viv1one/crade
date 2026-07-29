@@ -97,6 +97,20 @@ describe("payday_anomaly", () => {
   });
 });
 
+describe("option_expiry_week", () => {
+  it("buys the daysBefore trading days leading into the monthly expiry (last Thursday)", () => {
+    // January 2024's last Thursday is the 25th.
+    const bars = barsFromDates([
+      [2024, 1, 18], // 7 days out -> sell
+      [2024, 1, 22], // 3 days out, within the window -> buy
+      [2024, 1, 25], // expiry day itself -> buy
+      [2024, 1, 26], // day after expiry -> sell
+    ]);
+    const signals = generateSignals("option_expiry_week", bars, { daysBefore: 3 });
+    expect(signals).toEqual(["sell", "buy", "buy", "sell"]);
+  });
+});
+
 describe("january_barometer", () => {
   it("stays long through the year after a positive January, flat after a negative one", () => {
     function bar(y: number, m: number, d: number, close: number): HistoricalBar {
