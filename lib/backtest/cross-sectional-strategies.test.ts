@@ -127,3 +127,41 @@ describe("low_volatility score", () => {
     expect(scoreFn("A", context)).toBeUndefined();
   });
 });
+
+function pricesFromReturns(start: number, dailyReturns: number[]): HistoricalBar[] {
+  const prices = [start];
+  for (const r of dailyReturns) prices.push(prices[prices.length - 1] * (1 + r));
+  return bars(prices);
+}
+
+describe("betting_against_beta score", () => {
+  it("ranks the symbol that moves least with the market highest", () => {
+    // All three move in the same direction each day (perfectly
+    // correlated) but at different amplitudes: A at 1x, B at 3x, C at
+    // 0.2x. The equal-weight market is their average, so B has the
+    // highest beta and C the lowest — betting_against_beta should score
+    // C highest and B lowest.
+    const pattern = [0.01, -0.01, 0.01, -0.01, 0.01, -0.01, 0.01, -0.01, 0.01];
+    const context = ctx(
+      {
+        A: pricesFromReturns(100, pattern.map((r) => r * 1)),
+        B: pricesFromReturns(100, pattern.map((r) => r * 3)),
+        C: pricesFromReturns(100, pattern.map((r) => r * 0.2)),
+      },
+      { lookback: 9 }
+    );
+
+    const scoreFn = getScoreFn("betting_against_beta");
+    const scoreA = scoreFn("A", context)!;
+    const scoreB = scoreFn("B", context)!;
+    const scoreC = scoreFn("C", context)!;
+    expect(scoreC).toBeGreaterThan(scoreA);
+    expect(scoreA).toBeGreaterThan(scoreB);
+  });
+
+  it("excludes a symbol with insufficient history", () => {
+    const scoreFn = getScoreFn("betting_against_beta");
+    const context = ctx({ A: bars([100, 101, 102]) }, { lookback: 9 });
+    expect(scoreFn("A", context)).toBeUndefined();
+  });
+});

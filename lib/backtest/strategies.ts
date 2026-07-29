@@ -132,6 +132,20 @@ export const STRATEGIES: Record<StrategyId, StrategyDef> = {
       { key: "topN", label: "Hold top N", default: 5, min: 1, max: 20 },
     ],
   },
+  betting_against_beta: {
+    id: "betting_against_beta",
+    name: "Betting Against Beta",
+    description:
+      "Long-only low-beta tilt: ranks the NIFTY 50 universe by rolling beta against the universe's " +
+      "own equal-weight return and holds the lowest-beta topN. Not the original Frazzini-Pedersen " +
+      "construction (long low-beta / short high-beta, market-neutral) — this app has no " +
+      "short-selling, so it's a directional tilt toward calmer-vs-the-market names instead.",
+    kind: "cross_sectional",
+    paramSchema: [
+      { key: "lookback", label: "Lookback bars", default: 90, min: 20, max: 252 },
+      { key: "topN", label: "Hold top N", default: 5, min: 1, max: 20 },
+    ],
+  },
 };
 
 // auxiliaryBars is only populated for strategies whose StrategyDef sets

@@ -72,6 +72,64 @@ function shortTermReversalScore(symbol: string, ctx: RankContext): number | unde
   return r === undefined ? undefined : -r;
 }
 
+function dailyReturns(bars: RankContext["barsBySymbol"][string]): number[] {
+  const out: number[] = [];
+  for (let i = 1; i < bars.length; i++) {
+    const prev = bars[i - 1].close;
+    if (prev !== 0) out.push((bars[i].close - prev) / prev);
+  }
+  return out;
+}
+
+function mean(values: number[]): number {
+  return values.reduce((a, b) => a + b, 0) / values.length;
+}
+
+// Equal-weight average daily return across every symbol in ctx with
+// enough history — an in-process market proxy so beta-based strategies
+// don't need a separate index fetch. Reused by Residual Momentum.
+function equalWeightMarketReturns(ctx: RankContext, lookback: number): number[] | undefined {
+  const seriesList: number[][] = [];
+  for (const symbol of Object.keys(ctx.barsBySymbol)) {
+    const bars = ctx.barsBySymbol[symbol];
+    if (!bars || bars.length < lookback + 1) continue;
+    seriesList.push(dailyReturns(bars.slice(-(lookback + 1))));
+  }
+  if (seriesList.length === 0) return undefined;
+  const market: number[] = new Array(lookback).fill(0);
+  for (const series of seriesList) {
+    for (let i = 0; i < lookback; i++) market[i] += series[i] / seriesList.length;
+  }
+  return market;
+}
+
+// Rolling beta of one symbol's daily returns against the in-process
+// equal-weight market proxy. Reused by Residual Momentum.
+function rollingBeta(symbol: string, ctx: RankContext, lookback: number): number | undefined {
+  const bars = ctx.barsBySymbol[symbol];
+  if (!bars || bars.length < lookback + 1) return undefined;
+  const stockReturns = dailyReturns(bars.slice(-(lookback + 1)));
+  const market = equalWeightMarketReturns(ctx, lookback);
+  if (!market) return undefined;
+
+  const meanStock = mean(stockReturns);
+  const meanMarket = mean(market);
+  let covariance = 0;
+  let variance = 0;
+  for (let i = 0; i < lookback; i++) {
+    covariance += (stockReturns[i] - meanStock) * (market[i] - meanMarket);
+    variance += (market[i] - meanMarket) ** 2;
+  }
+  if (variance === 0) return undefined;
+  return covariance / variance;
+}
+
+function bettingAgainstBetaScore(symbol: string, ctx: RankContext): number | undefined {
+  const lookback = Math.floor(ctx.params.lookback ?? 90);
+  const beta = rollingBeta(symbol, ctx, lookback);
+  return beta === undefined ? undefined : -beta; // lower beta ranks higher
+}
+
 function lowVolatilityScore(symbol: string, ctx: RankContext): number | undefined {
   const bars = ctx.barsBySymbol[symbol];
   if (!bars) return undefined;
@@ -90,6 +148,7 @@ const SCORE_FUNCTIONS: Partial<Record<StrategyId, ScoreFn>> = {
   consistent_momentum: consistentMomentumScore,
   short_term_reversal: shortTermReversalScore,
   low_volatility: lowVolatilityScore,
+  betting_against_beta: bettingAgainstBetaScore,
 };
 
 export function getScoreFn(strategyId: StrategyId): ScoreFn {

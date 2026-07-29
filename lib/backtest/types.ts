@@ -12,7 +12,8 @@ export type StrategyId =
   | "momentum_factor"
   | "consistent_momentum"
   | "short_term_reversal"
-  | "low_volatility";
+  | "low_volatility"
+  | "betting_against_beta";
 
 export type Signal = "buy" | "sell" | "hold";
 
