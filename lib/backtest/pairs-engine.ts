@@ -86,41 +86,47 @@ export function runPairsBacktest(
   const roundTripPnls: number[] = [];
   const equityCurve: EquityPoint[] = [];
 
-  function open(direction: Direction, priceA: number, priceB: number, time: number) {
+  // HistoricalBar.time is epoch seconds (see market-data/types.ts), but
+  // Trade.timestamp is epoch milliseconds everywhere else it's set
+  // (lib/paper-trading/store.ts uses Date.now()) — convert once here
+  // rather than storing bar-time seconds into a millisecond field.
+  function open(direction: Direction, priceA: number, priceB: number, barTime: number) {
     const notionalPerLeg = cash / 2;
     const qtyA = Math.floor(notionalPerLeg / priceA);
     const qtyB = Math.floor(notionalPerLeg / priceB);
     if (qtyA <= 0 || qtyB <= 0) return; // not enough capital for both legs
 
+    const timestamp = barTime * 1000;
     if (direction === "long_spread") {
       cash = cash - qtyA * priceA + qtyB * priceB; // buy A, short-sell B
-      trades.push({ id: makeTradeId(), symbol: symbolA, side: "buy", qty: qtyA, price: priceA, timestamp: time });
-      trades.push({ id: makeTradeId(), symbol: symbolB, side: "sell", qty: qtyB, price: priceB, timestamp: time });
+      trades.push({ id: makeTradeId(), symbol: symbolA, side: "buy", qty: qtyA, price: priceA, timestamp });
+      trades.push({ id: makeTradeId(), symbol: symbolB, side: "sell", qty: qtyB, price: priceB, timestamp });
     } else {
       cash = cash + qtyA * priceA - qtyB * priceB; // short-sell A, buy B
-      trades.push({ id: makeTradeId(), symbol: symbolA, side: "sell", qty: qtyA, price: priceA, timestamp: time });
-      trades.push({ id: makeTradeId(), symbol: symbolB, side: "buy", qty: qtyB, price: priceB, timestamp: time });
+      trades.push({ id: makeTradeId(), symbol: symbolA, side: "sell", qty: qtyA, price: priceA, timestamp });
+      trades.push({ id: makeTradeId(), symbol: symbolB, side: "buy", qty: qtyB, price: priceB, timestamp });
     }
     position = { direction, qtyA, qtyB, entryPriceA: priceA, entryPriceB: priceB };
   }
 
-  function close(priceA: number, priceB: number, time: number) {
+  function close(priceA: number, priceB: number, barTime: number) {
     if (!position) return;
     const { direction, qtyA, qtyB, entryPriceA, entryPriceB } = position;
+    const timestamp = barTime * 1000;
     let pnlA: number;
     let pnlB: number;
     if (direction === "long_spread") {
       pnlA = (priceA - entryPriceA) * qtyA;
       pnlB = (entryPriceB - priceB) * qtyB;
       cash = cash + qtyA * priceA - qtyB * priceB; // sell A, buy back B
-      trades.push({ id: makeTradeId(), symbol: symbolA, side: "sell", qty: qtyA, price: priceA, timestamp: time, realizedPnl: pnlA });
-      trades.push({ id: makeTradeId(), symbol: symbolB, side: "buy", qty: qtyB, price: priceB, timestamp: time, realizedPnl: pnlB });
+      trades.push({ id: makeTradeId(), symbol: symbolA, side: "sell", qty: qtyA, price: priceA, timestamp, realizedPnl: pnlA });
+      trades.push({ id: makeTradeId(), symbol: symbolB, side: "buy", qty: qtyB, price: priceB, timestamp, realizedPnl: pnlB });
     } else {
       pnlA = (entryPriceA - priceA) * qtyA;
       pnlB = (priceB - entryPriceB) * qtyB;
       cash = cash - qtyA * priceA + qtyB * priceB; // buy back A, sell B
-      trades.push({ id: makeTradeId(), symbol: symbolA, side: "buy", qty: qtyA, price: priceA, timestamp: time, realizedPnl: pnlA });
-      trades.push({ id: makeTradeId(), symbol: symbolB, side: "sell", qty: qtyB, price: priceB, timestamp: time, realizedPnl: pnlB });
+      trades.push({ id: makeTradeId(), symbol: symbolA, side: "buy", qty: qtyA, price: priceA, timestamp, realizedPnl: pnlA });
+      trades.push({ id: makeTradeId(), symbol: symbolB, side: "sell", qty: qtyB, price: priceB, timestamp, realizedPnl: pnlB });
     }
     roundTripPnls.push(pnlA + pnlB);
     position = null;
