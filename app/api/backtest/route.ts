@@ -54,12 +54,17 @@ export async function POST(request: Request) {
 
   try {
     const bars = await marketData.getHistorical(config.symbol, config.interval, config.range);
+    const auxiliaryBars =
+      strategy.auxiliary === "crude_oil"
+        ? await marketData.getHistorical("CL=F", config.interval, config.range)
+        : undefined;
     const { equityCurve, trades, metrics } = runBacktest(
       config.symbol,
       bars,
       config.strategyId,
       config.params,
-      config.startingCash
+      config.startingCash,
+      auxiliaryBars
     );
 
     const doc = {

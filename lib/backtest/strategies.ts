@@ -154,6 +154,24 @@ export const STRATEGIES: Record<StrategyId, StrategyDef> = {
     kind: "single_symbol",
     paramSchema: [{ key: "lookback", label: "Lookback bars", default: 10, min: 2, max: 60 }],
   },
+  crude_oil_predictor: {
+    id: "crude_oil_predictor",
+    name: "Crude Oil Predictor",
+    description:
+      "Cross-asset signal from crude oil (CL=F) applied to the loaded equity symbol: buys when " +
+      "crude's trailing return, adjusted by direction, is positive — default direction of -1 tests " +
+      "the hypothesis that falling oil is a tailwind for a net oil-importer economy. Set direction " +
+      "to +1 to test the opposite hypothesis instead.",
+    kind: "single_symbol",
+    auxiliary: "crude_oil",
+    approximation:
+      "The oil-vs-equities relationship isn't uniformly positive or negative across sectors or time " +
+      "— this trades a single directional hypothesis (configurable), not a validated causal link.",
+    paramSchema: [
+      { key: "lookback", label: "Crude lookback bars", default: 10, min: 2, max: 60 },
+      { key: "direction", label: "Direction (+1 or -1)", default: -1, min: -1, max: 1 },
+    ],
+  },
   january_barometer: {
     id: "january_barometer",
     name: "January Barometer",
@@ -355,8 +373,9 @@ export function generateSignals(
       return overnightAnomalySignals(bars, params);
     case "momentum_reversal_vol":
       return momentumReversalVolSignals(bars, params);
+    case "crude_oil_predictor":
+      return crudeOilPredictorSignals(bars, params, auxiliaryBars);
     default:
-      void auxiliaryBars;
       throw new Error(`Unknown or non-single-symbol strategy: ${strategyId}`);
   }
 }
@@ -448,6 +467,35 @@ function momentumReversalVolSignals(bars: HistoricalBar[], params: StrategyParam
     const notOverbought = r < params.maxRsi;
     const calmEnough = v < params.maxVolPct / 100;
     return trendUp && notOverbought && calmEnough ? "buy" : "sell";
+  });
+}
+
+// Crude and equity bars come from independent fetches and don't
+// necessarily share the same trading calendar (different holidays,
+// weekends) — forward-fill each equity bar to the latest crude bar at or
+// before it, same alignment approach the cross-sectional engine uses
+// across symbols.
+function crudeOilPredictorSignals(
+  bars: HistoricalBar[],
+  params: StrategyParams,
+  auxiliaryBars?: HistoricalBar[]
+): Signal[] {
+  if (!auxiliaryBars || auxiliaryBars.length === 0) return bars.map(() => "hold");
+
+  const lookback = Math.floor(params.lookback);
+  const direction = params.direction >= 0 ? 1 : -1;
+  const crudeReturns = trailingReturn(auxiliaryBars, lookback);
+
+  let cursor = -1;
+  return bars.map((bar) => {
+    while (cursor + 1 < auxiliaryBars.length && auxiliaryBars[cursor + 1].time <= bar.time) cursor++;
+    if (cursor < 0) return "hold";
+    const r = crudeReturns[cursor];
+    if (r === undefined) return "hold";
+    const signed = r * direction;
+    if (signed > 0) return "buy";
+    if (signed < 0) return "sell";
+    return "hold";
   });
 }
 

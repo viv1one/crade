@@ -148,6 +148,41 @@ describe("overnight_anomaly", () => {
   });
 });
 
+describe("crude_oil_predictor", () => {
+  function crudeBars(closes: number[], times: number[]): HistoricalBar[] {
+    return closes.map((c, i) => ({ time: times[i], open: c, high: c, low: c, close: c, volume: 0 }));
+  }
+
+  it("holds when no auxiliary bars are provided", () => {
+    const bars = barsFromCloses([100, 100, 100]);
+    const signals = generateSignals("crude_oil_predictor", bars, { lookback: 2, direction: -1 });
+    expect(signals.every((s) => s === "hold")).toBe(true);
+  });
+
+  it("buys on a crude decline with the default direction (-1), sells with direction +1", () => {
+    const equity = barsFromCloses([50, 50, 50]); // equity's own prices don't affect this signal
+    const crude = crudeBars([100, 100, 90], [0, 1, 2]); // -10% over the trailing 2 bars, at i2
+
+    const buyOnDecline = generateSignals("crude_oil_predictor", equity, { lookback: 2, direction: -1 }, crude);
+    expect(buyOnDecline).toEqual(["hold", "hold", "buy"]);
+
+    const sellOnDecline = generateSignals("crude_oil_predictor", equity, { lookback: 2, direction: 1 }, crude);
+    expect(sellOnDecline).toEqual(["hold", "hold", "sell"]);
+  });
+
+  it("forward-fills to the latest crude bar at or before each equity bar's date", () => {
+    // Equity trades on day 3, a day crude has no bar for — should use
+    // crude's day-2 value (its latest at-or-before day 3), not skip it.
+    const equity = barsFromCloses([50, 50, 50, 50]).map((b, i) => ({ ...b, time: [0, 1, 3, 4][i] }));
+    const crude = crudeBars([100, 100, 90, 90], [0, 1, 2, 4]);
+    const signals = generateSignals("crude_oil_predictor", equity, { lookback: 2, direction: -1 }, crude);
+    // day0/1: undefined (warmup). day3: forward-filled to crude's day-2
+    // reading -> buy. day4: crude's own day-4 bar, still -10% vs. two
+    // crude bars back (day1's 100) -> buy again.
+    expect(signals).toEqual(["hold", "hold", "buy", "buy"]);
+  });
+});
+
 describe("momentum_reversal_vol", () => {
   const params = { fastPeriod: 2, slowPeriod: 5, rsiPeriod: 3, maxRsi: 70, volPeriod: 3, maxVolPct: 5 };
 

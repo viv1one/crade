@@ -26,7 +26,8 @@ export type StrategyId =
   | "january_barometer"
   | "twelve_month_cycle"
   | "overnight_anomaly"
-  | "momentum_reversal_vol";
+  | "momentum_reversal_vol"
+  | "crude_oil_predictor";
 
 export type Signal = "buy" | "sell" | "hold";
 
