@@ -9,7 +9,8 @@ export type StrategyId =
   | "ml_momentum"
   | "trend_following"
   | "fifty_two_week_high"
-  | "momentum_factor";
+  | "momentum_factor"
+  | "consistent_momentum";
 
 export type Signal = "buy" | "sell" | "hold";
 

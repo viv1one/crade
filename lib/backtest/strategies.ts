@@ -88,6 +88,21 @@ export const STRATEGIES: Record<StrategyId, StrategyDef> = {
       { key: "topN", label: "Hold top N", default: 5, min: 1, max: 20 },
     ],
   },
+  consistent_momentum: {
+    id: "consistent_momentum",
+    name: "Consistent Momentum",
+    description:
+      "Cross-sectional momentum with a consistency filter: only ranks stocks that were positive in " +
+      "at least minPositiveMonths of the last lookbackMonths calendar months, then holds the top " +
+      "topN by total return over that window — rejects a stock whose momentum came from one big " +
+      "spike rather than sustained performance, even if its raw trailing return looks strong.",
+    kind: "cross_sectional",
+    paramSchema: [
+      { key: "lookbackMonths", label: "Lookback months", default: 6, min: 2, max: 12 },
+      { key: "minPositiveMonths", label: "Min positive months", default: 4, min: 1, max: 12 },
+      { key: "topN", label: "Hold top N", default: 5, min: 1, max: 20 },
+    ],
+  },
 };
 
 // auxiliaryBars is only populated for strategies whose StrategyDef sets

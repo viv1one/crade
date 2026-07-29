@@ -35,3 +35,51 @@ describe("momentum_factor score", () => {
     expect(scoreFn("A", context)).toBeUndefined();
   });
 });
+
+function monthlyBars(monthlyCloses: [number, number][]): HistoricalBar[] {
+  // Two bars per month (1st and 15th), months starting January 2024.
+  const out: HistoricalBar[] = [];
+  monthlyCloses.forEach(([startClose, endClose], monthIndex) => {
+    const t1 = Date.UTC(2024, monthIndex, 1) / 1000;
+    const t15 = Date.UTC(2024, monthIndex, 15) / 1000;
+    out.push({ time: t1, open: startClose, high: startClose, low: startClose, close: startClose, volume: 0 });
+    out.push({ time: t15, open: endClose, high: endClose, low: endClose, close: endClose, volume: 0 });
+  });
+  return out;
+}
+
+describe("consistent_momentum score", () => {
+  it("excludes a symbol whose gain came from one spike rather than sustained monthly performance", () => {
+    const scoreFn = getScoreFn("consistent_momentum");
+    // A: positive every month (Jan/Feb/Mar), modest total return.
+    // B: one huge January spike, then down in Feb and Mar — higher raw
+    // total return (+20% vs A's +15%) but only 1 of 3 months positive.
+    const context = ctx(
+      {
+        A: monthlyBars([
+          [100, 105],
+          [105, 110],
+          [110, 115],
+        ]),
+        B: monthlyBars([
+          [100, 200],
+          [200, 150],
+          [150, 120],
+        ]),
+      },
+      { lookbackMonths: 3, minPositiveMonths: 2 }
+    );
+
+    expect(scoreFn("A", context)).toBeCloseTo(0.15, 10);
+    expect(scoreFn("B", context)).toBeUndefined();
+  });
+
+  it("excludes a symbol with fewer months of history than lookbackMonths", () => {
+    const scoreFn = getScoreFn("consistent_momentum");
+    const context = ctx(
+      { A: monthlyBars([[100, 105], [105, 110]]) },
+      { lookbackMonths: 3, minPositiveMonths: 2 }
+    );
+    expect(scoreFn("A", context)).toBeUndefined();
+  });
+});
