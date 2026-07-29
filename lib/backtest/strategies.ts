@@ -1,4 +1,5 @@
 import type { HistoricalBar } from "../market-data/types";
+import { isTurnOfMonth } from "./calendar";
 import { rollingHigh, rollingLow, rsi, sma, trailingReturn } from "./indicators";
 import { generateMlSignals } from "./ml/strategy";
 import type { Signal, StrategyDef, StrategyId, StrategyParams } from "./types";
@@ -86,6 +87,19 @@ export const STRATEGIES: Record<StrategyId, StrategyDef> = {
     paramSchema: [
       { key: "lookback", label: "Lookback bars", default: 126, min: 10, max: 252 },
       { key: "topN", label: "Hold top N", default: 5, min: 1, max: 20 },
+    ],
+  },
+  turn_of_month: {
+    id: "turn_of_month",
+    name: "Turn of the Month",
+    description:
+      "Calendar effect (Ariel 1987): buy during the window from daysBeforeEnd calendar days before " +
+      "month-end through daysAfterStart days into the next month, flat the rest of the time. Applied " +
+      "per-symbol here rather than to a broad index — same idea, whatever symbol is loaded.",
+    kind: "single_symbol",
+    paramSchema: [
+      { key: "daysBeforeEnd", label: "Days before month-end", default: 1, min: 0, max: 5 },
+      { key: "daysAfterStart", label: "Days into next month", default: 3, min: 0, max: 10 },
     ],
   },
   consistent_momentum: {
@@ -196,6 +210,8 @@ export function generateSignals(
       return trendFollowingSignals(bars, params);
     case "fifty_two_week_high":
       return fiftyTwoWeekHighSignals(bars, params);
+    case "turn_of_month":
+      return turnOfMonthSignals(bars, params);
     default:
       void auxiliaryBars;
       throw new Error(`Unknown or non-single-symbol strategy: ${strategyId}`);
@@ -258,4 +274,10 @@ function fiftyTwoWeekHighSignals(bars: HistoricalBar[], params: StrategyParams):
     if (distanceFromHigh >= params.exitPct / 100) return "sell";
     return "hold";
   });
+}
+
+function turnOfMonthSignals(bars: HistoricalBar[], params: StrategyParams): Signal[] {
+  return bars.map((bar) =>
+    isTurnOfMonth(bar.time, params.daysBeforeEnd, params.daysAfterStart) ? "buy" : "sell"
+  );
 }

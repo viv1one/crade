@@ -12,6 +12,15 @@ function barsFromCloses(closes: number[]): HistoricalBar[] {
   return closes.map((c, i) => ({ time: i, open: c, high: c, low: c, close: c, volume: 0 }));
 }
 
+// For calendar-based strategies, which need real dates rather than a raw
+// index — one bar per date given, in (year, month1based, day) form.
+function barsFromDates(dates: [number, number, number][]): HistoricalBar[] {
+  return dates.map(([y, m, d]) => {
+    const time = Date.UTC(y, m - 1, d) / 1000;
+    return { time, open: 100, high: 100, low: 100, close: 100, volume: 0 };
+  });
+}
+
 describe("trend_following", () => {
   it("buys once the trailing return turns positive and sells once it turns negative", () => {
     // lookback=2: signal at i looks at close[i] vs close[i-2].
@@ -55,5 +64,22 @@ describe("fifty_two_week_high", () => {
       exitPct: 15,
     });
     expect(signals.every((s) => s === "hold")).toBe(true);
+  });
+});
+
+describe("turn_of_month", () => {
+  it("buys within the turn-of-month window and sells outside it", () => {
+    const bars = barsFromDates([
+      [2024, 1, 15], // mid-month -> sell (flat)
+      [2024, 1, 31], // last day of Jan -> buy
+      [2024, 2, 1], // first day of Feb -> buy
+      [2024, 2, 3], // within 3 days into Feb -> buy
+      [2024, 2, 4], // outside the window -> sell
+    ]);
+    const signals = generateSignals("turn_of_month", bars, {
+      daysBeforeEnd: 1,
+      daysAfterStart: 3,
+    });
+    expect(signals).toEqual(["sell", "buy", "buy", "buy", "sell"]);
   });
 });
