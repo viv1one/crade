@@ -83,3 +83,22 @@ describe("consistent_momentum score", () => {
     expect(scoreFn("A", context)).toBeUndefined();
   });
 });
+
+describe("short_term_reversal score", () => {
+  it("scores the worst-performing symbol highest", () => {
+    const scoreFn = getScoreFn("short_term_reversal");
+    const context = ctx(
+      {
+        A: bars([100, 90, 80, 70, 60, 50]), // -50% over the week — a sharp drop
+        B: bars([100, 102, 104, 106, 108, 110]), // +10% over the week
+      },
+      { lookback: 5 }
+    );
+
+    const scoreA = scoreFn("A", context);
+    const scoreB = scoreFn("B", context);
+    expect(scoreA).toBeCloseTo(0.5, 10);
+    expect(scoreB).toBeCloseTo(-0.1, 10);
+    expect(scoreA!).toBeGreaterThan(scoreB!);
+  });
+});

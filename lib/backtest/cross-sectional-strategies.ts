@@ -63,6 +63,14 @@ function consistentMomentumScore(symbol: string, ctx: RankContext): number | und
   return (windowEnd - windowStart) / windowStart;
 }
 
+// Same trailing-return math as momentum, negated — the worst recent
+// performer scores highest, betting on partial reversion rather than
+// continuation.
+function shortTermReversalScore(symbol: string, ctx: RankContext): number | undefined {
+  const r = trailingReturnScore(symbol, ctx, 5);
+  return r === undefined ? undefined : -r;
+}
+
 // Populated incrementally as each cross-sectional strategy is
 // implemented — mirrors strategies.ts's generateSignals() switch, just
 // keyed by lookup instead since strategies register a whole ScoreFn
@@ -70,6 +78,7 @@ function consistentMomentumScore(symbol: string, ctx: RankContext): number | und
 const SCORE_FUNCTIONS: Partial<Record<StrategyId, ScoreFn>> = {
   momentum_factor: momentumFactorScore,
   consistent_momentum: consistentMomentumScore,
+  short_term_reversal: shortTermReversalScore,
 };
 
 export function getScoreFn(strategyId: StrategyId): ScoreFn {

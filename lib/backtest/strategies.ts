@@ -103,6 +103,21 @@ export const STRATEGIES: Record<StrategyId, StrategyDef> = {
       { key: "topN", label: "Hold top N", default: 5, min: 1, max: 20 },
     ],
   },
+  short_term_reversal: {
+    id: "short_term_reversal",
+    name: "Short-Term Reversal (weekly)",
+    description:
+      "Cross-sectional short-term reversal (Jegadeesh 1990): ranks the NIFTY 50 universe by the " +
+      "worst trailing weekly return and holds the top topN, equal-weighted, rebalanced weekly — the " +
+      "opposite bet from Momentum Factor, on the theory that a sharp recent drop tends to partially " +
+      "revert over the following week rather than continue.",
+    kind: "cross_sectional",
+    paramSchema: [
+      { key: "lookback", label: "Lookback bars", default: 5, min: 2, max: 20 },
+      { key: "topN", label: "Hold top N", default: 5, min: 1, max: 20 },
+    ],
+    rebalanceFrequency: "weekly",
+  },
 };
 
 // auxiliaryBars is only populated for strategies whose StrategyDef sets
