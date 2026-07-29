@@ -6,7 +6,8 @@ export type StrategyId =
   | "sma_crossover"
   | "rsi_mean_reversion"
   | "momentum_breakout"
-  | "ml_momentum";
+  | "ml_momentum"
+  | "trend_following";
 
 export type Signal = "buy" | "sell" | "hold";
 

@@ -1,5 +1,5 @@
 import type { HistoricalBar } from "../market-data/types";
-import { rollingHigh, rollingLow, rsi, sma } from "./indicators";
+import { rollingHigh, rollingLow, rsi, sma, trailingReturn } from "./indicators";
 import { generateMlSignals } from "./ml/strategy";
 import type { Signal, StrategyDef, StrategyId, StrategyParams } from "./types";
 
@@ -51,6 +51,16 @@ export const STRATEGIES: Record<StrategyId, StrategyDef> = {
       { key: "margin", label: "Confidence margin", default: 0.05, min: 0, max: 0.3 },
     ],
   },
+  trend_following: {
+    id: "trend_following",
+    name: "Trend Following",
+    description:
+      "Time-series trend rule (Moskowitz-Ooi-Pedersen style): buy while the trailing return over " +
+      "the lookback window is positive, sell once it turns negative. Judges the symbol against its " +
+      "own past, not against other stocks — distinct from a cross-sectional momentum ranking.",
+    kind: "single_symbol",
+    paramSchema: [{ key: "lookback", label: "Lookback bars", default: 126, min: 10, max: 252 }],
+  },
 };
 
 // auxiliaryBars is only populated for strategies whose StrategyDef sets
@@ -71,6 +81,8 @@ export function generateSignals(
       return momentumBreakoutSignals(bars, params);
     case "ml_momentum":
       return generateMlSignals(bars, params);
+    case "trend_following":
+      return trendFollowingSignals(bars, params);
     default:
       void auxiliaryBars;
       throw new Error(`Unknown or non-single-symbol strategy: ${strategyId}`);
@@ -109,6 +121,16 @@ function momentumBreakoutSignals(bars: HistoricalBar[], params: StrategyParams):
     if (h === undefined || l === undefined) return "hold";
     if (bar.close > h) return "buy";
     if (bar.close < l) return "sell";
+    return "hold";
+  });
+}
+
+function trendFollowingSignals(bars: HistoricalBar[], params: StrategyParams): Signal[] {
+  const returns = trailingReturn(bars, params.lookback);
+  return returns.map((r) => {
+    if (r === undefined) return "hold";
+    if (r > 0) return "buy";
+    if (r < 0) return "sell";
     return "hold";
   });
 }

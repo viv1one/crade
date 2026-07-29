@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rollingHigh, rollingLow, rsi, sma } from "./indicators";
+import { rollingHigh, rollingLow, rsi, sma, trailingReturn } from "./indicators";
 import type { HistoricalBar } from "../market-data/types";
 
 function bar(close: number, high = close, low = close): HistoricalBar {
@@ -39,5 +39,17 @@ describe("rollingHigh / rollingLow", () => {
 
     expect(rollingHigh(bars, 2)).toEqual([undefined, undefined, 7, 7, 8, 9]);
     expect(rollingLow(bars, 2)).toEqual([undefined, undefined, 1, 2, 1, 1]);
+  });
+});
+
+describe("trailingReturn", () => {
+  it("computes the return over the trailing `period` bars, undefined during warmup", () => {
+    const bars = [100, 110, 90, 120, 60].map((c) => bar(c));
+    const values = trailingReturn(bars, 2);
+    expect(values[0]).toBeUndefined();
+    expect(values[1]).toBeUndefined();
+    expect(values[2]).toBeCloseTo(-0.1, 10); // (90-100)/100
+    expect(values[3]).toBeCloseTo(0.0909, 3); // (120-110)/110
+    expect(values[4]).toBeCloseTo(-0.3333, 3); // (60-90)/90
   });
 });

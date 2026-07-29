@@ -68,3 +68,16 @@ export function rollingLow(bars: HistoricalBar[], period: number): (number | und
   }
   return out;
 }
+
+// (close[i] - close[i - period]) / close[i - period] — the raw trailing
+// return over `period` bars, used by single-symbol time-series
+// momentum/trend strategies and, applied per-symbol, several
+// cross-sectional scoring functions (added as those strategies land).
+export function trailingReturn(bars: HistoricalBar[], period: number): (number | undefined)[] {
+  const out: (number | undefined)[] = new Array(bars.length).fill(undefined);
+  for (let i = period; i < bars.length; i++) {
+    const past = bars[i - period].close;
+    if (past !== 0) out[i] = (bars[i].close - past) / past;
+  }
+  return out;
+}
