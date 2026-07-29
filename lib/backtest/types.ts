@@ -19,7 +19,8 @@ export type StrategyId =
   | "turn_of_month"
   | "payday_anomaly"
   | "january_barometer"
-  | "twelve_month_cycle";
+  | "twelve_month_cycle"
+  | "overnight_anomaly";
 
 export type Signal = "buy" | "sell" | "hold";
 

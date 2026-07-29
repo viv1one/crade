@@ -113,6 +113,18 @@ export const STRATEGIES: Record<StrategyId, StrategyDef> = {
     kind: "single_symbol",
     paramSchema: [{ key: "windowDays", label: "Window days", default: 1, min: 0, max: 5 }],
   },
+  overnight_anomaly: {
+    id: "overnight_anomaly",
+    name: "Overnight Anomaly",
+    description:
+      "Splits each day's return into an overnight leg (today's open vs. yesterday's close) and " +
+      "trades in the direction the overnight leg has recently averaged over lookback bars. This " +
+      "app's engine fills every trade at a bar's close, not its open, so this doesn't literally hold " +
+      "positions only overnight — it's a signal derived from the overnight/intraday split, not a " +
+      "literal overnight-only strategy.",
+    kind: "single_symbol",
+    paramSchema: [{ key: "lookback", label: "Lookback bars", default: 10, min: 2, max: 60 }],
+  },
   january_barometer: {
     id: "january_barometer",
     name: "January Barometer",
@@ -249,6 +261,8 @@ export function generateSignals(
       return paydayAnomalySignals(bars, params);
     case "january_barometer":
       return januaryBarometerSignals(bars);
+    case "overnight_anomaly":
+      return overnightAnomalySignals(bars, params);
     default:
       void auxiliaryBars;
       throw new Error(`Unknown or non-single-symbol strategy: ${strategyId}`);
@@ -321,6 +335,29 @@ function turnOfMonthSignals(bars: HistoricalBar[], params: StrategyParams): Sign
 
 function paydayAnomalySignals(bars: HistoricalBar[], params: StrategyParams): Signal[] {
   return bars.map((bar) => (isPaydayWindow(bar.time, params.windowDays) ? "buy" : "sell"));
+}
+
+function overnightReturns(bars: HistoricalBar[]): (number | undefined)[] {
+  const out: (number | undefined)[] = new Array(bars.length).fill(undefined);
+  for (let i = 1; i < bars.length; i++) {
+    const prevClose = bars[i - 1].close;
+    if (prevClose !== 0) out[i] = (bars[i].open - prevClose) / prevClose;
+  }
+  return out;
+}
+
+function overnightAnomalySignals(bars: HistoricalBar[], params: StrategyParams): Signal[] {
+  const lookback = Math.floor(params.lookback);
+  const overnight = overnightReturns(bars);
+  return bars.map((_, i) => {
+    if (i < lookback) return "hold";
+    const window = overnight.slice(i - lookback + 1, i + 1);
+    if (window.some((v) => v === undefined)) return "hold";
+    const avg = (window as number[]).reduce((a, b) => a + b, 0) / lookback;
+    if (avg > 0) return "buy";
+    if (avg < 0) return "sell";
+    return "hold";
+  });
 }
 
 function januaryBarometerSignals(bars: HistoricalBar[]): Signal[] {

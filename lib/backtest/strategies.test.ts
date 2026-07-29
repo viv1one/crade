@@ -114,3 +114,22 @@ describe("january_barometer", () => {
     expect(signals).toEqual(["hold", "hold", "buy", "hold", "hold", "sell"]);
   });
 });
+
+describe("overnight_anomaly", () => {
+  it("buys after recent gap-ups and sells after recent gap-downs", () => {
+    function ohlc(open: number, close: number): HistoricalBar {
+      return { time: 0, open, high: Math.max(open, close), low: Math.min(open, close), close, volume: 0 };
+    }
+    // i1,i2: gap up from the prior close (+5%, +6.67%)
+    // i3,i4: gap down from the prior close (-10.7%, -10%)
+    const bars = [
+      ohlc(100, 100),
+      ohlc(105, 105),
+      ohlc(112, 112),
+      ohlc(100, 100),
+      ohlc(90, 90),
+    ];
+    const signals = generateSignals("overnight_anomaly", bars, { lookback: 2 });
+    expect(signals).toEqual(["hold", "hold", "buy", "sell", "sell"]);
+  });
+});
