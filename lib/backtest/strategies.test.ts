@@ -30,3 +30,30 @@ describe("trend_following", () => {
     expect(signals.every((s) => s === "hold")).toBe(true);
   });
 });
+
+describe("fifty_two_week_high", () => {
+  it("buys near/at a new high and sells once price falls well below it", () => {
+    // lookback=3 looks at the 3 bars preceding each index (rollingHigh's
+    // own convention, current bar excluded).
+    //   i3: prior high 10, close 20 (a breakout, above the high) -> buy
+    //   i4: prior high 20, close 19 -> exactly 5% below -> still buy
+    //   i5: prior high 20, close 5  -> 75% below -> sell
+    const bars = barsFromCloses([10, 10, 10, 20, 19, 5]);
+    const signals = generateSignals("fifty_two_week_high", bars, {
+      lookback: 3,
+      nearPct: 5,
+      exitPct: 15,
+    });
+    expect(signals.slice(3)).toEqual(["buy", "buy", "sell"]);
+  });
+
+  it("holds when there isn't enough history yet", () => {
+    const bars = barsFromCloses([10, 11, 12]);
+    const signals = generateSignals("fifty_two_week_high", bars, {
+      lookback: 252,
+      nearPct: 5,
+      exitPct: 15,
+    });
+    expect(signals.every((s) => s === "hold")).toBe(true);
+  });
+});

@@ -7,7 +7,8 @@ export type StrategyId =
   | "rsi_mean_reversion"
   | "momentum_breakout"
   | "ml_momentum"
-  | "trend_following";
+  | "trend_following"
+  | "fifty_two_week_high";
 
 export type Signal = "buy" | "sell" | "hold";
 

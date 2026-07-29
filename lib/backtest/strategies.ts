@@ -61,6 +61,20 @@ export const STRATEGIES: Record<StrategyId, StrategyDef> = {
     kind: "single_symbol",
     paramSchema: [{ key: "lookback", label: "Lookback bars", default: 126, min: 10, max: 252 }],
   },
+  fifty_two_week_high: {
+    id: "fifty_two_week_high",
+    name: "52-Week High",
+    description:
+      "George & Hwang's 52-week-high effect: buy while price is within nearPct of its trailing " +
+      "52-week high, sell once it falls more than exitPct below that high. Nearness to the high " +
+      "itself is the signal here, not the return that got it there.",
+    kind: "single_symbol",
+    paramSchema: [
+      { key: "lookback", label: "Lookback bars (52wk)", default: 252, min: 20, max: 252 },
+      { key: "nearPct", label: "Buy within % of high", default: 5, min: 1, max: 30 },
+      { key: "exitPct", label: "Sell % below high", default: 15, min: 5, max: 50 },
+    ],
+  },
 };
 
 // auxiliaryBars is only populated for strategies whose StrategyDef sets
@@ -83,6 +97,8 @@ export function generateSignals(
       return generateMlSignals(bars, params);
     case "trend_following":
       return trendFollowingSignals(bars, params);
+    case "fifty_two_week_high":
+      return fiftyTwoWeekHighSignals(bars, params);
     default:
       void auxiliaryBars;
       throw new Error(`Unknown or non-single-symbol strategy: ${strategyId}`);
@@ -131,6 +147,18 @@ function trendFollowingSignals(bars: HistoricalBar[], params: StrategyParams): S
     if (r === undefined) return "hold";
     if (r > 0) return "buy";
     if (r < 0) return "sell";
+    return "hold";
+  });
+}
+
+function fiftyTwoWeekHighSignals(bars: HistoricalBar[], params: StrategyParams): Signal[] {
+  const highs = rollingHigh(bars, params.lookback);
+  return bars.map((bar, i) => {
+    const h = highs[i];
+    if (h === undefined || h === 0) return "hold";
+    const distanceFromHigh = (h - bar.close) / h; // 0 = at the high, positive = below it
+    if (distanceFromHigh <= params.nearPct / 100) return "buy";
+    if (distanceFromHigh >= params.exitPct / 100) return "sell";
     return "hold";
   });
 }
