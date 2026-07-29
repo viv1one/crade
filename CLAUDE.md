@@ -319,6 +319,56 @@ with an optional AI-generated review (`app/api/backtest/[id]/review/route.ts`, `
 `equity-chart.tsx`). `lib/events/engine.ts` is a small generic pub/sub (unrelated to price alerts)
 used to fan out per-symbol backtest results to an aggregator.
 
+**Three backtest "kinds," one shared `STRATEGIES` registry.** `StrategyDef.kind` (`types.ts`) is
+`"single_symbol"` (the original engine above, unchanged) or `"cross_sectional"` — added to support
+strategies from `crade-strategy-loop-prompt.md`'s queue that the single-symbol engine architecturally
+can't express (ranking/comparing across many stocks, not just reading one stock's own OHLCV). A third
+kind, pairs trading, deliberately isn't a `StrategyDef` at all (see below) since its config shape
+(two symbols, not one/many) doesn't fit the same picker.
+
+- **`cross-sectional-engine.ts`** (`runCrossSectionalBacktest`) ranks the *whole* universe at each
+  rebalance date (monthly by default, weekly if `StrategyDef.rebalanceFrequency` says so) via a
+  strategy-supplied `ScoreFn` (registered per `StrategyId` in `cross-sectional-strategies.ts`,
+  mirroring `strategies.ts`'s `generateSignals` switch, just as a lookup map instead — populated one
+  entry per strategy as `docs/strategy-library-log.md` strategies land), buys/holds the top
+  `params.topN` equal-weighted, and reuses `applyBuy`/`applySell` from `lib/paper-trading/store.ts`
+  against one shared `PortfolioState` — long-only ranking needs nothing that store doesn't already do,
+  so it's untouched. Deliberately simpler than full rebalance-to-target-weight: only membership
+  changes trade; a position that stays in the top-N isn't resized every rebalance. `RankContext` only
+  ever exposes bars truncated to "as of now" per symbol (never the full series) so a strategy can't
+  accidentally compare itself to another symbol's future price. The API route
+  (`app/api/backtest/cross-sectional/route.ts`) fetches the full `NIFTY_50` universe with the same
+  concurrency-5 worker pool as `lib/screener/fetch.ts`, fetching `Fundamentals` too only when
+  `StrategyDef.needsFundamentals` is set (most cross-sectional strategies are price-only — skip the
+  extra 50 requests when they're not needed).
+- **`pairs-engine.ts`** (`runPairsBacktest`) trades a rolling z-score of `log(priceA/priceB)` between
+  two user-chosen symbols — a market-neutral spread, not a `StrategyDef`/`STRATEGIES` entry (see
+  `app/api/backtest/pairs/route.ts` and the "Pairs" mode in `backtest-panel.tsx`). **Deliberately does
+  not touch `lib/paper-trading/store.ts`** — that store is shared with the live paper-trading feature
+  and long-only by design (a short leg has no representation there), so this engine tracks its own
+  cash/position ledger instead, with the standard short-sell accounting (short-open credits cash,
+  buy-to-cover debits it). Reuses the existing `Trade[]` shape for the trade log (every leg of every
+  open/close is its own row: short-open is a `"sell"`, its later buy-to-cover is a `"buy"` with
+  `realizedPnl` — standard terminology, no pairs-specific UI needed) but does **not** feed that raw
+  list to `computeMetrics()` — a short-open is technically a `"sell"` with no P&L yet, which would
+  corrupt win-rate if counted as one. Metrics are computed from one synthetic entry per *closed round
+  trip* instead (both legs' P&L combined), so win rate means "how many pair trades were profitable."
+  Trades a chosen pair, not an automated cointegration scan across all NIFTY_50 pairs (noted as a
+  possible future enhancement, not required for this to be a faithful pairs-trading implementation).
+- **`StrategyDef.approximation`** (`types.ts`), when set, renders a visible "Proxy" badge next to the
+  strategy name in `backtest-panel.tsx` plus the approximation text under the description — the
+  labeling this app's Tier B strategies (ones that approximate data no current provider actually
+  returns, e.g. book value) are required to have, per `crade-strategy-loop-prompt.md` §1.
+  **`StrategyDef.auxiliary`** lets one single-symbol strategy receive a second real price series
+  (e.g. crude oil) through `generateSignals`'s optional `auxiliaryBars` param without changing the
+  signature every other strategy uses.
+- **`lib/backtest/calendar.ts`** — pure calendar-date math (`isTurnOfMonth`, `isPaydayWindow`,
+  `daysToMonthlyExpiry`/`isExpiryWeek`) shared by the calendar-effect strategies. No trading-calendar
+  awareness (weekends/holidays aren't modeled — documented in the file header as a stated
+  simplification, not a hidden one).
+- **`docs/strategy-library-log.md`** (created once the first Phase 1 strategy lands) tracks what's
+  been implemented from the loop file's queue vs. skipped, and why.
+
 ### App structure
 
 `app/page.tsx` is a client component (`"use client"`) that owns the single `usePaperPortfolio()` hook
