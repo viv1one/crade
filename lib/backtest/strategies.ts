@@ -158,6 +158,20 @@ export const STRATEGIES: Record<StrategyId, StrategyDef> = {
     needsFundamentals: true,
     paramSchema: [{ key: "topN", label: "Hold top N", default: 5, min: 1, max: 20 }],
   },
+  sector_momentum: {
+    id: "sector_momentum",
+    name: "Sector Momentum Rotation",
+    description:
+      "Rotational sector strategy: scores every stock by its own sector's average trailing return " +
+      "(sector from the NIFTY 50 universe list) rather than the stock's own return, then holds the " +
+      "topN stocks whose sectors are showing the strongest momentum, equal-weighted, monthly " +
+      "rebalance — a bet on which sectors are leading, not which individual names are.",
+    kind: "cross_sectional",
+    paramSchema: [
+      { key: "lookback", label: "Lookback bars", default: 63, min: 10, max: 252 },
+      { key: "topN", label: "Hold top N", default: 5, min: 1, max: 20 },
+    ],
+  },
 };
 
 // auxiliaryBars is only populated for strategies whose StrategyDef sets

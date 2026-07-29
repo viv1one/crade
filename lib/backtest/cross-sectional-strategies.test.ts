@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getScoreFn } from "./cross-sectional-strategies";
 import type { Fundamentals, HistoricalBar } from "../market-data/types";
+import type { UniverseStock } from "../screener/universe";
 import type { RankContext } from "./types";
 
 function bars(closes: number[]): HistoricalBar[] {
@@ -10,9 +11,10 @@ function bars(closes: number[]): HistoricalBar[] {
 function ctx(
   barsBySymbol: Record<string, HistoricalBar[]>,
   params: Record<string, number>,
-  fundamentalsBySymbol: Record<string, Fundamentals | undefined> = {}
+  fundamentalsBySymbol: Record<string, Fundamentals | undefined> = {},
+  universe: UniverseStock[] = []
 ): RankContext {
-  return { barsBySymbol, fundamentalsBySymbol, universe: [], params };
+  return { barsBySymbol, fundamentalsBySymbol, universe, params };
 }
 
 describe("momentum_factor score", () => {
@@ -190,6 +192,43 @@ describe("size_factor score", () => {
   it("excludes a symbol with no marketCap in its fundamentals", () => {
     const scoreFn = getScoreFn("size_factor");
     const context = ctx({ A: bars([100]) }, {}, { A: { symbol: "A" } });
+    expect(scoreFn("A", context)).toBeUndefined();
+  });
+});
+
+describe("sector_momentum score", () => {
+  it("scores a stock by its sector's average return, not its own", () => {
+    const universe: UniverseStock[] = [
+      { symbol: "A1", name: "A1", sector: "Tech" },
+      { symbol: "A2", name: "A2", sector: "Tech" },
+      { symbol: "B1", name: "B1", sector: "Auto" },
+      { symbol: "B2", name: "B2", sector: "Auto" },
+    ];
+    const context = ctx(
+      {
+        A1: bars([100, 130]), // +30%
+        A2: bars([100, 102]), // +2% — Tech sector average is (30%+2%)/2 = 16%
+        B1: bars([100, 110]), // +10%
+        B2: bars([100, 110]), // +10% — Auto sector average is 10%
+      },
+      { lookback: 1 },
+      {},
+      universe
+    );
+
+    const scoreFn = getScoreFn("sector_momentum");
+    // A2's own return (2%) is worse than B1's (10%), but A2 is in the
+    // stronger sector (16% avg vs. 10%) and should still outrank B1.
+    const scoreA2 = scoreFn("A2", context)!;
+    const scoreB1 = scoreFn("B1", context)!;
+    expect(scoreA2).toBeCloseTo(0.16, 10);
+    expect(scoreB1).toBeCloseTo(0.1, 10);
+    expect(scoreA2).toBeGreaterThan(scoreB1);
+  });
+
+  it("excludes a symbol not present in the universe list", () => {
+    const scoreFn = getScoreFn("sector_momentum");
+    const context = ctx({ A: bars([100, 110]) }, { lookback: 1 }, {}, []);
     expect(scoreFn("A", context)).toBeUndefined();
   });
 });

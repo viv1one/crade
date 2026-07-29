@@ -145,6 +145,21 @@ function sizeFactorScore(symbol: string, ctx: RankContext): number | undefined {
   return -marketCap; // smaller cap ranks higher
 }
 
+// Every stock in a sector shares that sector's average trailing return as
+// its score — deliberately not each stock's own return, so ranking is a
+// bet on which sectors are leading, not which individual names within
+// them look strongest.
+function sectorMomentumScore(symbol: string, ctx: RankContext): number | undefined {
+  const stock = ctx.universe.find((u) => u.symbol === symbol);
+  if (!stock) return undefined;
+  const peerReturns = ctx.universe
+    .filter((u) => u.sector === stock.sector)
+    .map((u) => trailingReturnScore(u.symbol, ctx, 63))
+    .filter((r): r is number => r !== undefined);
+  if (peerReturns.length === 0) return undefined;
+  return peerReturns.reduce((a, b) => a + b, 0) / peerReturns.length;
+}
+
 // Populated incrementally as each cross-sectional strategy is
 // implemented — mirrors strategies.ts's generateSignals() switch, just
 // keyed by lookup instead since strategies register a whole ScoreFn
@@ -156,6 +171,7 @@ const SCORE_FUNCTIONS: Partial<Record<StrategyId, ScoreFn>> = {
   low_volatility: lowVolatilityScore,
   betting_against_beta: bettingAgainstBetaScore,
   size_factor: sizeFactorScore,
+  sector_momentum: sectorMomentumScore,
 };
 
 export function getScoreFn(strategyId: StrategyId): ScoreFn {

@@ -14,7 +14,8 @@ export type StrategyId =
   | "short_term_reversal"
   | "low_volatility"
   | "betting_against_beta"
-  | "size_factor";
+  | "size_factor"
+  | "sector_momentum";
 
 export type Signal = "buy" | "sell" | "hold";
 
