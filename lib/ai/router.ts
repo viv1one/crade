@@ -30,6 +30,7 @@ const chainByTask: Record<ChatTask, string[]> = {
   summarize: ["nim", "anthropic", "openai"],
   explain_move: ["anthropic", "nim", "openai"],
   chat: ["anthropic", "openai", "nim"],
+  backtest_review: ["nim", "anthropic", "openai"],
 };
 
 async function callProvider(
