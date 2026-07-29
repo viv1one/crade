@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Quote } from "@/lib/market-data";
 import { useWatchlist } from "./use-watchlist";
 
@@ -57,6 +57,22 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
   function refreshAll() {
     symbols.forEach((s) => fetchQuote(s));
   }
+
+  // Auto-fetch a symbol's quote the first time it appears (initial load or
+  // just added) instead of making the user click Fetch. fetchedRef tracks
+  // which symbols have already been kicked off so this doesn't re-fetch on
+  // every unrelated re-render — only genuinely new symbols trigger a call.
+  const fetchedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!loaded) return;
+    for (const symbol of symbols) {
+      if (!fetchedRef.current.has(symbol)) {
+        fetchedRef.current.add(symbol);
+        fetchQuote(symbol);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, symbols]);
 
   function trade(symbol: string, side: "buy" | "sell") {
     const row = getRow(symbol);
@@ -137,7 +153,7 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
                     disabled={row.loading}
                     className="text-xs rounded-full border border-black/[.08] dark:border-white/[.145] px-3 py-1.5 hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] transition-colors disabled:opacity-50"
                   >
-                    {row.loading ? "Loading…" : "Fetch"}
+                    {row.loading ? "Loading…" : "Refresh"}
                   </button>
                   <button
                     onClick={() => removeSymbol(symbol)}
@@ -163,7 +179,7 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
                   onClick={() => trade(symbol, "buy")}
                   disabled={!row.quote || row.quote.stale}
                   className="text-xs rounded-lg bg-green-600 text-white px-3 py-1.5 font-medium hover:bg-green-700 transition-colors disabled:opacity-40"
-                  title={!row.quote ? "Fetch a quote first" : row.quote.stale ? "Quote is stale — can't trade on it" : undefined}
+                  title={!row.quote ? "Waiting for a quote" : row.quote.stale ? "Quote is stale — can't trade on it" : undefined}
                 >
                   Buy
                 </button>
@@ -171,7 +187,7 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
                   onClick={() => trade(symbol, "sell")}
                   disabled={!row.quote || row.quote.stale}
                   className="text-xs rounded-lg bg-red-600 text-white px-3 py-1.5 font-medium hover:bg-red-700 transition-colors disabled:opacity-40"
-                  title={!row.quote ? "Fetch a quote first" : row.quote.stale ? "Quote is stale — can't trade on it" : undefined}
+                  title={!row.quote ? "Waiting for a quote" : row.quote.stale ? "Quote is stale — can't trade on it" : undefined}
                 >
                   Sell
                 </button>

@@ -103,8 +103,23 @@ touching call sites.
     itself, before a cookie can even be obtained) — this looks like a straight IP-range block on NSE's
     side (common for cloud/datacenter egress IPs) rather than something retries fix; may behave
     differently once deployed off a sandbox IP, but don't assume it works without checking.
-  - `fallback-provider.ts` — `withFallback([yahoo, nse])`: tries each provider in order per-method (a
-    quote can succeed on yahoo while historical falls through to nse, independently).
+  - `providers/screener-in.ts` — scrapes screener.in's public company page for `getFundamentals` only
+    (`peRatio`, `marketCap`, `dividendYield`; no EPS). Added because Yahoo's fundamentals endpoint was
+    the least reliable data source in the app (see above) — this was reachable when Yahoo/NSE weren't,
+    confirmed by live-testing all three back to back. Same "not licensed for redistribution, scraped
+    HTML not a stable contract" caveat as the other two free providers — screener.in can change its
+    page structure without notice, and `extractRatio()`'s label-then-nearest-number matching is
+    intentionally loose (handles the site's irregular internal whitespace) but has no way to know if
+    the page structure changes entirely; if fundamentals silently stop appearing again, check this
+    first, not just Yahoo/NSE. `getQuote`/`getHistorical` reject immediately (no network call) since
+    this provider only covers fundamentals — see `fallback-provider.ts` below for why it's still safe
+    to list first in the chain.
+  - `fallback-provider.ts` — `withFallback([screener-in, yahoo, nse])`: tries each provider in order
+    per-method independently (a quote can succeed on yahoo while fundamentals come from screener-in).
+    screener-in is listed first specifically to prioritize it for `getFundamentals` (currently the most
+    reliable of the three for that one method) — this costs nothing for `getQuote`/`getHistorical`
+    since its versions of those reject immediately, so the chain moves on to yahoo essentially
+    instantly for everything except fundamentals.
   - `cache.ts` / `cached-provider.ts` — two independent cache wrappers: `withHistoricalCache()` for
     `getHistorical` (5-minute TTL, `price_cache` collection) and `withFundamentalsCache()` for
     `getFundamentals` (6-hour TTL, `fundamentals_cache` collection — much longer, since P/E/market cap
@@ -214,6 +229,11 @@ touching call sites.
     business logic lives there anymore.
   - `app/api/watchlist/route.ts` / `app/use-watchlist.ts` follow the same shape for the symbol list
     (full-array GET/POST, keyed by the same `ownerId`).
+  - `app/watchlist.tsx` auto-fetches each symbol's quote the first time it appears (initial load or
+    just added) via a `useEffect` gated by a `fetchedRef` Set, rather than requiring a manual click —
+    the per-row button (labeled "Refresh") is for re-fetching, not the only way to get a quote at all
+    anymore. If you add a new way symbols can enter the list, make sure it still funnels through this
+    effect (keyed on the `symbols` array) rather than needing its own fetch call.
 
 ### Sharing (`shares` collection) — read-only peer invites, not a team/org model
 
