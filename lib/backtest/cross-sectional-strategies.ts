@@ -221,6 +221,45 @@ function twelveMonthCycleScore(symbol: string, ctx: RankContext): number | undef
   return returns.reduce((a, b) => a + b, 0) / returns.length;
 }
 
+function zScore(values: number[], x: number): number {
+  const m = mean(values);
+  const variance = values.reduce((a, b) => a + (b - m) ** 2, 0) / values.length;
+  const std = Math.sqrt(variance);
+  return std === 0 ? 0 : (x - m) / std;
+}
+
+// Sums the z-scored Momentum Factor, Low Volatility, and Sector Momentum
+// sub-signals across whichever symbols are scoreable on all three at
+// this rebalance. Recomputes the whole universe's sub-scores on every
+// call (once per symbol per rebalance) — same accepted O(n) redundancy
+// as equalWeightMarketReturns; NIFTY_50-sized universes stay fast.
+function smartFactorCompositeScore(symbol: string, ctx: RankContext): number | undefined {
+  const momentum = new Map<string, number>();
+  const lowVol = new Map<string, number>();
+  const sectorMom = new Map<string, number>();
+
+  for (const u of ctx.universe) {
+    const m = momentumFactorScore(u.symbol, ctx);
+    const v = lowVolatilityScore(u.symbol, ctx);
+    const s = sectorMomentumScore(u.symbol, ctx);
+    if (m !== undefined && v !== undefined && s !== undefined) {
+      momentum.set(u.symbol, m);
+      lowVol.set(u.symbol, v);
+      sectorMom.set(u.symbol, s);
+    }
+  }
+
+  if (!momentum.has(symbol)) return undefined; // not scoreable on all three sub-signals
+  const momentumValues = Array.from(momentum.values());
+  if (momentumValues.length < 2) return undefined; // z-score needs more than one data point
+
+  return (
+    zScore(momentumValues, momentum.get(symbol)!) +
+    zScore(Array.from(lowVol.values()), lowVol.get(symbol)!) +
+    zScore(Array.from(sectorMom.values()), sectorMom.get(symbol)!)
+  );
+}
+
 // Populated incrementally as each cross-sectional strategy is
 // implemented — mirrors strategies.ts's generateSignals() switch, just
 // keyed by lookup instead since strategies register a whole ScoreFn
@@ -234,6 +273,7 @@ const SCORE_FUNCTIONS: Partial<Record<StrategyId, ScoreFn>> = {
   residual_momentum: residualMomentumScore,
   size_factor: sizeFactorScore,
   sector_momentum: sectorMomentumScore,
+  smart_factor_composite: smartFactorCompositeScore,
   twelve_month_cycle: twelveMonthCycleScore,
 };
 

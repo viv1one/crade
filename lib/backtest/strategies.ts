@@ -252,6 +252,20 @@ export const STRATEGIES: Record<StrategyId, StrategyDef> = {
       { key: "topN", label: "Hold top N", default: 5, min: 1, max: 20 },
     ],
   },
+  smart_factor_composite: {
+    id: "smart_factor_composite",
+    name: "Composite Smart Factors",
+    description:
+      "Combines Momentum Factor, Low Volatility, and Sector Momentum into one ranking: z-scores each " +
+      "sub-signal across the eligible universe at every rebalance, sums the three z-scores, and holds " +
+      "the topN highest composites — a symbol only needs to be scoreable on all three to be ranked at " +
+      "all.",
+    kind: "cross_sectional",
+    paramSchema: [
+      { key: "lookback", label: "Lookback bars", default: 90, min: 20, max: 252 },
+      { key: "topN", label: "Hold top N", default: 5, min: 1, max: 20 },
+    ],
+  },
   twelve_month_cycle: {
     id: "twelve_month_cycle",
     name: "12-Month Cycle",

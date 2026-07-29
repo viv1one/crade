@@ -109,6 +109,50 @@ describe("short_term_reversal score", () => {
   });
 });
 
+describe("smart_factor_composite score", () => {
+  it("ranks a symbol strong on both momentum and low-vol above one weak on both, with sectors tied", () => {
+    // Two sectors, two symbols each. Momentum uses only the first/last
+    // close (trailingReturnScore), so the intermediate zigzag only
+    // affects volatility — chosen so each sector's *average* momentum
+    // comes out equal (0.01), meaning the sector sub-signal contributes
+    // the same value to every symbol here and can't be what
+    // differentiates T1 from T2. T1 wins purely on its own momentum
+    // (highest) and volatility (lowest, steady small steps vs. T2's
+    // choppy swings).
+    const universe = [
+      { symbol: "T1", name: "T1", sector: "Tech" },
+      { symbol: "T2", name: "T2", sector: "Tech" },
+      { symbol: "A1", name: "A1", sector: "Auto" },
+      { symbol: "A2", name: "A2", sector: "Auto" },
+    ];
+    const context = ctx(
+      {
+        T1: bars([100, 101, 102, 103, 104, 105]), // +5%, steady
+        T2: bars([100, 103, 97, 101, 95, 97]), // -3%, choppy
+        A1: bars([100, 102, 101, 102.5, 101.5, 103]), // +3%
+        A2: bars([100, 99.5, 100.2, 99.8, 100.1, 99]), // -1%
+      },
+      { lookback: 5 },
+      {},
+      universe
+    );
+
+    const scoreFn = getScoreFn("smart_factor_composite");
+    const scoreT1 = scoreFn("T1", context)!;
+    const scoreT2 = scoreFn("T2", context)!;
+    expect(scoreT1).toBeDefined();
+    expect(scoreT2).toBeDefined();
+    expect(scoreT1).toBeGreaterThan(scoreT2);
+  });
+
+  it("excludes a symbol with too few universe peers to z-score against", () => {
+    const scoreFn = getScoreFn("smart_factor_composite");
+    const universe = [{ symbol: "Solo", name: "Solo", sector: "X" }];
+    const context = ctx({ Solo: bars([100, 101, 102, 103, 104, 105]) }, { lookback: 5 }, {}, universe);
+    expect(scoreFn("Solo", context)).toBeUndefined();
+  });
+});
+
 describe("residual_momentum score", () => {
   it("scores a stock with idiosyncratic drift beyond its beta higher than one that just tracks the market", () => {
     // X moves exactly with a base pattern; Y moves with the same pattern
