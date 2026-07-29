@@ -133,3 +133,26 @@ describe("overnight_anomaly", () => {
     expect(signals).toEqual(["hold", "hold", "buy", "sell", "sell"]);
   });
 });
+
+describe("momentum_reversal_vol", () => {
+  const params = { fastPeriod: 2, slowPeriod: 5, rsiPeriod: 3, maxRsi: 70, volPeriod: 3, maxVolPct: 5 };
+
+  it("sells throughout a clean downtrend regardless of RSI/vol (the trend leg alone fails)", () => {
+    const bars = barsFromCloses([110, 108, 106, 104, 102, 100, 98, 96, 94, 92, 90]);
+    const signals = generateSignals("momentum_reversal_vol", bars, params);
+    expect(signals.slice(4)).toEqual(new Array(7).fill("sell"));
+  });
+
+  it("alternates buy/sell in an uptrend as the RSI overbought guard trips on the zigzag", () => {
+    // Trend is up throughout (fast SMA > slow SMA from i4 on), but a
+    // short RSI period on a zigzag pattern swings RSI above/below the
+    // 70 overbought guard every other bar — demonstrating the guard
+    // actively filtering out half the trend-following signals, not just
+    // rubber-stamping the trend leg.
+    const bars = barsFromCloses([100, 102, 101, 103, 102, 104, 103, 105, 104, 106, 105, 107, 106, 108, 107, 109, 108, 110]);
+    const signals = generateSignals("momentum_reversal_vol", bars, params);
+    expect(signals.slice(4)).toEqual([
+      "buy", "sell", "buy", "sell", "buy", "sell", "buy", "sell", "buy", "sell", "buy", "sell", "buy", "sell",
+    ]);
+  });
+});

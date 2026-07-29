@@ -1,6 +1,6 @@
 import type { HistoricalBar } from "../market-data/types";
 import { calendarMonth, calendarYear, isPaydayWindow, isTurnOfMonth } from "./calendar";
-import { rollingHigh, rollingLow, rsi, sma, trailingReturn } from "./indicators";
+import { rollingHigh, rollingLow, rsi, sma, trailingReturn, volatility } from "./indicators";
 import { generateMlSignals } from "./ml/strategy";
 import type { Signal, StrategyDef, StrategyId, StrategyParams } from "./types";
 
@@ -112,6 +112,24 @@ export const STRATEGIES: Record<StrategyId, StrategyDef> = {
       "despite similar date math.",
     kind: "single_symbol",
     paramSchema: [{ key: "windowDays", label: "Window days", default: 1, min: 0, max: 5 }],
+  },
+  momentum_reversal_vol: {
+    id: "momentum_reversal_vol",
+    name: "Momentum + Reversal + Vol",
+    description:
+      "Composite single-symbol filter: buy only when the trend is up (fast SMA above slow), RSI " +
+      "isn't overbought (a reversal guard against buying an extended spike), and recent volatility " +
+      "is below a threshold — sell if any leg fails. Combines three existing indicators rather than " +
+      "adding a new one.",
+    kind: "single_symbol",
+    paramSchema: [
+      { key: "fastPeriod", label: "Fast SMA period", default: 10, min: 2, max: 50 },
+      { key: "slowPeriod", label: "Slow SMA period", default: 30, min: 5, max: 200 },
+      { key: "rsiPeriod", label: "RSI period", default: 14, min: 2, max: 50 },
+      { key: "maxRsi", label: "Max RSI (overbought guard)", default: 70, min: 50, max: 95 },
+      { key: "volPeriod", label: "Volatility lookback", default: 20, min: 5, max: 100 },
+      { key: "maxVolPct", label: "Max daily volatility %", default: 3, min: 0.5, max: 10 },
+    ],
   },
   overnight_anomaly: {
     id: "overnight_anomaly",
@@ -277,6 +295,8 @@ export function generateSignals(
       return januaryBarometerSignals(bars);
     case "overnight_anomaly":
       return overnightAnomalySignals(bars, params);
+    case "momentum_reversal_vol":
+      return momentumReversalVolSignals(bars, params);
     default:
       void auxiliaryBars;
       throw new Error(`Unknown or non-single-symbol strategy: ${strategyId}`);
@@ -349,6 +369,24 @@ function turnOfMonthSignals(bars: HistoricalBar[], params: StrategyParams): Sign
 
 function paydayAnomalySignals(bars: HistoricalBar[], params: StrategyParams): Signal[] {
   return bars.map((bar) => (isPaydayWindow(bar.time, params.windowDays) ? "buy" : "sell"));
+}
+
+function momentumReversalVolSignals(bars: HistoricalBar[], params: StrategyParams): Signal[] {
+  const fast = sma(bars, params.fastPeriod);
+  const slow = sma(bars, params.slowPeriod);
+  const rsiValues = rsi(bars, params.rsiPeriod);
+  const vol = volatility(bars, params.volPeriod);
+  return bars.map((_, i) => {
+    const f = fast[i];
+    const s = slow[i];
+    const r = rsiValues[i];
+    const v = vol[i];
+    if (f === undefined || s === undefined || r === undefined || v === undefined) return "hold";
+    const trendUp = f > s;
+    const notOverbought = r < params.maxRsi;
+    const calmEnough = v < params.maxVolPct / 100;
+    return trendUp && notOverbought && calmEnough ? "buy" : "sell";
+  });
 }
 
 function overnightReturns(bars: HistoricalBar[]): (number | undefined)[] {
