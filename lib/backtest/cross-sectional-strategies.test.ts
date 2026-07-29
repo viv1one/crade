@@ -102,3 +102,28 @@ describe("short_term_reversal score", () => {
     expect(scoreA!).toBeGreaterThan(scoreB!);
   });
 });
+
+describe("low_volatility score", () => {
+  it("scores the calmer symbol higher than the choppier one", () => {
+    const scoreFn = getScoreFn("low_volatility");
+    const context = ctx(
+      {
+        Calm: bars([100, 101, 100, 101, 100, 101]),
+        Choppy: bars([100, 130, 80, 130, 80, 130]),
+      },
+      { lookback: 5 }
+    );
+
+    const calmScore = scoreFn("Calm", context);
+    const choppyScore = scoreFn("Choppy", context);
+    expect(calmScore).toBeDefined();
+    expect(choppyScore).toBeDefined();
+    expect(calmScore!).toBeGreaterThan(choppyScore!);
+  });
+
+  it("excludes a symbol with insufficient history", () => {
+    const scoreFn = getScoreFn("low_volatility");
+    const context = ctx({ A: bars([100, 101]) }, { lookback: 5 });
+    expect(scoreFn("A", context)).toBeUndefined();
+  });
+});

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rollingHigh, rollingLow, rsi, sma, trailingReturn } from "./indicators";
+import { rollingHigh, rollingLow, rsi, sma, trailingReturn, volatility } from "./indicators";
 import type { HistoricalBar } from "../market-data/types";
 
 function bar(close: number, high = close, low = close): HistoricalBar {
@@ -39,6 +39,19 @@ describe("rollingHigh / rollingLow", () => {
 
     expect(rollingHigh(bars, 2)).toEqual([undefined, undefined, 7, 7, 8, 9]);
     expect(rollingLow(bars, 2)).toEqual([undefined, undefined, 1, 2, 1, 1]);
+  });
+});
+
+describe("volatility", () => {
+  it("is zero for constant prices and positive for oscillating ones", () => {
+    const flat = [100, 100, 100, 100].map((c) => bar(c));
+    expect(volatility(flat, 3)[3]).toBe(0);
+
+    const oscillating = [100, 110, 100, 110, 100].map((c) => bar(c));
+    const values = volatility(oscillating, 3);
+    expect(values[2]).toBeUndefined();
+    expect(values[3]).toBeCloseTo(0.089859, 5);
+    expect(values[4]).toBeCloseTo(0.089859, 5);
   });
 });
 

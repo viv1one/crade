@@ -118,6 +118,20 @@ export const STRATEGIES: Record<StrategyId, StrategyDef> = {
     ],
     rebalanceFrequency: "weekly",
   },
+  low_volatility: {
+    id: "low_volatility",
+    name: "Low Volatility Factor",
+    description:
+      "Cross-sectional low-volatility factor: ranks the NIFTY 50 universe by trailing return " +
+      "volatility (lowest first) and holds the top topN calmest names, equal-weighted, rebalanced " +
+      "monthly — the well-documented anomaly that low-volatility stocks have historically not been " +
+      "penalized in return for their lower risk the way standard theory would predict.",
+    kind: "cross_sectional",
+    paramSchema: [
+      { key: "lookback", label: "Lookback bars", default: 60, min: 10, max: 252 },
+      { key: "topN", label: "Hold top N", default: 5, min: 1, max: 20 },
+    ],
+  },
 };
 
 // auxiliaryBars is only populated for strategies whose StrategyDef sets

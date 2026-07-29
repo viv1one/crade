@@ -1,4 +1,5 @@
 import { calendarMonth, calendarYear } from "./calendar";
+import { volatility } from "./indicators";
 import type { RankContext, ScoreFn, StrategyId } from "./types";
 
 // Trailing return over ctx.params.lookback bars — the same math as
@@ -71,6 +72,15 @@ function shortTermReversalScore(symbol: string, ctx: RankContext): number | unde
   return r === undefined ? undefined : -r;
 }
 
+function lowVolatilityScore(symbol: string, ctx: RankContext): number | undefined {
+  const bars = ctx.barsBySymbol[symbol];
+  if (!bars) return undefined;
+  const lookback = Math.floor(ctx.params.lookback ?? 60);
+  const vol = volatility(bars, lookback);
+  const latest = vol[vol.length - 1];
+  return latest === undefined ? undefined : -latest; // lower volatility ranks higher
+}
+
 // Populated incrementally as each cross-sectional strategy is
 // implemented — mirrors strategies.ts's generateSignals() switch, just
 // keyed by lookup instead since strategies register a whole ScoreFn
@@ -79,6 +89,7 @@ const SCORE_FUNCTIONS: Partial<Record<StrategyId, ScoreFn>> = {
   momentum_factor: momentumFactorScore,
   consistent_momentum: consistentMomentumScore,
   short_term_reversal: shortTermReversalScore,
+  low_volatility: lowVolatilityScore,
 };
 
 export function getScoreFn(strategyId: StrategyId): ScoreFn {

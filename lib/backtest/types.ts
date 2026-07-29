@@ -11,7 +11,8 @@ export type StrategyId =
   | "fifty_two_week_high"
   | "momentum_factor"
   | "consistent_momentum"
-  | "short_term_reversal";
+  | "short_term_reversal"
+  | "low_volatility";
 
 export type Signal = "buy" | "sell" | "hold";
 

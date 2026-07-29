@@ -69,6 +69,28 @@ export function rollingLow(bars: HistoricalBar[], period: number): (number | und
   return out;
 }
 
+// Population stdev of daily log returns over the trailing `period` bars
+// (current bar included, unlike rollingHigh/rollingLow) — used by the
+// low-volatility cross-sectional strategy and, later, the
+// momentum+reversal+vol single-symbol strategy.
+export function volatility(bars: HistoricalBar[], period: number): (number | undefined)[] {
+  const out: (number | undefined)[] = new Array(bars.length).fill(undefined);
+  if (bars.length <= period) return out;
+  const logReturns: number[] = new Array(bars.length).fill(0);
+  for (let i = 1; i < bars.length; i++) {
+    logReturns[i] = Math.log(bars[i].close / bars[i - 1].close);
+  }
+  for (let i = period; i < bars.length; i++) {
+    let sum = 0;
+    for (let j = i - period + 1; j <= i; j++) sum += logReturns[j];
+    const mean = sum / period;
+    let variance = 0;
+    for (let j = i - period + 1; j <= i; j++) variance += (logReturns[j] - mean) ** 2;
+    out[i] = Math.sqrt(variance / period);
+  }
+  return out;
+}
+
 // (close[i] - close[i - period]) / close[i - period] — the raw trailing
 // return over `period` bars, used by single-symbol time-series
 // momentum/trend strategies and, applied per-symbol, several
