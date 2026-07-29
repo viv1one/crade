@@ -109,6 +109,36 @@ describe("short_term_reversal score", () => {
   });
 });
 
+describe("residual_momentum score", () => {
+  it("scores a stock with idiosyncratic drift beyond its beta higher than one that just tracks the market", () => {
+    // X moves exactly with a base pattern; Y moves with the same pattern
+    // plus an extra +0.5%/day idiosyncratic drift on top. Both end up
+    // with beta ~1 against their equal-weight average (adding a constant
+    // to one series doesn't change covariance/variance), but Y's actual
+    // trailing return exceeds what beta*marketReturn alone explains —
+    // its residual should be clearly higher than X's.
+    const base = [0.01, -0.005, 0.008, -0.003, 0.012, -0.007, 0.004, -0.002];
+    const universe = [
+      { symbol: "X", name: "X", sector: "S" },
+      { symbol: "Y", name: "Y", sector: "S" },
+    ];
+    const context = ctx(
+      {
+        X: pricesFromReturns(100, base),
+        Y: pricesFromReturns(100, base.map((r) => r + 0.005)),
+      },
+      { lookback: 8 },
+      {},
+      universe
+    );
+
+    const scoreFn = getScoreFn("residual_momentum");
+    const scoreX = scoreFn("X", context)!;
+    const scoreY = scoreFn("Y", context)!;
+    expect(scoreY).toBeGreaterThan(scoreX);
+  });
+});
+
 describe("low_volatility score", () => {
   it("scores the calmer symbol higher than the choppier one", () => {
     const scoreFn = getScoreFn("low_volatility");

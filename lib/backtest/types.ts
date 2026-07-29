@@ -16,6 +16,7 @@ export type StrategyId =
   | "betting_against_beta"
   | "size_factor"
   | "sector_momentum"
+  | "residual_momentum"
   | "turn_of_month"
   | "payday_anomaly"
   | "january_barometer"

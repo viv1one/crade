@@ -220,6 +220,20 @@ export const STRATEGIES: Record<StrategyId, StrategyDef> = {
       { key: "topN", label: "Hold top N", default: 5, min: 1, max: 20 },
     ],
   },
+  residual_momentum: {
+    id: "residual_momentum",
+    name: "Residual Momentum",
+    description:
+      "Cross-sectional momentum with the market component regressed out: ranks the NIFTY 50 " +
+      "universe by trailing return minus (rolling beta × the equal-weight universe's own trailing " +
+      "return), holding the topN highest residuals — the part of a stock's momentum that isn't just " +
+      "it moving with everything else.",
+    kind: "cross_sectional",
+    paramSchema: [
+      { key: "lookback", label: "Lookback bars", default: 90, min: 20, max: 252 },
+      { key: "topN", label: "Hold top N", default: 5, min: 1, max: 20 },
+    ],
+  },
   twelve_month_cycle: {
     id: "twelve_month_cycle",
     name: "12-Month Cycle",

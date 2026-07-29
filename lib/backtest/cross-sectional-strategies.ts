@@ -130,6 +130,22 @@ function bettingAgainstBetaScore(symbol: string, ctx: RankContext): number | und
   return beta === undefined ? undefined : -beta; // lower beta ranks higher
 }
 
+function residualMomentumScore(symbol: string, ctx: RankContext): number | undefined {
+  const lookback = Math.floor(ctx.params.lookback ?? 90);
+  const stockReturn = trailingReturnScore(symbol, ctx, lookback);
+  if (stockReturn === undefined) return undefined;
+  const beta = rollingBeta(symbol, ctx, lookback);
+  if (beta === undefined) return undefined;
+
+  const universeReturns = ctx.universe
+    .map((u) => trailingReturnScore(u.symbol, ctx, lookback))
+    .filter((r): r is number => r !== undefined);
+  if (universeReturns.length === 0) return undefined;
+  const marketTrailingReturn = mean(universeReturns);
+
+  return stockReturn - beta * marketTrailingReturn;
+}
+
 function lowVolatilityScore(symbol: string, ctx: RankContext): number | undefined {
   const bars = ctx.barsBySymbol[symbol];
   if (!bars) return undefined;
@@ -215,6 +231,7 @@ const SCORE_FUNCTIONS: Partial<Record<StrategyId, ScoreFn>> = {
   short_term_reversal: shortTermReversalScore,
   low_volatility: lowVolatilityScore,
   betting_against_beta: bettingAgainstBetaScore,
+  residual_momentum: residualMomentumScore,
   size_factor: sizeFactorScore,
   sector_momentum: sectorMomentumScore,
   twelve_month_cycle: twelveMonthCycleScore,
