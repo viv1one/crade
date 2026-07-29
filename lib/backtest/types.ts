@@ -1,3 +1,5 @@
+import type { Fundamentals, HistoricalBar } from "../market-data/types";
+import type { UniverseStock } from "../screener/universe";
 import type { Trade } from "../paper-trading/types";
 
 export type StrategyId =
@@ -40,6 +42,10 @@ export interface StrategyDef {
   // once by the API route and threaded through generateSignals() as
   // auxiliaryBars — every other strategy ignores it.
   auxiliary?: "crude_oil";
+  // Only meaningful when kind is "cross_sectional" — how often
+  // runCrossSectionalBacktest() re-ranks and re-picks the top-N universe
+  // members. Defaults to "monthly" when unset.
+  rebalanceFrequency?: "monthly" | "weekly";
 }
 
 export interface BacktestConfig {
@@ -98,5 +104,36 @@ export interface PortfolioBacktestResult {
   metrics: BacktestMetrics;
   bySymbol: SymbolContribution[];
 }
+
+export interface CrossSectionalBacktestConfig {
+  strategyId: StrategyId;
+  interval: string;
+  range: string;
+  params: StrategyParams;
+  startingCash: number;
+}
+
+export interface CrossSectionalBacktestResult {
+  config: CrossSectionalBacktestConfig;
+  equityCurve: EquityPoint[];
+  trades: Trade[];
+  metrics: BacktestMetrics;
+}
+
+// What a cross-sectional scoring function sees at one rebalance date.
+// barsBySymbol is truncated to "as of now" for every symbol (not the full
+// series) so a strategy can't accidentally look ahead by comparing itself
+// to another symbol's future price — the same causal guarantee the
+// single-symbol indicators in indicators.ts already give per-index.
+export interface RankContext {
+  barsBySymbol: Record<string, HistoricalBar[]>;
+  fundamentalsBySymbol: Record<string, Fundamentals | undefined>;
+  universe: UniverseStock[];
+  params: StrategyParams;
+}
+
+// Returns undefined to exclude a symbol from this rebalance's ranking
+// (not enough history yet, missing fundamentals it needs, etc.).
+export type ScoreFn = (symbol: string, ctx: RankContext) => number | undefined;
 
 export const DEFAULT_STARTING_CASH = 100_000;
