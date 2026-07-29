@@ -246,6 +246,52 @@ describe("betting_against_beta score", () => {
   });
 });
 
+describe("value_proxy score", () => {
+  it("scores a cheap, high-yield symbol higher than an expensive, low-yield one", () => {
+    const scoreFn = getScoreFn("value_proxy");
+    const universe = [
+      { symbol: "Cheap", name: "Cheap", sector: "X" },
+      { symbol: "Pricey", name: "Pricey", sector: "X" },
+    ];
+    const context = ctx(
+      { Cheap: bars([100]), Pricey: bars([100]) },
+      {},
+      {
+        Cheap: { symbol: "Cheap", peRatio: 8, dividendYield: 4 },
+        Pricey: { symbol: "Pricey", peRatio: 40, dividendYield: 0.5 },
+      },
+      universe
+    );
+
+    const scoreCheap = scoreFn("Cheap", context)!;
+    const scorePricey = scoreFn("Pricey", context)!;
+    expect(scoreCheap).toBeGreaterThan(scorePricey);
+  });
+
+  it("still scores a symbol missing one of the two fields, using just the other", () => {
+    const scoreFn = getScoreFn("value_proxy");
+    const universe = [
+      { symbol: "A", name: "A", sector: "X" },
+      { symbol: "B", name: "B", sector: "X" },
+    ];
+    const context = ctx(
+      { A: bars([100]), B: bars([100]) },
+      {},
+      { A: { symbol: "A", peRatio: 10 }, B: { symbol: "B", peRatio: 30 } }, // no dividendYield on either
+      universe
+    );
+    expect(scoreFn("A", context)).toBeGreaterThan(scoreFn("B", context)!);
+  });
+
+  it("excludes a symbol with neither field in its fundamentals", () => {
+    const scoreFn = getScoreFn("value_proxy");
+    const context = ctx({ A: bars([100]) }, {}, { A: { symbol: "A" } }, [
+      { symbol: "A", name: "A", sector: "X" },
+    ]);
+    expect(scoreFn("A", context)).toBeUndefined();
+  });
+});
+
 describe("size_factor score", () => {
   it("scores the smaller-market-cap symbol higher", () => {
     const scoreFn = getScoreFn("size_factor");

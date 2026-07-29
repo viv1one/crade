@@ -18,6 +18,7 @@ export type StrategyId =
   | "sector_momentum"
   | "residual_momentum"
   | "smart_factor_composite"
+  | "value_proxy"
   | "turn_of_month"
   | "payday_anomaly"
   | "january_barometer"

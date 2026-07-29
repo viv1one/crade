@@ -155,6 +155,27 @@ function lowVolatilityScore(symbol: string, ctx: RankContext): number | undefine
   return latest === undefined ? undefined : -latest; // lower volatility ranks higher
 }
 
+// Proxy value factor — no book value available from any current provider
+// (see StrategyDef.approximation on value_proxy), so this uses inverse
+// P/E and dividend yield instead. Either field alone is enough to score
+// a symbol (degrade gracefully, same convention the screener uses for
+// missing fundamentals) — a symbol only needs one of the two.
+function valueProxyScore(symbol: string, ctx: RankContext): number | undefined {
+  const inversePe = new Map<string, number>();
+  const divYield = new Map<string, number>();
+  for (const u of ctx.universe) {
+    const f = ctx.fundamentalsBySymbol[u.symbol];
+    if (f?.peRatio !== undefined && f.peRatio > 0) inversePe.set(u.symbol, 1 / f.peRatio);
+    if (f?.dividendYield !== undefined) divYield.set(u.symbol, f.dividendYield);
+  }
+  if (!inversePe.has(symbol) && !divYield.has(symbol)) return undefined;
+
+  let score = 0;
+  if (inversePe.has(symbol)) score += zScore(Array.from(inversePe.values()), inversePe.get(symbol)!);
+  if (divYield.has(symbol)) score += zScore(Array.from(divYield.values()), divYield.get(symbol)!);
+  return score;
+}
+
 function sizeFactorScore(symbol: string, ctx: RankContext): number | undefined {
   const marketCap = ctx.fundamentalsBySymbol[symbol]?.marketCap;
   if (marketCap === undefined || marketCap <= 0) return undefined; // excluded, not treated as zero
@@ -272,6 +293,7 @@ const SCORE_FUNCTIONS: Partial<Record<StrategyId, ScoreFn>> = {
   betting_against_beta: bettingAgainstBetaScore,
   residual_momentum: residualMomentumScore,
   size_factor: sizeFactorScore,
+  value_proxy: valueProxyScore,
   sector_momentum: sectorMomentumScore,
   smart_factor_composite: smartFactorCompositeScore,
   twelve_month_cycle: twelveMonthCycleScore,

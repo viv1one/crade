@@ -266,6 +266,20 @@ export const STRATEGIES: Record<StrategyId, StrategyDef> = {
       { key: "topN", label: "Hold top N", default: 5, min: 1, max: 20 },
     ],
   },
+  value_proxy: {
+    id: "value_proxy",
+    name: "Value (P/E proxy)",
+    description:
+      "Cross-sectional value tilt: sums the z-scores of inverse P/E and dividend yield (from " +
+      "screener-in fundamentals) and holds the topN highest — cheap-relative-to-earnings, " +
+      "higher-yielding names.",
+    kind: "cross_sectional",
+    needsFundamentals: true,
+    approximation:
+      "P/E and dividend-yield proxy — no book value is available from any current data provider, " +
+      "so this is not a true book-to-market value factor.",
+    paramSchema: [{ key: "topN", label: "Hold top N", default: 5, min: 1, max: 20 }],
+  },
   twelve_month_cycle: {
     id: "twelve_month_cycle",
     name: "12-Month Cycle",
