@@ -160,6 +160,51 @@ function sectorMomentumScore(symbol: string, ctx: RankContext): number | undefin
   return peerReturns.reduce((a, b) => a + b, 0) / peerReturns.length;
 }
 
+interface MonthOccurrence {
+  year: number;
+  month: number;
+  startClose: number;
+  endClose: number;
+}
+
+// Like consistent_momentum's monthlyBuckets, but keeps the year/month
+// identity of each bucket rather than just chronological order — needed
+// here to find every PAST occurrence of one specific calendar month.
+function monthlyOccurrences(bars: RankContext["barsBySymbol"][string]): MonthOccurrence[] {
+  const byKey = new Map<string, MonthOccurrence>();
+  const order: string[] = [];
+  for (const bar of bars) {
+    const month = calendarMonth(bar.time);
+    const year = calendarYear(bar.time);
+    const key = `${year}-${month}`;
+    const existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, { year, month, startClose: bar.close, endClose: bar.close });
+      order.push(key);
+    } else {
+      existing.endClose = bar.close;
+    }
+  }
+  return order.map((key) => byKey.get(key)!);
+}
+
+function twelveMonthCycleScore(symbol: string, ctx: RankContext): number | undefined {
+  const bars = ctx.barsBySymbol[symbol];
+  if (!bars || bars.length === 0) return undefined;
+
+  const lastBar = bars[bars.length - 1];
+  const currentMonth = calendarMonth(lastBar.time);
+  const currentYear = calendarYear(lastBar.time);
+
+  const priorOccurrences = monthlyOccurrences(bars).filter(
+    (o) => o.month === currentMonth && o.year !== currentYear && o.startClose !== 0
+  );
+  if (priorOccurrences.length < 2) return undefined; // need real seasonal history, not one data point
+
+  const returns = priorOccurrences.map((o) => (o.endClose - o.startClose) / o.startClose);
+  return returns.reduce((a, b) => a + b, 0) / returns.length;
+}
+
 // Populated incrementally as each cross-sectional strategy is
 // implemented — mirrors strategies.ts's generateSignals() switch, just
 // keyed by lookup instead since strategies register a whole ScoreFn
@@ -172,6 +217,7 @@ const SCORE_FUNCTIONS: Partial<Record<StrategyId, ScoreFn>> = {
   betting_against_beta: bettingAgainstBetaScore,
   size_factor: sizeFactorScore,
   sector_momentum: sectorMomentumScore,
+  twelve_month_cycle: twelveMonthCycleScore,
 };
 
 export function getScoreFn(strategyId: StrategyId): ScoreFn {

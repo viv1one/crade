@@ -232,3 +232,30 @@ describe("sector_momentum score", () => {
     expect(scoreFn("A", context)).toBeUndefined();
   });
 });
+
+function bar(y: number, m1based: number, d: number, close: number): HistoricalBar {
+  return { time: Date.UTC(y, m1based - 1, d) / 1000, open: close, high: close, low: close, close, volume: 0 };
+}
+
+describe("twelve_month_cycle score", () => {
+  it("averages the same calendar month's return across prior years, excluding the in-progress one", () => {
+    const scoreFn = getScoreFn("twelve_month_cycle");
+    const barsA = [
+      bar(2023, 2, 1, 100),
+      bar(2023, 2, 28, 105), // Feb 2023: +5%
+      bar(2024, 2, 1, 100),
+      bar(2024, 2, 29, 115), // Feb 2024: +15%
+      bar(2025, 2, 1, 100),
+      bar(2025, 2, 15, 120), // Feb 2025: in progress, "now" — excluded
+    ];
+    const context = ctx({ A: barsA }, {});
+    expect(scoreFn("A", context)).toBeCloseTo(0.1, 10); // (5% + 15%) / 2
+  });
+
+  it("excludes a symbol with fewer than 2 prior occurrences of the current month", () => {
+    const scoreFn = getScoreFn("twelve_month_cycle");
+    const barsA = [bar(2024, 2, 1, 100), bar(2024, 2, 28, 110), bar(2025, 2, 1, 100)];
+    const context = ctx({ A: barsA }, {});
+    expect(scoreFn("A", context)).toBeUndefined();
+  });
+});

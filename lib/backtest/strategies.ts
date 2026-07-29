@@ -208,6 +208,17 @@ export const STRATEGIES: Record<StrategyId, StrategyDef> = {
       { key: "topN", label: "Hold top N", default: 5, min: 1, max: 20 },
     ],
   },
+  twelve_month_cycle: {
+    id: "twelve_month_cycle",
+    name: "12-Month Cycle",
+    description:
+      "Cross-sectional seasonal effect: ranks the NIFTY 50 universe by each stock's own average " +
+      "return during the current calendar month across prior years in the fetched range (needs at " +
+      "least 2 prior occurrences of that month, excluding the current in-progress one), holds the " +
+      "topN. A calendar/seasonal bet, mechanically distinct from Momentum Factor's trend bet.",
+    kind: "cross_sectional",
+    paramSchema: [{ key: "topN", label: "Hold top N", default: 5, min: 1, max: 20 }],
+  },
 };
 
 // auxiliaryBars is only populated for strategies whose StrategyDef sets
