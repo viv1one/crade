@@ -2,22 +2,38 @@
 
 import { useEffect, useState } from "react";
 import { STRATEGIES } from "@/lib/backtest/strategies";
-import type { StrategyId, StrategyParams } from "@/lib/backtest/types";
+import type { PairsParams, StrategyId, StrategyParams } from "@/lib/backtest/types";
 import { DEFAULT_STARTING_CASH } from "@/lib/backtest/types";
 import { EquityChart } from "./equity-chart";
 import { useBacktest, type BacktestRun } from "../use-backtest";
 import { usePortfolioBacktest, type PortfolioBacktestRun } from "../use-portfolio-backtest";
+import { useCrossSectionalBacktest, type CrossSectionalBacktestRun } from "../use-cross-sectional-backtest";
+import { usePairsBacktest, type PairsBacktestRun } from "../use-pairs-backtest";
 import { useWatchlist } from "../use-watchlist";
 import { MarkdownContent } from "../markdown-content";
 
 const INTERVALS = ["1d", "1wk", "1mo"];
 const RANGES = ["3mo", "6mo", "1y", "2y", "5y"];
-type Mode = "single" | "portfolio";
+type Mode = "single" | "portfolio" | "cross_sectional" | "pairs";
+
+const MODE_LABELS: Record<Mode, string> = {
+  single: "Single symbol",
+  portfolio: "Portfolio (basket)",
+  cross_sectional: "Cross-sectional (NIFTY 50)",
+  pairs: "Pairs",
+};
+
+const DEFAULT_PAIRS_PARAMS: PairsParams = { lookback: 20, entryZ: 2, exitZ: 0.5 };
 
 function defaultParams(strategyId: StrategyId): StrategyParams {
   const params: StrategyParams = {};
   for (const spec of STRATEGIES[strategyId].paramSchema) params[spec.key] = spec.default;
   return params;
+}
+
+function firstStrategyOfKind(kind: "single_symbol" | "cross_sectional"): StrategyId | null {
+  const match = Object.values(STRATEGIES).find((s) => s.kind === kind);
+  return match?.id ?? null;
 }
 
 function pct(value: number): string {
@@ -27,14 +43,19 @@ function pct(value: number): string {
 export function BacktestPanel() {
   const single = useBacktest();
   const portfolio = usePortfolioBacktest();
+  const crossSectional = useCrossSectionalBacktest();
+  const pairs = usePairsBacktest();
   const { symbols: watchlistSymbols } = useWatchlist();
 
   const [mode, setMode] = useState<Mode>("single");
   const [symbol, setSymbol] = useState("RELIANCE.NS");
   const [symbolsInput, setSymbolsInput] = useState("");
+  const [symbolA, setSymbolA] = useState("HDFCBANK.NS");
+  const [symbolB, setSymbolB] = useState("ICICIBANK.NS");
+  const [pairsParams, setPairsParams] = useState<PairsParams>(DEFAULT_PAIRS_PARAMS);
   const [dataInterval, setDataInterval] = useState("1d");
   const [range, setRange] = useState("1y");
-  const [strategyId, setStrategyId] = useState<StrategyId>("sma_crossover");
+  const [strategyId, setStrategyId] = useState<StrategyId | null>("sma_crossover");
   const [params, setParams] = useState<StrategyParams>(defaultParams("sma_crossover"));
 
   // Pre-fill the basket from the user's watchlist the first time it loads.
@@ -44,6 +65,23 @@ export function BacktestPanel() {
     }
   }, [watchlistSymbols, symbolsInput]);
 
+  const visibleStrategies = Object.values(STRATEGIES).filter((s) =>
+    mode === "cross_sectional" ? s.kind === "cross_sectional" : s.kind === "single_symbol"
+  );
+
+  function switchMode(m: Mode) {
+    setMode(m);
+    if (m === "cross_sectional" && (!strategyId || STRATEGIES[strategyId]?.kind !== "cross_sectional")) {
+      const id = firstStrategyOfKind("cross_sectional");
+      setStrategyId(id);
+      if (id) setParams(defaultParams(id));
+    } else if ((m === "single" || m === "portfolio") && (!strategyId || STRATEGIES[strategyId]?.kind !== "single_symbol")) {
+      const id = firstStrategyOfKind("single_symbol");
+      setStrategyId(id);
+      if (id) setParams(defaultParams(id));
+    }
+  }
+
   function selectStrategy(id: StrategyId) {
     setStrategyId(id);
     setParams(defaultParams(id));
@@ -52,7 +90,7 @@ export function BacktestPanel() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (mode === "single") {
-      if (!symbol.trim()) return;
+      if (!symbol.trim() || !strategyId) return;
       single.run({
         symbol: symbol.trim().toUpperCase(),
         interval: dataInterval,
@@ -61,12 +99,12 @@ export function BacktestPanel() {
         params,
         startingCash: DEFAULT_STARTING_CASH,
       });
-    } else {
+    } else if (mode === "portfolio") {
       const symbols = symbolsInput
         .split(",")
         .map((s) => s.trim().toUpperCase())
         .filter(Boolean);
-      if (symbols.length === 0) return;
+      if (symbols.length === 0 || !strategyId) return;
       portfolio.run({
         symbols,
         interval: dataInterval,
@@ -75,50 +113,99 @@ export function BacktestPanel() {
         params,
         startingCash: DEFAULT_STARTING_CASH,
       });
+    } else if (mode === "cross_sectional") {
+      if (!strategyId) return;
+      crossSectional.run({
+        strategyId,
+        interval: dataInterval,
+        range,
+        params,
+        startingCash: DEFAULT_STARTING_CASH,
+      });
+    } else {
+      if (!symbolA.trim() || !symbolB.trim()) return;
+      pairs.run({
+        symbolA: symbolA.trim().toUpperCase(),
+        symbolB: symbolB.trim().toUpperCase(),
+        interval: dataInterval,
+        range,
+        params: pairsParams,
+        startingCash: DEFAULT_STARTING_CASH,
+      });
     }
   }
 
-  const strategy = STRATEGIES[strategyId];
-  const running = mode === "single" ? single.running : portfolio.running;
-  const error = mode === "single" ? single.error : portfolio.error;
+  const strategy = strategyId ? STRATEGIES[strategyId] : null;
+  const running =
+    mode === "single" ? single.running
+    : mode === "portfolio" ? portfolio.running
+    : mode === "cross_sectional" ? crossSectional.running
+    : pairs.running;
+  const error =
+    mode === "single" ? single.error
+    : mode === "portfolio" ? portfolio.error
+    : mode === "cross_sectional" ? crossSectional.error
+    : pairs.error;
 
   return (
     <div className="w-full max-w-2xl flex flex-col gap-6">
       <h1 className="text-2xl font-semibold">Backtest</h1>
 
-      <div className="flex gap-2">
-        {(["single", "portfolio"] as Mode[]).map((m) => (
+      <div className="flex gap-2 flex-wrap">
+        {(["single", "portfolio", "cross_sectional", "pairs"] as Mode[]).map((m) => (
           <button
             key={m}
             type="button"
-            onClick={() => setMode(m)}
+            onClick={() => switchMode(m)}
             className={`text-xs rounded-full border px-3 py-1.5 transition-colors ${
               mode === m
                 ? "bg-foreground text-background border-foreground"
                 : "border-black/[.08] dark:border-white/[.145] hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a]"
             }`}
           >
-            {m === "single" ? "Single symbol" : "Portfolio (basket)"}
+            {MODE_LABELS[m]}
           </button>
         ))}
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 rounded-lg border border-black/[.08] dark:border-white/[.145] p-4">
         <div className="flex gap-2">
-          {mode === "single" ? (
+          {mode === "single" && (
             <input
               value={symbol}
               onChange={(e) => setSymbol(e.target.value)}
               placeholder="Symbol, e.g. RELIANCE.NS"
               className="flex-1 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
             />
-          ) : (
+          )}
+          {mode === "portfolio" && (
             <input
               value={symbolsInput}
               onChange={(e) => setSymbolsInput(e.target.value)}
               placeholder="Comma-separated symbols, e.g. RELIANCE.NS, TCS.NS"
               className="flex-1 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
             />
+          )}
+          {mode === "cross_sectional" && (
+            <p className="flex-1 text-xs text-black/50 dark:text-white/50 self-center">
+              Ranks and rebalances across the full NIFTY 50 universe — no symbol to pick.
+            </p>
+          )}
+          {mode === "pairs" && (
+            <div className="flex-1 flex gap-2">
+              <input
+                value={symbolA}
+                onChange={(e) => setSymbolA(e.target.value)}
+                placeholder="Symbol A, e.g. HDFCBANK.NS"
+                className="flex-1 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+              />
+              <input
+                value={symbolB}
+                onChange={(e) => setSymbolB(e.target.value)}
+                placeholder="Symbol B, e.g. ICICIBANK.NS"
+                className="flex-1 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+              />
+            </div>
           )}
           <select
             value={dataInterval}
@@ -144,50 +231,107 @@ export function BacktestPanel() {
           </select>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <div className="flex flex-wrap gap-2">
-            {Object.values(STRATEGIES).map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => selectStrategy(s.id)}
-                className={`text-xs rounded-full border px-3 py-1.5 transition-colors ${
-                  strategyId === s.id
-                    ? "bg-foreground text-background border-foreground"
-                    : "border-black/[.08] dark:border-white/[.145] hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a]"
-                }`}
-              >
-                {s.name}
-              </button>
-            ))}
-          </div>
-          <p className="text-xs text-black/50 dark:text-white/50">{strategy.description}</p>
+        {mode !== "pairs" && (
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap gap-2">
+              {visibleStrategies.length === 0 && (
+                <p className="text-xs text-black/50 dark:text-white/50">
+                  No cross-sectional strategies are wired up yet.
+                </p>
+              )}
+              {visibleStrategies.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => selectStrategy(s.id)}
+                  className={`text-xs rounded-full border px-3 py-1.5 transition-colors ${
+                    strategyId === s.id
+                      ? "bg-foreground text-background border-foreground"
+                      : "border-black/[.08] dark:border-white/[.145] hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a]"
+                  }`}
+                >
+                  {s.name}
+                  {s.approximation && (
+                    <span className="ml-1.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 text-[10px] font-medium">
+                      Proxy
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+            {strategy && <p className="text-xs text-black/50 dark:text-white/50">{strategy.description}</p>}
+            {strategy?.approximation && (
+              <p className="text-xs text-amber-600 dark:text-amber-400">{strategy.approximation}</p>
+            )}
 
-          <div className="flex flex-wrap gap-3">
-            {strategy.paramSchema.map((spec) => (
-              <label key={spec.key} className="flex flex-col gap-1 text-xs">
-                {spec.label}
-                <input
-                  type="number"
-                  min={spec.min}
-                  max={spec.max}
-                  value={params[spec.key] ?? spec.default}
-                  onChange={(e) =>
-                    setParams((prev) => ({ ...prev, [spec.key]: Number(e.target.value) }))
-                  }
-                  className="w-24 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-2 py-1 text-xs outline-none focus:border-foreground"
-                />
-              </label>
-            ))}
+            {strategy && (
+              <div className="flex flex-wrap gap-3">
+                {strategy.paramSchema.map((spec) => (
+                  <label key={spec.key} className="flex flex-col gap-1 text-xs">
+                    {spec.label}
+                    <input
+                      type="number"
+                      min={spec.min}
+                      max={spec.max}
+                      value={params[spec.key] ?? spec.default}
+                      onChange={(e) =>
+                        setParams((prev) => ({ ...prev, [spec.key]: Number(e.target.value) }))
+                      }
+                      className="w-24 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-2 py-1 text-xs outline-none focus:border-foreground"
+                    />
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
+        )}
+
+        {mode === "pairs" && (
+          <div className="flex flex-wrap gap-3">
+            <label className="flex flex-col gap-1 text-xs">
+              Lookback bars
+              <input
+                type="number"
+                min={2}
+                max={200}
+                value={pairsParams.lookback}
+                onChange={(e) => setPairsParams((prev) => ({ ...prev, lookback: Number(e.target.value) }))}
+                className="w-24 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-2 py-1 text-xs outline-none focus:border-foreground"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs">
+              Entry z-score
+              <input
+                type="number"
+                min={0.5}
+                max={5}
+                step={0.1}
+                value={pairsParams.entryZ}
+                onChange={(e) => setPairsParams((prev) => ({ ...prev, entryZ: Number(e.target.value) }))}
+                className="w-24 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-2 py-1 text-xs outline-none focus:border-foreground"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs">
+              Exit z-score
+              <input
+                type="number"
+                min={0}
+                max={3}
+                step={0.1}
+                value={pairsParams.exitZ}
+                onChange={(e) => setPairsParams((prev) => ({ ...prev, exitZ: Number(e.target.value) }))}
+                className="w-24 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-2 py-1 text-xs outline-none focus:border-foreground"
+              />
+            </label>
+          </div>
+        )}
 
         <button
           type="submit"
-          disabled={running}
+          disabled={running || (mode !== "pairs" && !strategy)}
           className="self-start rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:bg-[#383838] dark:hover:bg-[#ccc] transition-colors disabled:opacity-40"
         >
-          {running ? "Running…" : mode === "single" ? "Run Backtest" : "Run Portfolio Backtest"}
+          {running ? "Running…" : "Run Backtest"}
         </button>
       </form>
 
@@ -197,11 +341,13 @@ export function BacktestPanel() {
         <BacktestResultView run={single.current} reviewLoading={single.reviewLoading} onReview={single.getReview} />
       )}
       {mode === "portfolio" && portfolio.current && <PortfolioResultView run={portfolio.current} />}
+      {mode === "cross_sectional" && crossSectional.current && <SimpleResultView run={crossSectional.current} />}
+      {mode === "pairs" && pairs.current && <SimpleResultView run={pairs.current} showSymbol />}
 
       <div>
         <h3 className="text-sm font-medium mb-2">Past runs</h3>
         <ul className="flex flex-col divide-y divide-black/[.08] dark:divide-white/[.145] rounded-lg border border-black/[.08] dark:border-white/[.145] max-h-64 overflow-y-auto">
-          {mode === "single" ? (
+          {mode === "single" && (
             <>
               {!single.historyLoaded && (
                 <li className="p-4 text-sm text-black/50 dark:text-white/50">Loading history…</li>
@@ -229,7 +375,8 @@ export function BacktestPanel() {
                 </li>
               ))}
             </>
-          ) : (
+          )}
+          {mode === "portfolio" && (
             <>
               {!portfolio.historyLoaded && (
                 <li className="p-4 text-sm text-black/50 dark:text-white/50">Loading history…</li>
@@ -260,13 +407,73 @@ export function BacktestPanel() {
               ))}
             </>
           )}
+          {mode === "cross_sectional" && (
+            <>
+              {!crossSectional.historyLoaded && (
+                <li className="p-4 text-sm text-black/50 dark:text-white/50">Loading history…</li>
+              )}
+              {crossSectional.historyLoaded && crossSectional.history.length === 0 && (
+                <li className="p-4 text-sm text-black/50 dark:text-white/50">
+                  No cross-sectional backtests run yet.
+                </li>
+              )}
+              {crossSectional.history.map((run) => (
+                <li key={run._id}>
+                  <button
+                    onClick={() => crossSectional.setCurrent(run)}
+                    className="w-full flex items-center justify-between gap-4 p-3 text-xs text-left hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] transition-colors"
+                  >
+                    <span className="text-black/50 dark:text-white/50">
+                      {STRATEGIES[run.config.strategyId]?.name ?? run.config.strategyId}
+                    </span>
+                    <span className={run.metrics.totalReturnPct >= 0 ? "text-green-600" : "text-red-500"}>
+                      {pct(run.metrics.totalReturnPct)}
+                    </span>
+                    <span className="text-black/40 dark:text-white/40">
+                      {new Date(run.createdAt).toLocaleDateString()}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </>
+          )}
+          {mode === "pairs" && (
+            <>
+              {!pairs.historyLoaded && (
+                <li className="p-4 text-sm text-black/50 dark:text-white/50">Loading history…</li>
+              )}
+              {pairs.historyLoaded && pairs.history.length === 0 && (
+                <li className="p-4 text-sm text-black/50 dark:text-white/50">No pairs backtests run yet.</li>
+              )}
+              {pairs.history.map((run) => (
+                <li key={run._id}>
+                  <button
+                    onClick={() => pairs.setCurrent(run)}
+                    className="w-full flex items-center justify-between gap-4 p-3 text-xs text-left hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] transition-colors"
+                  >
+                    <span className="font-mono">
+                      {run.config.symbolA} / {run.config.symbolB}
+                    </span>
+                    <span className={run.metrics.totalReturnPct >= 0 ? "text-green-600" : "text-red-500"}>
+                      {pct(run.metrics.totalReturnPct)}
+                    </span>
+                    <span className="text-black/40 dark:text-white/40">
+                      {new Date(run.createdAt).toLocaleDateString()}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </>
+          )}
         </ul>
       </div>
 
       <p className="text-xs text-black/40 dark:text-white/40">
         Backtests run against free Yahoo Finance historical data — prototyping only. Results are
-        simulated, long-only, and do not account for slippage or brokerage charges. Portfolio mode
-        splits starting cash equally across symbols and runs each independently. Not investment advice.
+        simulated, long-only (pairs mode simulates a market-neutral spread as an isolated
+        exception — see docs), and do not account for slippage or brokerage charges. Portfolio
+        mode splits starting cash equally across symbols and runs each independently.
+        Cross-sectional mode ranks and rebalances the full NIFTY 50 universe. Not investment advice.
       </p>
     </div>
   );
@@ -333,6 +540,24 @@ function PortfolioResultView({ run }: { run: PortfolioBacktestRun }) {
       </div>
 
       <TradeLog trades={run.trades} showSymbol />
+    </div>
+  );
+}
+
+// Shared by cross-sectional and pairs mode — both are just an equity
+// curve, metrics, and a trade log, no per-symbol breakdown or AI review.
+function SimpleResultView({
+  run,
+  showSymbol,
+}: {
+  run: CrossSectionalBacktestRun | PairsBacktestRun;
+  showSymbol?: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <MetricsGrid metrics={run.metrics} />
+      <EquityChart equityCurve={run.equityCurve} startingCash={run.config.startingCash} />
+      <TradeLog trades={run.trades} showSymbol={showSymbol} />
     </div>
   );
 }
