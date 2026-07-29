@@ -83,3 +83,16 @@ describe("turn_of_month", () => {
     expect(signals).toEqual(["sell", "buy", "buy", "buy", "sell"]);
   });
 });
+
+describe("payday_anomaly", () => {
+  it("buys the last trading day of the month and the first windowDays of the next", () => {
+    const bars = barsFromDates([
+      [2024, 1, 15], // mid-month -> sell
+      [2024, 1, 31], // last day of Jan -> buy
+      [2024, 2, 1], // first day of Feb -> buy
+      [2024, 2, 2], // outside a 1-day window -> sell
+    ]);
+    const signals = generateSignals("payday_anomaly", bars, { windowDays: 1 });
+    expect(signals).toEqual(["sell", "buy", "buy", "sell"]);
+  });
+});

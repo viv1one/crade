@@ -1,5 +1,5 @@
 import type { HistoricalBar } from "../market-data/types";
-import { isTurnOfMonth } from "./calendar";
+import { isPaydayWindow, isTurnOfMonth } from "./calendar";
 import { rollingHigh, rollingLow, rsi, sma, trailingReturn } from "./indicators";
 import { generateMlSignals } from "./ml/strategy";
 import type { Signal, StrategyDef, StrategyId, StrategyParams } from "./types";
@@ -101,6 +101,17 @@ export const STRATEGIES: Record<StrategyId, StrategyDef> = {
       { key: "daysBeforeEnd", label: "Days before month-end", default: 1, min: 0, max: 5 },
       { key: "daysAfterStart", label: "Days into next month", default: 3, min: 0, max: 10 },
     ],
+  },
+  payday_anomaly: {
+    id: "payday_anomaly",
+    name: "Payday Anomaly",
+    description:
+      "Calendar effect tied to salary-credit timing: buy on the last trading day of the month and " +
+      "the first windowDays of the next, flat otherwise. Narrower than Turn of the Month and " +
+      "motivated differently (payday buying pressure vs. institutional month-end rebalancing) " +
+      "despite similar date math.",
+    kind: "single_symbol",
+    paramSchema: [{ key: "windowDays", label: "Window days", default: 1, min: 0, max: 5 }],
   },
   consistent_momentum: {
     id: "consistent_momentum",
@@ -212,6 +223,8 @@ export function generateSignals(
       return fiftyTwoWeekHighSignals(bars, params);
     case "turn_of_month":
       return turnOfMonthSignals(bars, params);
+    case "payday_anomaly":
+      return paydayAnomalySignals(bars, params);
     default:
       void auxiliaryBars;
       throw new Error(`Unknown or non-single-symbol strategy: ${strategyId}`);
@@ -280,4 +293,8 @@ function turnOfMonthSignals(bars: HistoricalBar[], params: StrategyParams): Sign
   return bars.map((bar) =>
     isTurnOfMonth(bar.time, params.daysBeforeEnd, params.daysAfterStart) ? "buy" : "sell"
   );
+}
+
+function paydayAnomalySignals(bars: HistoricalBar[], params: StrategyParams): Signal[] {
+  return bars.map((bar) => (isPaydayWindow(bar.time, params.windowDays) ? "buy" : "sell"));
 }

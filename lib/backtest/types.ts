@@ -16,7 +16,8 @@ export type StrategyId =
   | "betting_against_beta"
   | "size_factor"
   | "sector_momentum"
-  | "turn_of_month";
+  | "turn_of_month"
+  | "payday_anomaly";
 
 export type Signal = "buy" | "sell" | "hold";
 
