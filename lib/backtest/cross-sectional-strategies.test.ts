@@ -292,6 +292,37 @@ describe("value_proxy score", () => {
   });
 });
 
+describe("momentum_style_rotation score", () => {
+  it("scores a symbol strong on both momentum and value higher than one weak on both", () => {
+    const scoreFn = getScoreFn("momentum_style_rotation");
+    const universe = [
+      { symbol: "Strong", name: "Strong", sector: "X" },
+      { symbol: "Weak", name: "Weak", sector: "X" },
+    ];
+    const context = ctx(
+      { Strong: bars([100, 130]), Weak: bars([100, 90]) },
+      { lookback: 1 },
+      {
+        Strong: { symbol: "Strong", peRatio: 8, dividendYield: 4 },
+        Weak: { symbol: "Weak", peRatio: 40, dividendYield: 0.5 },
+      },
+      universe
+    );
+    expect(scoreFn("Strong", context)!).toBeGreaterThan(scoreFn("Weak", context)!);
+  });
+
+  it("still scores a symbol with no fundamentals at all, using momentum alone", () => {
+    const scoreFn = getScoreFn("momentum_style_rotation");
+    const universe = [
+      { symbol: "A", name: "A", sector: "X" },
+      { symbol: "B", name: "B", sector: "X" },
+    ];
+    const context = ctx({ A: bars([100, 120]), B: bars([100, 90]) }, { lookback: 1 }, {}, universe);
+    expect(scoreFn("A", context)).toBeDefined();
+    expect(scoreFn("A", context)!).toBeGreaterThan(scoreFn("B", context)!);
+  });
+});
+
 describe("size_factor score", () => {
   it("scores the smaller-market-cap symbol higher", () => {
     const scoreFn = getScoreFn("size_factor");

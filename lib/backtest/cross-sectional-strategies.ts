@@ -176,6 +176,26 @@ function valueProxyScore(symbol: string, ctx: RankContext): number | undefined {
   return score;
 }
 
+// Blends Momentum Factor and the Value proxy: a symbol only needs to be
+// scoreable on one of the two, mirroring value_proxy's own tolerance for
+// missing fundamentals.
+function momentumStyleRotationScore(symbol: string, ctx: RankContext): number | undefined {
+  const momentum = new Map<string, number>();
+  const value = new Map<string, number>();
+  for (const u of ctx.universe) {
+    const m = momentumFactorScore(u.symbol, ctx);
+    const v = valueProxyScore(u.symbol, ctx);
+    if (m !== undefined) momentum.set(u.symbol, m);
+    if (v !== undefined) value.set(u.symbol, v);
+  }
+  if (!momentum.has(symbol) && !value.has(symbol)) return undefined;
+
+  let score = 0;
+  if (momentum.has(symbol)) score += zScore(Array.from(momentum.values()), momentum.get(symbol)!);
+  if (value.has(symbol)) score += zScore(Array.from(value.values()), value.get(symbol)!);
+  return score;
+}
+
 function sizeFactorScore(symbol: string, ctx: RankContext): number | undefined {
   const marketCap = ctx.fundamentalsBySymbol[symbol]?.marketCap;
   if (marketCap === undefined || marketCap <= 0) return undefined; // excluded, not treated as zero
@@ -294,6 +314,7 @@ const SCORE_FUNCTIONS: Partial<Record<StrategyId, ScoreFn>> = {
   residual_momentum: residualMomentumScore,
   size_factor: sizeFactorScore,
   value_proxy: valueProxyScore,
+  momentum_style_rotation: momentumStyleRotationScore,
   sector_momentum: sectorMomentumScore,
   smart_factor_composite: smartFactorCompositeScore,
   twelve_month_cycle: twelveMonthCycleScore,

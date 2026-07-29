@@ -280,6 +280,23 @@ export const STRATEGIES: Record<StrategyId, StrategyDef> = {
       "so this is not a true book-to-market value factor.",
     paramSchema: [{ key: "topN", label: "Hold top N", default: 5, min: 1, max: 20 }],
   },
+  momentum_style_rotation: {
+    id: "momentum_style_rotation",
+    name: "Momentum + Style Rotation",
+    description:
+      "Cross-sectional blend of Momentum Factor and the Value (P/E proxy) score: sums their " +
+      "z-scores and holds the topN highest — rotates toward whichever style (trending or cheap) is " +
+      "carrying a stock, or both.",
+    kind: "cross_sectional",
+    needsFundamentals: true,
+    approximation:
+      "Uses the same P/E and dividend-yield value proxy as Value (P/E proxy) — no book value " +
+      "available from any current provider.",
+    paramSchema: [
+      { key: "lookback", label: "Momentum lookback bars", default: 126, min: 10, max: 252 },
+      { key: "topN", label: "Hold top N", default: 5, min: 1, max: 20 },
+    ],
+  },
   twelve_month_cycle: {
     id: "twelve_month_cycle",
     name: "12-Month Cycle",
