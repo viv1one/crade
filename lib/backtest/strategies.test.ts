@@ -96,3 +96,21 @@ describe("payday_anomaly", () => {
     expect(signals).toEqual(["sell", "buy", "buy", "sell"]);
   });
 });
+
+describe("january_barometer", () => {
+  it("stays long through the year after a positive January, flat after a negative one", () => {
+    function bar(y: number, m: number, d: number, close: number): HistoricalBar {
+      return { time: Date.UTC(y, m - 1, d) / 1000, open: close, high: close, low: close, close, volume: 0 };
+    }
+    const bars = [
+      bar(2023, 1, 1, 100),
+      bar(2023, 1, 31, 110), // +10% -> long for the rest of 2023
+      bar(2023, 2, 1, 105),
+      bar(2024, 1, 1, 100),
+      bar(2024, 1, 31, 90), // -10% -> flat for the rest of 2024
+      bar(2024, 2, 1, 95),
+    ];
+    const signals = generateSignals("january_barometer", bars, {});
+    expect(signals).toEqual(["hold", "hold", "buy", "hold", "hold", "sell"]);
+  });
+});

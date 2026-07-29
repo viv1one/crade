@@ -1,5 +1,5 @@
 import type { HistoricalBar } from "../market-data/types";
-import { isPaydayWindow, isTurnOfMonth } from "./calendar";
+import { calendarMonth, calendarYear, isPaydayWindow, isTurnOfMonth } from "./calendar";
 import { rollingHigh, rollingLow, rsi, sma, trailingReturn } from "./indicators";
 import { generateMlSignals } from "./ml/strategy";
 import type { Signal, StrategyDef, StrategyId, StrategyParams } from "./types";
@@ -113,6 +113,17 @@ export const STRATEGIES: Record<StrategyId, StrategyDef> = {
     kind: "single_symbol",
     paramSchema: [{ key: "windowDays", label: "Window days", default: 1, min: 0, max: 5 }],
   },
+  january_barometer: {
+    id: "january_barometer",
+    name: "January Barometer",
+    description:
+      "\"As January goes, so goes the year\": at the end of each January, records whether the " +
+      "symbol was up or down that month, then stays long through December if January was positive, " +
+      "flat if it was negative — re-evaluated every January. No signal during January itself, since " +
+      "the barometer isn't resolved yet.",
+    kind: "single_symbol",
+    paramSchema: [],
+  },
   consistent_momentum: {
     id: "consistent_momentum",
     name: "Consistent Momentum",
@@ -225,6 +236,8 @@ export function generateSignals(
       return turnOfMonthSignals(bars, params);
     case "payday_anomaly":
       return paydayAnomalySignals(bars, params);
+    case "january_barometer":
+      return januaryBarometerSignals(bars);
     default:
       void auxiliaryBars;
       throw new Error(`Unknown or non-single-symbol strategy: ${strategyId}`);
@@ -297,4 +310,27 @@ function turnOfMonthSignals(bars: HistoricalBar[], params: StrategyParams): Sign
 
 function paydayAnomalySignals(bars: HistoricalBar[], params: StrategyParams): Signal[] {
   return bars.map((bar) => (isPaydayWindow(bar.time, params.windowDays) ? "buy" : "sell"));
+}
+
+function januaryBarometerSignals(bars: HistoricalBar[]): Signal[] {
+  // Each year's own January bars only occur chronologically before that
+  // same year's February — so keying by year here can't leak a later
+  // year's January into an earlier year's Feb-Dec signal.
+  const firstJanClose = new Map<number, number>();
+  const lastJanClose = new Map<number, number>();
+  for (const bar of bars) {
+    if (calendarMonth(bar.time) !== 0) continue;
+    const year = calendarYear(bar.time);
+    if (!firstJanClose.has(year)) firstJanClose.set(year, bar.close);
+    lastJanClose.set(year, bar.close);
+  }
+
+  return bars.map((bar) => {
+    if (calendarMonth(bar.time) === 0) return "hold"; // barometer not resolved yet
+    const year = calendarYear(bar.time);
+    const first = firstJanClose.get(year);
+    const last = lastJanClose.get(year);
+    if (first === undefined || last === undefined || first === 0) return "hold";
+    return last > first ? "buy" : "sell";
+  });
 }
