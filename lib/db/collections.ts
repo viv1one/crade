@@ -4,7 +4,9 @@ import type { Holding, Trade } from "../paper-trading/types";
 import type {
   BacktestConfig,
   BacktestMetrics,
+  CrossSectionalBacktestConfig,
   EquityPoint,
+  PairsBacktestConfig,
   PortfolioBacktestConfig,
   SymbolContribution,
 } from "../backtest/types";
@@ -172,6 +174,28 @@ export interface PortfolioBacktest {
   createdAt: Date;
 }
 
+export interface CrossSectionalBacktest {
+  _id: ObjectId;
+  ownerId: string; // same as Backtest.ownerId
+  config: CrossSectionalBacktestConfig;
+  equityCurve: EquityPoint[];
+  trades: Trade[];
+  metrics: BacktestMetrics;
+  aiReview?: { content: string; provider: string; model: string; createdAt: Date };
+  createdAt: Date;
+}
+
+export interface PairsBacktest {
+  _id: ObjectId;
+  ownerId: string; // same as Backtest.ownerId
+  config: PairsBacktestConfig;
+  equityCurve: EquityPoint[];
+  trades: Trade[];
+  metrics: BacktestMetrics;
+  aiReview?: { content: string; provider: string; model: string; createdAt: Date };
+  createdAt: Date;
+}
+
 export interface JournalEntry {
   _id: ObjectId;
   userId: ObjectId;
@@ -202,6 +226,8 @@ export async function getCollections() {
     fundamentalsCache: db.collection<FundamentalsCacheEntry>("fundamentals_cache"),
     backtests: db.collection<Backtest>("backtests"),
     portfolioBacktests: db.collection<PortfolioBacktest>("portfolio_backtests"),
+    crossSectionalBacktests: db.collection<CrossSectionalBacktest>("cross_sectional_backtests"),
+    pairsBacktests: db.collection<PairsBacktest>("pairs_backtests"),
     aiSessions: db.collection<AiSession>("ai_sessions"),
     pushSubscriptions: db.collection<PushSubscriptionDoc>("push_subscriptions"),
     journalEntries: db.collection<JournalEntry>("journal_entries"),
