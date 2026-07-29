@@ -46,6 +46,12 @@ export interface StrategyDef {
   // runCrossSectionalBacktest() re-ranks and re-picks the top-N universe
   // members. Defaults to "monthly" when unset.
   rebalanceFrequency?: "monthly" | "weekly";
+  // Only meaningful when kind is "cross_sectional" — whether the API
+  // route needs to fetch Fundamentals for the whole universe before
+  // scoring. Most cross-sectional strategies are price-only; skipping the
+  // fundamentals fetch for those halves the free-provider request volume
+  // per run.
+  needsFundamentals?: boolean;
 }
 
 export interface BacktestConfig {
