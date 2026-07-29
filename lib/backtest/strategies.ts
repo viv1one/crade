@@ -75,6 +75,19 @@ export const STRATEGIES: Record<StrategyId, StrategyDef> = {
       { key: "exitPct", label: "Sell % below high", default: 15, min: 5, max: 50 },
     ],
   },
+  momentum_factor: {
+    id: "momentum_factor",
+    name: "Momentum Factor",
+    description:
+      "Cross-sectional momentum (Jegadeesh-Titman): ranks the NIFTY 50 universe by trailing return " +
+      "and holds the top topN, equal-weighted, rebalanced monthly — ranked against peers, not just " +
+      "against its own past (that's Trend Following, a single-symbol strategy).",
+    kind: "cross_sectional",
+    paramSchema: [
+      { key: "lookback", label: "Lookback bars", default: 126, min: 10, max: 252 },
+      { key: "topN", label: "Hold top N", default: 5, min: 1, max: 20 },
+    ],
+  },
 };
 
 // auxiliaryBars is only populated for strategies whose StrategyDef sets

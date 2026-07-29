@@ -71,6 +71,8 @@ describe("runCrossSectionalBacktest", () => {
 
     expect(result.metrics.finalEquity).toBe(100);
     expect(result.metrics.totalReturnPct).toBeCloseTo(-90, 5);
+    // Buy-and-hold benchmark is C's own return (the initial pick).
+    expect(result.metrics.buyHoldReturnPct).toBeCloseTo(-90, 5);
   });
 
   it("excludes symbols the score function opts out of and clamps topN to what's left", () => {
@@ -90,5 +92,32 @@ describe("runCrossSectionalBacktest", () => {
     const boughtSymbols = new Set(result.trades.filter((t) => t.side === "buy").map((t) => t.symbol));
     expect(boughtSymbols.has("C")).toBe(false);
     expect(boughtSymbols).toEqual(new Set(["A", "B"]));
+  });
+
+  it("takes the buy-and-hold snapshot from the first rebalance that actually picks something, not an earlier empty one", () => {
+    // Requires more than 10 bars of history to score — at the January
+    // rebalance (the very first timeline point) each symbol only has 1
+    // bar, so that first rebalance attempt produces an empty target.
+    // Regression test for a bug where the empty January attempt got
+    // locked in as "the initial picks," permanently freezing
+    // buyHoldReturnPct at 0.
+    const scoreOnceWarmedUp = (symbol: string, ctx: RankContext) => {
+      const bars = ctx.barsBySymbol[symbol];
+      return bars && bars.length > 10 ? latestCloseScore(symbol, ctx) : undefined;
+    };
+
+    const result = runCrossSectionalBacktest(
+      UNIVERSE,
+      BARS_BY_SYMBOL,
+      {},
+      { topN: 1 },
+      1000,
+      scoreOnceWarmedUp,
+      "monthly"
+    );
+
+    // B is the top score once scoring actually kicks in during February.
+    expect(result.metrics.buyHoldReturnPct).not.toBe(0);
+    expect(result.metrics.buyHoldReturnPct).toBeCloseTo(((50 - 5) / 5) * 100, 5);
   });
 });

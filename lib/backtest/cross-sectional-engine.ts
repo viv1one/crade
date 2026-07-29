@@ -86,7 +86,13 @@ export function runCrossSectionalBacktest(
         .sort((a, b) => b.score - a.score);
 
       const target = new Set(scored.slice(0, topN).map((row) => row.symbol));
-      if (initialTopN === null) initialTopN = Array.from(target);
+      // Not just "the first rebalance ever" — a strategy with a long
+      // lookback (e.g. 126-bar momentum) may produce an empty target on
+      // its first few attempts simply from warmup, before any symbol has
+      // enough history to score. Wait for the first rebalance that
+      // actually picks something, so buyHoldReturnPct reflects real
+      // initial picks instead of freezing at 0 from an empty snapshot.
+      if (initialTopN === null && target.size > 0) initialTopN = Array.from(target);
 
       for (const symbol of Object.keys(state.holdings)) {
         if (!target.has(symbol)) {
