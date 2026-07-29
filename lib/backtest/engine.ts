@@ -13,13 +13,14 @@ export function runBacktest(
   bars: HistoricalBar[],
   strategyId: StrategyId,
   params: StrategyParams,
-  startingCash: number
+  startingCash: number,
+  auxiliaryBars?: HistoricalBar[]
 ): Omit<BacktestResult, "config"> {
   if (bars.length === 0) {
     throw new Error("No historical data to backtest against");
   }
 
-  const signals = generateSignals(strategyId, bars, params);
+  const signals = generateSignals(strategyId, bars, params, auxiliaryBars);
   let state: PortfolioState = { ...createEmptyPortfolio(), cash: startingCash };
   const equityCurve: EquityPoint[] = [];
 
