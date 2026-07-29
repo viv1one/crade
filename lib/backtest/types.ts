@@ -136,4 +136,32 @@ export interface RankContext {
 // (not enough history yet, missing fundamentals it needs, etc.).
 export type ScoreFn = (symbol: string, ctx: RankContext) => number | undefined;
 
+export interface PairsParams {
+  lookback: number;
+  entryZ: number;
+  exitZ: number;
+}
+
+export interface PairsBacktestConfig {
+  symbolA: string;
+  symbolB: string;
+  interval: string;
+  range: string;
+  params: PairsParams;
+  startingCash: number;
+}
+
+export interface PairsBacktestResult {
+  config: PairsBacktestConfig;
+  // Every leg of every open/close is its own row (a completed round trip
+  // is 4 rows: open A, open B, close A, close B) — deliberately reuses the
+  // existing Trade shape so the UI's trade-log table needs no pairs-
+  // specific rendering. metrics.tradeCount/winRatePct are NOT derived from
+  // this list directly (see runPairsBacktest) since "buy"/"sell" here
+  // means long/short-open as well as close, not just close.
+  trades: Trade[];
+  equityCurve: EquityPoint[];
+  metrics: BacktestMetrics;
+}
+
 export const DEFAULT_STARTING_CASH = 100_000;
