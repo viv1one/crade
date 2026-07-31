@@ -79,16 +79,16 @@ This is simpler than an org/tenancy model and doesn't need one at all.
 
 | Phase | Scope                                                                                                      | Blocked by                               | Status |
 | ----- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------- | ------ |
-| 0     | Resolve the regulatory/liability question (§2) — at minimum, decide the disclaimer/positioning language everyone using this internally will see | Nothing — this is the actual first step | **Not started — still the real blocker before live use** |
+| 0     | Resolve the regulatory/liability question (§2) — at minimum, decide the disclaimer/positioning language everyone using this internally will see | Nothing — this is the actual first step | **Partially done (2026-08-01)** — the disclaimer/positioning language sub-task has shipped: centralized copy (`lib/disclaimers.ts`), a data-provenance caveat now on the shared-watchlist view, and a required signup acknowledgment (`User.consentedAt`). The broader regulatory-registration question below is still open — that part isn't something a code change can resolve. |
 | 1     | `shares` collection + invite flow + read-only rendering for one resource type (start with watchlist)        | Nothing technically                      | **Built** (2026-07-28) — see `CLAUDE.md` "Sharing" section for what exists |
 | 2     | Extend sharing to alerts (and anything else decided on) once the pattern from Phase 1 is proven              | Phase 1                                  | Not started |
 | 3     | Only if rate-limiting from real usage becomes a recurring problem (§1): revisit a licensed data vendor        | Real-world signal, not a fixed date      | Not started |
 
 Phase 1 being built does not resolve Phase 0. The code exists and works (invite, read-only view,
-revoke all verified against real accounts), but nothing about writing it answers whether an AI-driven
-research tool reaching a CEO and brokers needs regulatory registration — that's still unanswered, and
-sharing more of the app with more people inside the company makes that question more relevant, not
-less.
+revoke all verified against real accounts), and the disclaimer/positioning-language half of Phase 0 has
+now also shipped (see above) — but nothing about either of those answers whether an AI-driven research
+tool reaching a CEO and brokers needs regulatory registration — that's still unanswered, and sharing
+more of the app with more people inside the company makes that question more relevant, not less.
 
 ## 5. Open questions still unresolved
 

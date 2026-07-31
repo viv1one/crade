@@ -7,6 +7,7 @@ import { runBacktest } from "@/lib/backtest/engine";
 import { STRATEGIES } from "@/lib/backtest/strategies";
 import { DEFAULT_STARTING_CASH } from "@/lib/backtest/types";
 import type { BacktestConfig, StrategyId, StrategyParams } from "@/lib/backtest/types";
+import { toErrorResponse } from "@/lib/api-error";
 
 export async function GET() {
   const user = await requireUserOrResponse();
@@ -81,9 +82,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json(doc);
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Backtest failed" },
-      { status: 400 }
-    );
+    return toErrorResponse(err, "Backtest failed — check the symbol is correct and try again", 400);
   }
 }

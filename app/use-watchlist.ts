@@ -17,6 +17,7 @@ function persist(symbols: string[]) {
 export function useWatchlist() {
   const [symbols, setSymbols] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [isNew, setIsNew] = useState(false);
 
   useEffect(() => {
     fetch("/api/watchlist")
@@ -24,6 +25,7 @@ export function useWatchlist() {
       .then((data: { symbols: string[]; isNew: boolean }) => {
         if (data.isNew) {
           setSymbols(DEFAULT_SYMBOLS);
+          setIsNew(true);
           persist(DEFAULT_SYMBOLS);
         } else {
           setSymbols(data.symbols);
@@ -50,5 +52,5 @@ export function useWatchlist() {
     });
   }, []);
 
-  return { symbols, addSymbol, removeSymbol, loaded };
+  return { symbols, addSymbol, removeSymbol, loaded, isNew };
 }

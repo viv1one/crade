@@ -1,0 +1,13 @@
+// Shared disclaimer copy so the same idea isn't independently (and
+// inconsistently) worded in five different files. Compose these per-surface
+// rather than rendering one giant blob — each surface only needs the
+// pieces relevant to what it actually shows the user.
+
+export const NOT_INVESTMENT_ADVICE =
+  "Not investment advice — for personal research only.";
+
+export const FREE_DATA_SOURCE =
+  "Data comes from free, unauthenticated providers (Yahoo Finance / NSE) — prototyping only, not licensed for redistribution to other users.";
+
+export const PAPER_TRADING_ONLY =
+  "Buy/Sell are simulated paper trades, not real orders — Crade has no broker connection.";

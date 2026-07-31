@@ -1,4 +1,5 @@
 import { PortfolioState, STARTING_CASH, Trade } from "./types";
+import { AppError } from "../api-error";
 
 export function createEmptyPortfolio(): PortfolioState {
   return { cash: STARTING_CASH, holdings: {}, trades: [] };
@@ -18,9 +19,9 @@ export function applyBuy(
   qty: number,
   price: number
 ): PortfolioState {
-  if (qty <= 0) throw new Error("Quantity must be greater than zero");
+  if (qty <= 0) throw new AppError("Quantity must be greater than zero");
   const cost = qty * price;
-  if (cost > state.cash) throw new Error("Insufficient paper cash for this trade");
+  if (cost > state.cash) throw new AppError("Insufficient paper cash for this trade");
 
   const existing = state.holdings[symbol];
   const newQty = (existing?.qty ?? 0) + qty;
@@ -53,10 +54,10 @@ export function applySell(
   qty: number,
   price: number
 ): PortfolioState {
-  if (qty <= 0) throw new Error("Quantity must be greater than zero");
+  if (qty <= 0) throw new AppError("Quantity must be greater than zero");
   const existing = state.holdings[symbol];
   if (!existing || qty > existing.qty) {
-    throw new Error(`You only hold ${existing?.qty ?? 0} of ${symbol}`);
+    throw new AppError(`You only hold ${existing?.qty ?? 0} of ${symbol}`);
   }
 
   const proceeds = qty * price;

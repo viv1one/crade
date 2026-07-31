@@ -35,27 +35,35 @@ export default function LoginPage() {
     <div className="min-h-screen flex flex-col items-center justify-center gap-6 p-8">
       <h1 className="text-2xl font-semibold">Log in to Crade</h1>
       <form onSubmit={handleSubmit} className="w-full max-w-sm flex flex-col gap-3">
-        <input
-          type="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
-          className="rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
-        />
-        <input
-          type="password"
-          required
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password"
-          className="rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
-        />
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        <label className="flex flex-col gap-1 text-sm">
+          Email
+          <input
+            type="email"
+            required
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email"
+            className="rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          Password
+          <input
+            type="password"
+            required
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+            className="rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+          />
+        </label>
+        {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
         <button
           type="submit"
           disabled={loading}
-          className="rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:bg-[#383838] dark:hover:bg-[#ccc] transition-colors disabled:opacity-40"
+          className="rounded-lg bg-accent text-white px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors disabled:opacity-40"
         >
           {loading ? "Logging in…" : "Log in"}
         </button>

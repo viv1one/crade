@@ -8,6 +8,7 @@ export default function SignupPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [consented, setConsented] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -19,7 +20,7 @@ export default function SignupPage() {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, consented }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Sign up failed");
@@ -35,28 +36,47 @@ export default function SignupPage() {
     <div className="min-h-screen flex flex-col items-center justify-center gap-6 p-8">
       <h1 className="text-2xl font-semibold">Create your Crade account</h1>
       <form onSubmit={handleSubmit} className="w-full max-w-sm flex flex-col gap-3">
-        <input
-          type="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
-          className="rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
-        />
-        <input
-          type="password"
-          required
-          minLength={8}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password (min 8 characters)"
-          className="rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
-        />
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        <label className="flex flex-col gap-1 text-sm">
+          Email
+          <input
+            type="email"
+            required
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email"
+            className="rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          Password
+          <input
+            type="password"
+            required
+            minLength={8}
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password (min 8 characters)"
+            className="rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+          />
+        </label>
+        <label className="flex items-start gap-2 text-xs text-black/60 dark:text-white/60">
+          <input
+            type="checkbox"
+            required
+            checked={consented}
+            onChange={(e) => setConsented(e.target.checked)}
+            className="mt-0.5"
+          />
+          I understand Crade is a simulation-only research tool, not investment advice, and not
+          connected to any broker.
+        </label>
+        {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
         <button
           type="submit"
           disabled={loading}
-          className="rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:bg-[#383838] dark:hover:bg-[#ccc] transition-colors disabled:opacity-40"
+          className="rounded-lg bg-accent text-white px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors disabled:opacity-40"
         >
           {loading ? "Creating account…" : "Sign up"}
         </button>

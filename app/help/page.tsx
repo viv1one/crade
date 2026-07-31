@@ -1,12 +1,12 @@
 "use client";
 
-import Link from "next/link";
+import { AppNav } from "../app-nav";
 import { HelpChatPanel } from "./help-chat-panel";
 
 const SECTIONS = [
   {
     title: "Watchlist",
-    body: "Add stock symbols like RELIANCE.NS from the home page, click Fetch to get a live quote, and buy/sell (paper trading) directly from each row by entering a quantity.",
+    body: "Add stock symbols like RELIANCE.NS from the home page — a live quote loads automatically, and each row's 'Refresh' button re-fetches it. Buy/sell (paper trading) directly from each row by entering a quantity.",
   },
   {
     title: "Paper trading & portfolio",
@@ -14,15 +14,15 @@ const SECTIONS = [
   },
   {
     title: "AI chat",
-    body: "Ask about stocks on the home page. Set the symbol field to ground answers in that stock's real price, historical range, and recent news, and pick a task type (Chat, Explain a move, Summarize, Digest). History is saved per symbol.",
+    body: "Ask about stocks on the home page. Set the symbol field to ground answers in that stock's real price, historical range, and recent news, and pick a task type (Chat, Explain a move, Summarize, Digest). History is saved per symbol. Click any symbol name in the watchlist or screener to jump straight into a chat about it.",
   },
   {
     title: "Alerts",
-    body: "Create price/RSI/volume alerts at /alerts. Click 'Enable push notifications' once to get a real browser notification when one fires — they're checked periodically in the background.",
+    body: "Create price/RSI/volume alerts at /alerts. Click 'Enable push notifications on this device' once to get a real browser notification when one fires — they're checked periodically in the background.",
   },
   {
     title: "Screener",
-    body: "Browse Nifty 50 stocks at /screener with manual filters (sector, price, P/E) or describe criteria in plain English in the Ask box — the AI matches real stocks from the shown data and explains why, without predicting future returns.",
+    body: "Browse Nifty 50 stocks at /screener with manual filters (sector, price, P/E) or describe criteria in plain English in the Ask box — the AI matches real stocks from the shown data and explains why, without predicting future returns. This is different from AI Chat: the screener only filters the table you're looking at, chat freely discusses a stock.",
   },
   {
     title: "Backtest",
@@ -37,13 +37,9 @@ const SECTIONS = [
 export default function HelpPage() {
   return (
     <div className="font-sans min-h-screen flex flex-col items-center gap-16 p-8 sm:p-20">
-      <nav className="w-full max-w-2xl flex justify-start">
-        <Link href="/" className="text-sm font-medium underline underline-offset-4 hover:no-underline">
-          ← Watchlist &amp; portfolio
-        </Link>
-      </nav>
+      <AppNav />
 
-      <div className="w-full max-w-2xl flex flex-col gap-6">
+      <main className="w-full max-w-2xl flex flex-col gap-6">
         <div>
           <h1 className="text-2xl font-semibold">How to use Crade</h1>
           <p className="text-sm text-black/50 dark:text-white/50 mt-1">
@@ -59,7 +55,7 @@ export default function HelpPage() {
             </div>
           ))}
         </div>
-      </div>
+      </main>
 
       <HelpChatPanel />
     </div>

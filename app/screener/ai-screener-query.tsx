@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { ScreenerRow } from "@/lib/screener/types";
+import { Disclaimer } from "../disclaimer";
 
 interface Pick {
   symbol: string;
@@ -64,7 +65,7 @@ export function AiScreenerQuery({ rows, onResult, onClear }: AiScreenerQueryProp
         <button
           type="submit"
           disabled={loading || rows.length === 0}
-          className="rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:bg-[#383838] dark:hover:bg-[#ccc] transition-colors disabled:opacity-40"
+          className="rounded-lg bg-accent text-white px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors disabled:opacity-40"
         >
           {loading ? "Thinking…" : "Ask"}
         </button>
@@ -79,7 +80,7 @@ export function AiScreenerQuery({ rows, onResult, onClear }: AiScreenerQueryProp
         )}
       </form>
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
 
       {criteria && (
         <div className="flex flex-col gap-2">
@@ -102,10 +103,10 @@ export function AiScreenerQuery({ rows, onResult, onClear }: AiScreenerQueryProp
         </div>
       )}
 
-      <p className="text-xs text-black/40 dark:text-white/40">
+      <Disclaimer>
         This matches stocks against criteria derived from your question and the data shown below —
-        it is not a prediction of future returns and not investment advice. See docs/plan.md §7.
-      </p>
+        it is not a prediction of future returns and not investment advice.
+      </Disclaimer>
     </div>
   );
 }

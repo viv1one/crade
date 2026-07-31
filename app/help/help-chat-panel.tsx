@@ -78,7 +78,7 @@ export function HelpChatPanel() {
         <button
           type="submit"
           disabled={loading}
-          className="rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:bg-[#383838] dark:hover:bg-[#ccc] transition-colors disabled:opacity-40"
+          className="rounded-lg bg-accent text-white px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors disabled:opacity-40"
         >
           Send
         </button>

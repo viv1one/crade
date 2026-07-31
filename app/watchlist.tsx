@@ -1,8 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import type { Quote } from "@/lib/market-data";
+import type { HistoricalBar } from "@/lib/market-data/types";
+import { rsi, sma } from "@/lib/backtest/indicators";
 import { useWatchlist } from "./use-watchlist";
+import { Disclaimer } from "./disclaimer";
+import { FREE_DATA_SOURCE, PAPER_TRADING_ONLY } from "@/lib/disclaimers";
+
+function friendlyFetchError(raw: string): string {
+  if (/request failed|providers failed|status \d{3}|fetch/i.test(raw)) {
+    return "Couldn't fetch a quote — check the symbol is correct.";
+  }
+  return raw;
+}
 
 interface RowUiState {
   quote?: Quote;
@@ -11,7 +23,24 @@ interface RowUiState {
   qtyInput: string;
 }
 
+interface IndicatorState {
+  loading: boolean;
+  rsi14?: number;
+  sma20?: number;
+  sma50?: number;
+  error?: string;
+}
+
 const EMPTY_ROW: RowUiState = { loading: false, qtyInput: "1" };
+
+function computeIndicators(bars: HistoricalBar[]): Omit<IndicatorState, "loading" | "error"> {
+  const last = <T,>(values: (T | undefined)[]) => values[values.length - 1];
+  return {
+    rsi14: last(rsi(bars, 14)),
+    sma20: last(sma(bars, 20)),
+    sma50: last(sma(bars, 50)),
+  };
+}
 
 interface WatchlistProps {
   onBuy: (symbol: string, qty: number, price: number) => void;
@@ -19,9 +48,13 @@ interface WatchlistProps {
 }
 
 export function Watchlist({ onBuy, onSell }: WatchlistProps) {
-  const { symbols, addSymbol, removeSymbol, loaded } = useWatchlist();
+  const { symbols, addSymbol, removeSymbol, loaded, isNew } = useWatchlist();
   const [input, setInput] = useState("");
   const [rowState, setRowState] = useState<Record<string, RowUiState>>({});
+  const [starterNoteDismissed, setStarterNoteDismissed] = useState(false);
+  const [showIndicators, setShowIndicators] = useState(false);
+  const [indicatorState, setIndicatorState] = useState<Record<string, IndicatorState>>({});
+  const indicatorFetchedRef = useRef<Set<string>>(new Set());
 
   function getRow(symbol: string): RowUiState {
     return rowState[symbol] ?? EMPTY_ROW;
@@ -39,17 +72,43 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
       if (!res.ok) throw new Error(data.error ?? "Failed to fetch quote");
       patchRow(symbol, { quote: data, loading: false });
     } catch (err) {
+      const raw = err instanceof Error ? err.message : "Failed to fetch quote";
       patchRow(symbol, {
-        error: err instanceof Error ? err.message : "Failed to fetch quote",
+        error: friendlyFetchError(raw),
         loading: false,
       });
     }
   }
 
+  async function fetchIndicators(symbol: string) {
+    setIndicatorState((prev) => ({ ...prev, [symbol]: { loading: true } }));
+    try {
+      const res = await fetch(`/api/history/${encodeURIComponent(symbol)}?interval=1d&range=6mo`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to fetch history");
+      setIndicatorState((prev) => ({ ...prev, [symbol]: { loading: false, ...computeIndicators(data.bars) } }));
+    } catch {
+      setIndicatorState((prev) => ({ ...prev, [symbol]: { loading: false, error: "Unavailable" } }));
+    }
+  }
+
+  // Only fetch historical bars (a heavier request than a quote) once the
+  // user actually asks to see indicators — not on every page load.
+  useEffect(() => {
+    if (!showIndicators) return;
+    for (const symbol of symbols) {
+      if (!indicatorFetchedRef.current.has(symbol)) {
+        indicatorFetchedRef.current.add(symbol);
+        fetchIndicators(symbol);
+      }
+    }
+  }, [showIndicators, symbols]);
+
   function handleAddSymbol(e: React.FormEvent) {
     e.preventDefault();
-    const symbol = input.trim().toUpperCase();
+    let symbol = input.trim().toUpperCase();
     if (!symbol) return;
+    if (!symbol.includes(".")) symbol = `${symbol}.NS`;
     addSymbol(symbol);
     setInput("");
   }
@@ -87,29 +146,56 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
     <div className="w-full max-w-2xl flex flex-col gap-6">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">Watchlist</h1>
-        <button
-          onClick={refreshAll}
-          disabled={!loaded}
-          className="rounded-full border border-black/[.08] dark:border-white/[.145] px-4 py-2 text-sm font-medium hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] transition-colors disabled:opacity-40"
-        >
-          Refresh all
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowIndicators((v) => !v)}
+            aria-pressed={showIndicators}
+            className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
+              showIndicators
+                ? "bg-foreground text-background border-foreground"
+                : "border-black/[.08] dark:border-white/[.145] hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a]"
+            }`}
+          >
+            RSI/SMA
+          </button>
+          <button
+            onClick={refreshAll}
+            disabled={!loaded}
+            className="rounded-full border border-black/[.08] dark:border-white/[.145] px-4 py-2 text-sm font-medium hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] transition-colors disabled:opacity-40"
+          >
+            Refresh all
+          </button>
+        </div>
       </div>
 
       <form onSubmit={handleAddSymbol} className="flex gap-2">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Add symbol, e.g. HDFCBANK.NS"
+          placeholder="Add symbol, e.g. RELIANCE.NS"
+          aria-label="Add a stock symbol"
           className="flex-1 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
         />
         <button
           type="submit"
-          className="rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:bg-[#383838] dark:hover:bg-[#ccc] transition-colors"
+          className="rounded-lg bg-accent text-white px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors"
         >
           Add
         </button>
       </form>
+
+      {isNew && !starterNoteDismissed && (
+        <p className="text-xs text-black/40 dark:text-white/40 -mt-4">
+          Starter picks — remove any you don&apos;t want.{" "}
+          <button
+            type="button"
+            onClick={() => setStarterNoteDismissed(true)}
+            className="underline underline-offset-4 hover:no-underline"
+          >
+            Dismiss
+          </button>
+        </p>
+      )}
 
       <ul className="flex flex-col divide-y divide-black/[.08] dark:divide-white/[.145] rounded-lg border border-black/[.08] dark:border-white/[.145]">
         {!loaded && (
@@ -126,8 +212,18 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
             <li key={symbol} className="flex flex-col gap-3 p-4">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex flex-col">
-                  <span className="font-mono text-sm font-medium">{symbol}</span>
-                  {row.error && <span className="text-xs text-red-500">{row.error}</span>}
+                  <Link
+                    href={`/?symbol=${encodeURIComponent(symbol)}#chat`}
+                    className="font-mono text-sm font-medium underline-offset-4 hover:underline"
+                    title={`Research ${symbol} in AI Chat`}
+                  >
+                    {symbol}
+                  </Link>
+                  {row.error && (
+                    <span role="alert" className="text-xs text-red-500">
+                      {row.error}
+                    </span>
+                  )}
                   {row.quote && (
                     <span
                       className={`text-xs ${
@@ -146,6 +242,24 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
                       )}
                     </span>
                   )}
+                  {showIndicators && (() => {
+                    const ind = indicatorState[symbol];
+                    if (!ind || ind.loading) {
+                      return <span className="text-xs text-black/40 dark:text-white/40">Loading indicators…</span>;
+                    }
+                    if (ind.error) {
+                      return <span className="text-xs text-black/40 dark:text-white/40">Indicators unavailable</span>;
+                    }
+                    const rsiValue = ind.rsi14;
+                    const rsiFlag = rsiValue !== undefined && rsiValue < 30 ? " (oversold)" : rsiValue !== undefined && rsiValue > 70 ? " (overbought)" : "";
+                    return (
+                      <span className="text-xs text-black/50 dark:text-white/50">
+                        RSI(14): {rsiValue !== undefined ? rsiValue.toFixed(0) : "—"}
+                        {rsiFlag} · SMA20: {ind.sma20 !== undefined ? ind.sma20.toFixed(2) : "—"} · SMA50:{" "}
+                        {ind.sma50 !== undefined ? ind.sma50.toFixed(2) : "—"}
+                      </span>
+                    );
+                  })()}
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -197,10 +311,9 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
         })}
       </ul>
 
-      <p className="text-xs text-black/40 dark:text-white/40">
-        Quotes via the free Yahoo Finance fallback provider — prototyping only, not licensed for
-        redistribution. Buy/Sell are simulated paper trades, not real orders. See docs/plan.md §4.
-      </p>
+      <Disclaimer>
+        {FREE_DATA_SOURCE} {PAPER_TRADING_ONLY}
+      </Disclaimer>
     </div>
   );
 }

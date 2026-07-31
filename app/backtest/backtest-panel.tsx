@@ -2,15 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { STRATEGIES } from "@/lib/backtest/strategies";
-import type { PairsParams, StrategyId, StrategyParams } from "@/lib/backtest/types";
+import type { PairsParams, StrategyDef, StrategyId, StrategyParams } from "@/lib/backtest/types";
 import { DEFAULT_STARTING_CASH } from "@/lib/backtest/types";
 import { EquityChart } from "./equity-chart";
-import { useBacktest, type BacktestRun } from "../use-backtest";
+import { useBacktest, type AiReview, type BacktestRun } from "../use-backtest";
 import { usePortfolioBacktest, type PortfolioBacktestRun } from "../use-portfolio-backtest";
 import { useCrossSectionalBacktest, type CrossSectionalBacktestRun } from "../use-cross-sectional-backtest";
 import { usePairsBacktest, type PairsBacktestRun } from "../use-pairs-backtest";
 import { useWatchlist } from "../use-watchlist";
 import { MarkdownContent } from "../markdown-content";
+import { Disclaimer } from "../disclaimer";
+import { NOT_INVESTMENT_ADVICE } from "@/lib/disclaimers";
 
 const INTERVALS = ["1d", "1wk", "1mo"];
 const RANGES = ["3mo", "6mo", "1y", "2y", "5y"];
@@ -23,7 +25,24 @@ const MODE_LABELS: Record<Mode, string> = {
   pairs: "Pairs",
 };
 
+const MODE_BLURBS: Record<Mode, string> = {
+  single: "Test one strategy against one stock's own price history.",
+  portfolio: "Run the same strategy across a basket of stocks at once, with starting cash split equally.",
+  cross_sectional: "Rank all NIFTY 50 stocks against each other and hold the top performers — a 'pick the best of the bunch' approach, not tied to any one stock.",
+  pairs: "Bets on two related stocks' prices converging again — a market-neutral trade (one long, one short), not a directional bet on either stock alone.",
+};
+
 const DEFAULT_PAIRS_PARAMS: PairsParams = { lookback: 20, entryZ: 2, exitZ: 0.5 };
+
+function groupByFamily(strategies: StrategyDef[]): [string, StrategyDef[]][] {
+  const groups = new Map<string, StrategyDef[]>();
+  for (const s of strategies) {
+    const key = s.family ?? "Other";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(s);
+  }
+  return Array.from(groups.entries());
+}
 
 function defaultParams(strategyId: StrategyId): StrategyParams {
   const params: StrategyParams = {};
@@ -157,6 +176,7 @@ export function BacktestPanel() {
             key={m}
             type="button"
             onClick={() => switchMode(m)}
+            aria-pressed={mode === m}
             className={`text-xs rounded-full border px-3 py-1.5 transition-colors ${
               mode === m
                 ? "bg-foreground text-background border-foreground"
@@ -167,6 +187,7 @@ export function BacktestPanel() {
           </button>
         ))}
       </div>
+      <p className="text-xs text-black/50 dark:text-white/50 -mt-4">{MODE_BLURBS[mode]}</p>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 rounded-lg border border-black/[.08] dark:border-white/[.145] p-4">
         <div className="flex gap-2">
@@ -175,6 +196,7 @@ export function BacktestPanel() {
               value={symbol}
               onChange={(e) => setSymbol(e.target.value)}
               placeholder="Symbol, e.g. RELIANCE.NS"
+              aria-label="Symbol"
               className="flex-1 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
             />
           )}
@@ -183,6 +205,7 @@ export function BacktestPanel() {
               value={symbolsInput}
               onChange={(e) => setSymbolsInput(e.target.value)}
               placeholder="Comma-separated symbols, e.g. RELIANCE.NS, TCS.NS"
+              aria-label="Comma-separated symbols"
               className="flex-1 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
             />
           )}
@@ -197,12 +220,14 @@ export function BacktestPanel() {
                 value={symbolA}
                 onChange={(e) => setSymbolA(e.target.value)}
                 placeholder="Symbol A, e.g. HDFCBANK.NS"
+                aria-label="Symbol A"
                 className="flex-1 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
               />
               <input
                 value={symbolB}
                 onChange={(e) => setSymbolB(e.target.value)}
                 placeholder="Symbol B, e.g. ICICIBANK.NS"
+                aria-label="Symbol B"
                 className="flex-1 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
               />
             </div>
@@ -232,33 +257,44 @@ export function BacktestPanel() {
         </div>
 
         {mode !== "pairs" && (
-          <div className="flex flex-col gap-2">
-            <div className="flex flex-wrap gap-2">
-              {visibleStrategies.length === 0 && (
-                <p className="text-xs text-black/50 dark:text-white/50">
-                  No cross-sectional strategies are wired up yet.
-                </p>
-              )}
-              {visibleStrategies.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => selectStrategy(s.id)}
-                  className={`text-xs rounded-full border px-3 py-1.5 transition-colors ${
-                    strategyId === s.id
-                      ? "bg-foreground text-background border-foreground"
-                      : "border-black/[.08] dark:border-white/[.145] hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a]"
-                  }`}
-                >
-                  {s.name}
-                  {s.approximation && (
-                    <span className="ml-1.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 text-[10px] font-medium">
-                      Proxy
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
+          <div className="flex flex-col gap-3">
+            {visibleStrategies.length === 0 && (
+              <p className="text-xs text-black/50 dark:text-white/50">
+                No cross-sectional strategies are wired up yet.
+              </p>
+            )}
+            {groupByFamily(visibleStrategies).map(([family, strategiesInFamily]) => (
+              <div key={family} className="flex flex-col gap-1.5">
+                <span className="text-[10px] uppercase tracking-wide text-black/40 dark:text-white/40">
+                  {family}
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {strategiesInFamily.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => selectStrategy(s.id)}
+                      aria-pressed={strategyId === s.id}
+                      className={`text-xs rounded-full border px-3 py-1.5 transition-colors ${
+                        strategyId === s.id
+                          ? "bg-foreground text-background border-foreground"
+                          : "border-black/[.08] dark:border-white/[.145] hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a]"
+                      }`}
+                    >
+                      {s.name}
+                      {s.approximation && (
+                        <span
+                          title="Proxy: approximates data no current provider actually returns — see the note below once selected"
+                          className="ml-1.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 text-[10px] font-medium"
+                        >
+                          Proxy
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
             {strategy && <p className="text-xs text-black/50 dark:text-white/50">{strategy.description}</p>}
             {strategy?.approximation && (
               <p className="text-xs text-amber-600 dark:text-amber-400">{strategy.approximation}</p>
@@ -329,20 +365,34 @@ export function BacktestPanel() {
         <button
           type="submit"
           disabled={running || (mode !== "pairs" && !strategy)}
-          className="self-start rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:bg-[#383838] dark:hover:bg-[#ccc] transition-colors disabled:opacity-40"
+          className="self-start rounded-lg bg-accent text-white px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors disabled:opacity-40"
         >
           {running ? "Running…" : "Run Backtest"}
         </button>
       </form>
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
 
       {mode === "single" && single.current && (
         <BacktestResultView run={single.current} reviewLoading={single.reviewLoading} onReview={single.getReview} />
       )}
-      {mode === "portfolio" && portfolio.current && <PortfolioResultView run={portfolio.current} />}
-      {mode === "cross_sectional" && crossSectional.current && <SimpleResultView run={crossSectional.current} />}
-      {mode === "pairs" && pairs.current && <SimpleResultView run={pairs.current} showSymbol />}
+      {mode === "portfolio" && portfolio.current && (
+        <PortfolioResultView
+          run={portfolio.current}
+          reviewLoading={portfolio.reviewLoading}
+          onReview={portfolio.getReview}
+        />
+      )}
+      {mode === "cross_sectional" && crossSectional.current && (
+        <SimpleResultView
+          run={crossSectional.current}
+          reviewLoading={crossSectional.reviewLoading}
+          onReview={crossSectional.getReview}
+        />
+      )}
+      {mode === "pairs" && pairs.current && (
+        <SimpleResultView run={pairs.current} showSymbol reviewLoading={pairs.reviewLoading} onReview={pairs.getReview} />
+      )}
 
       <div>
         <h3 className="text-sm font-medium mb-2">Past runs</h3>
@@ -468,13 +518,45 @@ export function BacktestPanel() {
         </ul>
       </div>
 
-      <p className="text-xs text-black/40 dark:text-white/40">
+      <Disclaimer>
         Backtests run against free Yahoo Finance historical data — prototyping only. Results are
-        simulated, long-only (pairs mode simulates a market-neutral spread as an isolated
-        exception — see docs), and do not account for slippage or brokerage charges. Portfolio
-        mode splits starting cash equally across symbols and runs each independently.
-        Cross-sectional mode ranks and rebalances the full NIFTY 50 universe. Not investment advice.
-      </p>
+        simulated, long-only (pairs mode is the one exception — it simulates a market-neutral
+        spread), and do not account for slippage or brokerage charges. Portfolio mode splits
+        starting cash equally across symbols and runs each independently. Cross-sectional mode ranks
+        and rebalances the full NIFTY 50 universe. {NOT_INVESTMENT_ADVICE}
+      </Disclaimer>
+    </div>
+  );
+}
+
+function AiReviewSection({
+  id,
+  aiReview,
+  reviewLoading,
+  onReview,
+}: {
+  id: string;
+  aiReview?: AiReview;
+  reviewLoading: boolean;
+  onReview: (id: string) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <button
+        onClick={() => onReview(id)}
+        disabled={reviewLoading}
+        className="self-start rounded-lg border border-black/[.08] dark:border-white/[.145] px-4 py-2 text-sm font-medium hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] transition-colors disabled:opacity-40"
+      >
+        {reviewLoading ? "Reviewing…" : aiReview ? "Refresh AI review" : "Get AI review"}
+      </button>
+      {aiReview && (
+        <div className="rounded-lg border border-black/[.08] dark:border-white/[.145] p-4">
+          <MarkdownContent content={aiReview.content} />
+          <div className="mt-2 text-xs text-black/40 dark:text-white/40">
+            {aiReview.provider}/{aiReview.model}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -493,29 +575,20 @@ function BacktestResultView({
       <MetricsGrid metrics={run.metrics} />
       <EquityChart equityCurve={run.equityCurve} startingCash={run.config.startingCash} />
       <TradeLog trades={run.trades} />
-
-      <div className="flex flex-col gap-2">
-        <button
-          onClick={() => onReview(run._id)}
-          disabled={reviewLoading}
-          className="self-start rounded-lg border border-black/[.08] dark:border-white/[.145] px-4 py-2 text-sm font-medium hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] transition-colors disabled:opacity-40"
-        >
-          {reviewLoading ? "Reviewing…" : run.aiReview ? "Refresh AI review" : "Get AI review"}
-        </button>
-        {run.aiReview && (
-          <div className="rounded-lg border border-black/[.08] dark:border-white/[.145] p-4">
-            <MarkdownContent content={run.aiReview.content} />
-            <div className="mt-2 text-xs text-black/40 dark:text-white/40">
-              {run.aiReview.provider}/{run.aiReview.model}
-            </div>
-          </div>
-        )}
-      </div>
+      <AiReviewSection id={run._id} aiReview={run.aiReview} reviewLoading={reviewLoading} onReview={onReview} />
     </div>
   );
 }
 
-function PortfolioResultView({ run }: { run: PortfolioBacktestRun }) {
+function PortfolioResultView({
+  run,
+  reviewLoading,
+  onReview,
+}: {
+  run: PortfolioBacktestRun;
+  reviewLoading: boolean;
+  onReview: (id: string) => void;
+}) {
   return (
     <div className="flex flex-col gap-4">
       <MetricsGrid metrics={run.metrics} />
@@ -540,24 +613,30 @@ function PortfolioResultView({ run }: { run: PortfolioBacktestRun }) {
       </div>
 
       <TradeLog trades={run.trades} showSymbol />
+      <AiReviewSection id={run._id} aiReview={run.aiReview} reviewLoading={reviewLoading} onReview={onReview} />
     </div>
   );
 }
 
 // Shared by cross-sectional and pairs mode — both are just an equity
-// curve, metrics, and a trade log, no per-symbol breakdown or AI review.
+// curve, metrics, a trade log, and an AI review.
 function SimpleResultView({
   run,
   showSymbol,
+  reviewLoading,
+  onReview,
 }: {
   run: CrossSectionalBacktestRun | PairsBacktestRun;
   showSymbol?: boolean;
+  reviewLoading: boolean;
+  onReview: (id: string) => void;
 }) {
   return (
     <div className="flex flex-col gap-4">
       <MetricsGrid metrics={run.metrics} />
       <EquityChart equityCurve={run.equityCurve} startingCash={run.config.startingCash} />
       <TradeLog trades={run.trades} showSymbol={showSymbol} />
+      <AiReviewSection id={run._id} aiReview={run.aiReview} reviewLoading={reviewLoading} onReview={onReview} />
     </div>
   );
 }

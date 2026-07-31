@@ -2,8 +2,13 @@ import { NextResponse } from "next/server";
 import { getCollections } from "@/lib/db/collections";
 import { verifyPassword } from "@/lib/auth/password";
 import { createSession } from "@/lib/auth/session";
+import { clientKey, rateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
+  if (!rateLimit(`login:${clientKey(request)}`, 10, 5 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many attempts — try again in a few minutes" }, { status: 429 });
+  }
+
   const body = await request.json();
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   const password = typeof body.password === "string" ? body.password : "";

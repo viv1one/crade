@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { MarkdownContent } from "./markdown-content";
+import { Disclaimer } from "./disclaimer";
+import { NOT_INVESTMENT_ADVICE } from "@/lib/disclaimers";
 
 export function MarketDigest() {
   const [content, setContent] = useState<string | null>(null);
@@ -36,7 +38,7 @@ export function MarketDigest() {
           {loading ? "Generating…" : "Generate AI market digest"}
         </button>
       )}
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p role="alert" className="text-xs text-red-500">{error}</p>}
       {content && (
         <div className="rounded-lg border border-black/[.08] dark:border-white/[.145] p-3 flex flex-col gap-2">
           <MarkdownContent content={content} />
@@ -53,6 +55,7 @@ export function MarketDigest() {
               Dismiss
             </button>
           </div>
+          <Disclaimer>{NOT_INVESTMENT_ADVICE}</Disclaimer>
         </div>
       )}
     </div>

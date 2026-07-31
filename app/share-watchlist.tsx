@@ -72,7 +72,7 @@ export function ShareWatchlist() {
             <button
               type="submit"
               disabled={submitting}
-              className="text-xs rounded-lg bg-foreground text-background px-3 py-1.5 font-medium hover:bg-[#383838] dark:hover:bg-[#ccc] transition-colors disabled:opacity-40"
+              className="text-xs rounded-lg bg-accent text-white px-3 py-1.5 font-medium hover:bg-accent-hover transition-colors disabled:opacity-40"
             >
               Invite
             </button>

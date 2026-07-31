@@ -10,6 +10,7 @@ import { DEFAULT_STARTING_CASH } from "@/lib/backtest/types";
 import { NIFTY_50 } from "@/lib/screener/universe";
 import type { Fundamentals, HistoricalBar } from "@/lib/market-data";
 import type { CrossSectionalBacktestConfig, StrategyId, StrategyParams } from "@/lib/backtest/types";
+import { toErrorResponse } from "@/lib/api-error";
 
 const CONCURRENCY = 5;
 
@@ -38,6 +39,21 @@ export async function POST(request: Request) {
   const strategy = STRATEGIES[strategyId as StrategyId];
   if (!strategy || strategy.kind !== "cross_sectional") {
     return NextResponse.json({ error: "Unknown cross-sectional strategy" }, { status: 400 });
+  }
+
+  // Cost ceiling: this route fans out to the entire NIFTY_50 universe
+  // (50 free-provider requests) on every POST — cheap to hit repeatedly on
+  // a hair-trigger "Run Backtest" click. Reuses the caller's own recent
+  // runs (no new collection) rather than a global rate limiter, since the
+  // real cost is per-user API-request volume, not request count.
+  const { crossSectionalBacktests: cooldownCheck } = await getCollections();
+  const lastRun = await cooldownCheck.findOne({ ownerId }, { sort: { createdAt: -1 } });
+  const COOLDOWN_MS = 30 * 1000;
+  if (lastRun && Date.now() - lastRun.createdAt.getTime() < COOLDOWN_MS) {
+    return NextResponse.json(
+      { error: "Please wait a moment before running another cross-sectional backtest" },
+      { status: 429 }
+    );
   }
 
   const resolvedParams: StrategyParams = {};
@@ -116,9 +132,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json(doc);
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Cross-sectional backtest failed" },
-      { status: 400 }
-    );
+    return toErrorResponse(err, "Cross-sectional backtest failed — try again in a moment", 400);
   }
 }

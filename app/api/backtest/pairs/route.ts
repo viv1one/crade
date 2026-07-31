@@ -6,6 +6,7 @@ import { marketData } from "@/lib/market-data";
 import { runPairsBacktest } from "@/lib/backtest/pairs-engine";
 import { DEFAULT_STARTING_CASH } from "@/lib/backtest/types";
 import type { PairsBacktestConfig, PairsParams } from "@/lib/backtest/types";
+import { toErrorResponse } from "@/lib/api-error";
 
 const DEFAULT_PARAMS: PairsParams = { lookback: 20, entryZ: 2, exitZ: 0.5 };
 
@@ -84,9 +85,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json(doc);
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Pairs backtest failed" },
-      { status: 400 }
-    );
+    return toErrorResponse(err, "Pairs backtest failed — check both symbols are correct and try again", 400);
   }
 }

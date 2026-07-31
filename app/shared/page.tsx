@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { AppNav } from "../app-nav";
 
 interface SharedWithMeRow {
   _id: string;
@@ -21,12 +22,8 @@ export default function SharedWithMePage() {
 
   return (
     <div className="font-sans min-h-screen flex flex-col items-center gap-16 p-8 sm:p-20">
-      <nav className="w-full max-w-2xl flex justify-start">
-        <Link href="/" className="text-sm font-medium underline underline-offset-4 hover:no-underline">
-          ← Watchlist &amp; portfolio
-        </Link>
-      </nav>
-      <div className="w-full max-w-2xl flex flex-col gap-6">
+      <AppNav />
+      <main className="w-full max-w-2xl flex flex-col gap-6">
         <h1 className="text-2xl font-semibold">Shared with me</h1>
         <ul className="flex flex-col divide-y divide-black/[.08] dark:divide-white/[.145] rounded-lg border border-black/[.08] dark:border-white/[.145]">
           {rows === null && (
@@ -53,7 +50,7 @@ export default function SharedWithMePage() {
             </li>
           ))}
         </ul>
-      </div>
+      </main>
     </div>
   );
 }

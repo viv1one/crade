@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ChatMessage, ChatTask } from "@/lib/ai";
 import { MarkdownContent } from "./markdown-content";
+import { Disclaimer } from "./disclaimer";
+import { NOT_INVESTMENT_ADVICE } from "@/lib/disclaimers";
 
 const TASK_OPTIONS: { value: ChatTask; label: string }[] = [
   { value: "chat", label: "Chat" },
@@ -11,8 +13,12 @@ const TASK_OPTIONS: { value: ChatTask; label: string }[] = [
   { value: "digest", label: "Digest" },
 ];
 
-export function ChatPanel() {
-  const [symbol, setSymbol] = useState("");
+interface ChatPanelProps {
+  initialSymbol?: string;
+}
+
+export function ChatPanel({ initialSymbol }: ChatPanelProps = {}) {
+  const [symbol, setSymbol] = useState(initialSymbol ?? "");
   const [task, setTask] = useState<ChatTask>("chat");
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -34,11 +40,13 @@ export function ChatPanel() {
     }
   }, []);
 
-  // Load once on mount for the default (no-symbol) context. Re-loads again
-  // whenever the symbol field is committed (blur), since history is scoped
-  // per symbol server-side.
+  // Load once on mount for the default (no-symbol) context, or for
+  // initialSymbol when a symbol was passed in (e.g. from clicking a symbol
+  // elsewhere in the app). Re-loads again whenever the symbol field is
+  // committed (blur), since history is scoped per symbol server-side.
   useEffect(() => {
-    loadHistory("");
+    loadHistory(initialSymbol?.trim().toUpperCase() ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadHistory]);
 
   async function send(e: React.FormEvent) {
@@ -73,7 +81,7 @@ export function ChatPanel() {
   }
 
   return (
-    <div className="w-full max-w-2xl flex flex-col gap-4">
+    <div id="chat" className="w-full max-w-2xl flex flex-col gap-4 scroll-mt-8">
       <h2 className="text-2xl font-semibold">AI Chat</h2>
 
       <div className="flex gap-2">
@@ -82,6 +90,7 @@ export function ChatPanel() {
           onChange={(e) => setSymbol(e.target.value)}
           onBlur={(e) => loadHistory(e.target.value.trim().toUpperCase())}
           placeholder="Symbol (optional), e.g. RELIANCE.NS"
+          aria-label="Symbol to ground chat in (optional)"
           className="flex-1 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
         />
         <select
@@ -115,6 +124,7 @@ export function ChatPanel() {
                 : "self-start bg-black/[.05] dark:bg-white/[.06]"
             }`}
           >
+            <span className="sr-only">{m.role === "user" ? "You: " : "Assistant: "}</span>
             {m.role === "assistant" ? <MarkdownContent content={m.content} /> : m.content}
           </div>
         ))}
@@ -123,7 +133,7 @@ export function ChatPanel() {
         )}
       </div>
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
       {meta && (
         <p className="text-xs text-black/40 dark:text-white/40">
           via {meta.provider} ({meta.model})
@@ -135,20 +145,19 @@ export function ChatPanel() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask something…"
+          aria-label="Message"
           className="flex-1 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
         />
         <button
           type="submit"
           disabled={loading}
-          className="rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:bg-[#383838] dark:hover:bg-[#ccc] transition-colors disabled:opacity-40"
+          className="rounded-lg bg-accent text-white px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors disabled:opacity-40"
         >
           Send
         </button>
       </form>
 
-      <p className="text-xs text-black/40 dark:text-white/40">
-        Not investment advice — for personal research only. See docs/plan.md §7.
-      </p>
+      <Disclaimer>{NOT_INVESTMENT_ADVICE}</Disclaimer>
     </div>
   );
 }

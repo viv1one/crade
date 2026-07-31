@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import type { ScreenerRow } from "@/lib/screener/types";
 import { AiScreenerQuery } from "./ai-screener-query";
+
+const HIGH_PE_THRESHOLD = 60;
 
 type SortKey = "changePercent" | "price" | "peRatio" | "marketCap";
 
@@ -160,11 +163,11 @@ export function ScreenerPanel() {
         </select>
       </div>
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
 
-      <div className="overflow-x-auto rounded-lg border border-black/[.08] dark:border-white/[.145]">
+      <div className="overflow-x-auto rounded-lg border border-black/[.08] dark:border-white/[.145] max-h-[32rem] overflow-y-auto">
         <table className="w-full text-sm">
-          <thead>
+          <thead className="sticky top-0 z-10 bg-background">
             <tr className="border-b border-black/[.08] dark:border-white/[.145] text-left text-xs text-black/50 dark:text-white/50">
               <th className="p-3">Symbol</th>
               <th className="p-3">Sector</th>
@@ -191,15 +194,25 @@ export function ScreenerPanel() {
                 </td>
               </tr>
             )}
-            {filtered.map((row) => (
+            {filtered.map((row, i) => (
               <tr
                 key={row.symbol}
                 className={`border-b border-black/[.05] dark:border-white/[.05] last:border-0 ${
-                  highlighted?.has(row.symbol) ? "bg-yellow-500/10" : ""
+                  highlighted?.has(row.symbol)
+                    ? "bg-yellow-500/10"
+                    : i % 2 === 1
+                      ? "bg-black/[.02] dark:bg-white/[.02]"
+                      : ""
                 }`}
               >
                 <td className="p-3">
-                  <div className="font-mono font-medium">{row.symbol}</div>
+                  <Link
+                    href={`/?symbol=${encodeURIComponent(row.symbol)}#chat`}
+                    className="font-mono font-medium underline-offset-4 hover:underline"
+                    title={`Research ${row.symbol} in AI Chat`}
+                  >
+                    {row.symbol}
+                  </Link>
                   <div className="text-xs text-black/50 dark:text-white/50">{row.name}</div>
                 </td>
                 <td className="p-3 text-xs text-black/60 dark:text-white/60">{row.sector}</td>
@@ -212,7 +225,18 @@ export function ScreenerPanel() {
                   {row.changePercent >= 0 ? "+" : ""}
                   {row.changePercent.toFixed(2)}%
                 </td>
-                <td className="p-3 text-right font-mono">
+                <td
+                  className={`p-3 text-right font-mono ${
+                    row.peRatio != null && row.peRatio > HIGH_PE_THRESHOLD
+                      ? "text-amber-600 dark:text-amber-400"
+                      : ""
+                  }`}
+                  title={
+                    row.peRatio != null && row.peRatio > HIGH_PE_THRESHOLD
+                      ? "Unusually high P/E"
+                      : undefined
+                  }
+                >
                   {row.peRatio != null ? row.peRatio.toFixed(1) : "—"}
                 </td>
                 <td className="p-3 text-right font-mono">{formatMarketCap(row.marketCap)}</td>

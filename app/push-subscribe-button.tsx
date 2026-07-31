@@ -3,7 +3,11 @@
 import { useState } from "react";
 import { enablePushNotifications } from "@/lib/push/subscribe-client";
 
-export function PushSubscribeButton() {
+interface PushSubscribeButtonProps {
+  onSubscribed?: () => void;
+}
+
+export function PushSubscribeButton({ onSubscribed }: PushSubscribeButtonProps = {}) {
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
 
@@ -13,6 +17,7 @@ export function PushSubscribeButton() {
     try {
       await enablePushNotifications();
       setStatus("done");
+      onSubscribed?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to enable notifications");
       setStatus("error");
@@ -28,11 +33,11 @@ export function PushSubscribeButton() {
       <button
         onClick={handleClick}
         disabled={status === "loading"}
-        className="text-sm rounded-full border border-black/[.08] dark:border-white/[.145] px-4 py-2 hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] transition-colors disabled:opacity-40 w-fit"
+        className="text-sm rounded-lg bg-accent text-white px-4 py-2 font-medium hover:bg-accent-hover transition-colors disabled:opacity-40 w-fit"
       >
         {status === "loading" ? "Enabling…" : "Enable push notifications on this device"}
       </button>
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p role="alert" className="text-xs text-red-500">{error}</p>}
     </div>
   );
 }

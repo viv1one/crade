@@ -8,6 +8,7 @@ import { STRATEGIES } from "@/lib/backtest/strategies";
 import { DEFAULT_STARTING_CASH } from "@/lib/backtest/types";
 import type { HistoricalBar } from "@/lib/market-data";
 import type { PortfolioBacktestConfig, StrategyId, StrategyParams } from "@/lib/backtest/types";
+import { toErrorResponse } from "@/lib/api-error";
 
 export async function GET() {
   const user = await requireUserOrResponse();
@@ -87,9 +88,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json(doc);
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Portfolio backtest failed" },
-      { status: 400 }
-    );
+    return toErrorResponse(err, "Portfolio backtest failed — check the symbols are correct and try again", 400);
   }
 }

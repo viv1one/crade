@@ -58,6 +58,11 @@ export interface StrategyDef {
   // calendar) — the UI renders a visible "Proxy" badge whenever this is
   // present, per the loop file's Tier B labeling requirement.
   approximation?: string;
+  // Best-guess taxonomy label for grouping the strategy picker UI once the
+  // flat list grew past what's browsable (25 entries). Inferred from each
+  // strategy's own description, not an authoritative classification —
+  // rename/re-bucket freely if a better grouping emerges.
+  family?: string;
   // Set only for the one single-symbol strategy that needs a second real
   // price series beyond its own symbol (crude oil vs. an equity). Fetched
   // once by the API route and threaded through generateSignals() as

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Disclaimer } from "../disclaimer";
+import { NOT_INVESTMENT_ADVICE } from "@/lib/disclaimers";
 
 type ConditionType = "price_above" | "price_below" | "rsi_below" | "volume_spike";
 
@@ -28,6 +30,13 @@ export function AlertsPanel() {
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [pushGranted, setPushGranted] = useState(true);
+
+  useEffect(() => {
+    if (typeof Notification !== "undefined") {
+      setPushGranted(Notification.permission === "granted");
+    }
+  }, []);
 
   function load() {
     fetch("/api/alerts")
@@ -87,6 +96,13 @@ export function AlertsPanel() {
     <div className="w-full max-w-2xl flex flex-col gap-6">
       <h1 className="text-2xl font-semibold">Alerts</h1>
 
+      {!pushGranted && (
+        <p className="text-xs text-amber-600 dark:text-amber-400">
+          Push notifications aren&apos;t enabled on this device yet — enable them above, or an alert
+          firing won&apos;t actually notify you.
+        </p>
+      )}
+
       <form onSubmit={handleCreate} className="flex flex-col gap-2 sm:flex-row">
         <input
           value={symbol}
@@ -118,12 +134,12 @@ export function AlertsPanel() {
         <button
           type="submit"
           disabled={submitting}
-          className="rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:bg-[#383838] dark:hover:bg-[#ccc] transition-colors disabled:opacity-40"
+          className="rounded-lg bg-accent text-white px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors disabled:opacity-40"
         >
           Add
         </button>
       </form>
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
 
       <ul className="flex flex-col divide-y divide-black/[.08] dark:divide-white/[.145] rounded-lg border border-black/[.08] dark:border-white/[.145]">
         {!loaded && (
@@ -131,7 +147,7 @@ export function AlertsPanel() {
         )}
         {loaded && alerts.length === 0 && (
           <li className="p-4 text-sm text-black/50 dark:text-white/50">
-            No alerts yet — add one above.
+            No alerts yet — add one above. Try: RELIANCE.NS, price above ₹1300.
           </li>
         )}
         {alerts.map((alert) => (
@@ -177,10 +193,11 @@ export function AlertsPanel() {
         ))}
       </ul>
 
-      <p className="text-xs text-black/40 dark:text-white/40">
+      <Disclaimer>
         Alerts are checked periodically in the background and delivered as a push notification.
-        Push requires notification permission — see the browser prompt on first visit.
-      </p>
+        Push requires notification permission — see the browser prompt on first visit.{" "}
+        {NOT_INVESTMENT_ADVICE}
+      </Disclaimer>
     </div>
   );
 }

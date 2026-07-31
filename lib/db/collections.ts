@@ -19,6 +19,10 @@ export interface User {
   passwordHash?: string;
   oauthProvider?: string;
   createdAt: Date;
+  // Timestamp of the required signup acknowledgment ("simulation-only,
+  // not investment advice, not connected to any broker"). Older accounts
+  // created before this existed won't have it.
+  consentedAt?: Date;
   notificationPrefs?: {
     push: boolean;
     email: boolean;
@@ -171,6 +175,7 @@ export interface PortfolioBacktest {
   trades: Trade[];
   metrics: BacktestMetrics;
   bySymbol: SymbolContribution[];
+  aiReview?: { content: string; provider: string; model: string; createdAt: Date };
   createdAt: Date;
 }
 
@@ -193,15 +198,6 @@ export interface PairsBacktest {
   trades: Trade[];
   metrics: BacktestMetrics;
   aiReview?: { content: string; provider: string; model: string; createdAt: Date };
-  createdAt: Date;
-}
-
-export interface JournalEntry {
-  _id: ObjectId;
-  userId: ObjectId;
-  symbol: string;
-  note: string;
-  tags: string[];
   createdAt: Date;
 }
 
@@ -230,6 +226,5 @@ export async function getCollections() {
     pairsBacktests: db.collection<PairsBacktest>("pairs_backtests"),
     aiSessions: db.collection<AiSession>("ai_sessions"),
     pushSubscriptions: db.collection<PushSubscriptionDoc>("push_subscriptions"),
-    journalEntries: db.collection<JournalEntry>("journal_entries"),
   };
 }

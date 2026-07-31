@@ -68,6 +68,15 @@ export function EquityChart({ equityCurve, startingCash }: EquityChartProps) {
   const startY = PAD_TOP + innerH - ((startingCash - minY) / spanY) * innerH;
   const hover = hoverIndex !== null ? points[hoverIndex] : null;
 
+  const first = points[0];
+  const last = points[points.length - 1];
+  const returnPct = first.equity !== 0 ? ((last.equity - first.equity) / first.equity) * 100 : 0;
+  const chartLabel = `Equity curve from ₹${first.equity.toFixed(0)} to ₹${last.equity.toFixed(0)} (${
+    returnPct >= 0 ? "+" : ""
+  }${returnPct.toFixed(1)}%) over ${points.length} data points`;
+  const minPoint = points.reduce((a, b) => (b.equity < a.equity ? b : a));
+  const maxPoint = points.reduce((a, b) => (b.equity > a.equity ? b : a));
+
   function handlePointerMove(e: React.PointerEvent<SVGSVGElement>) {
     if (!svgRef.current || points.length === 0) return;
     const rect = svgRef.current.getBoundingClientRect();
@@ -92,6 +101,8 @@ export function EquityChart({ equityCurve, startingCash }: EquityChartProps) {
         className="w-full h-auto touch-none"
         onPointerMove={handlePointerMove}
         onPointerLeave={() => setHoverIndex(null)}
+        role="img"
+        aria-label={chartLabel}
       >
         {ticks.map((t) => {
           const y = PAD_TOP + innerH - ((t - minY) / spanY) * innerH;
@@ -155,6 +166,39 @@ export function EquityChart({ equityCurve, startingCash }: EquityChartProps) {
           </div>
         </div>
       )}
+
+      <table className="sr-only">
+        <caption>Equity curve key points</caption>
+        <thead>
+          <tr>
+            <th>Point</th>
+            <th>Date</th>
+            <th>Equity</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Start</td>
+            <td>{new Date(first.time * 1000).toLocaleDateString()}</td>
+            <td>₹{first.equity.toFixed(2)}</td>
+          </tr>
+          <tr>
+            <td>End</td>
+            <td>{new Date(last.time * 1000).toLocaleDateString()}</td>
+            <td>₹{last.equity.toFixed(2)}</td>
+          </tr>
+          <tr>
+            <td>Minimum</td>
+            <td>{new Date(minPoint.time * 1000).toLocaleDateString()}</td>
+            <td>₹{minPoint.equity.toFixed(2)}</td>
+          </tr>
+          <tr>
+            <td>Maximum</td>
+            <td>{new Date(maxPoint.time * 1000).toLocaleDateString()}</td>
+            <td>₹{maxPoint.equity.toFixed(2)}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   );
 }

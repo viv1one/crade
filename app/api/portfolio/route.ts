@@ -3,6 +3,7 @@ import { requireUserOrResponse } from "@/lib/auth/api";
 import { getCollections } from "@/lib/db/collections";
 import { applyBuy, applySell, createEmptyPortfolio } from "@/lib/paper-trading/store";
 import type { PortfolioState } from "@/lib/paper-trading/types";
+import { AppError, toErrorResponse } from "@/lib/api-error";
 
 async function loadState(ownerId: string): Promise<PortfolioState> {
   const { paperPortfolios } = await getCollections();
@@ -45,14 +46,11 @@ export async function POST(request: Request) {
     } else if (body.action === "reset") {
       next = createEmptyPortfolio();
     } else {
-      return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+      throw new AppError("Unknown action");
     }
     await saveState(ownerId, next);
     return NextResponse.json(next);
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Trade failed" },
-      { status: 400 }
-    );
+    return toErrorResponse(err, "Trade failed");
   }
 }

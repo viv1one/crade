@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import type { Quote } from "@/lib/market-data";
+import { AppNav } from "@/app/app-nav";
+import { Disclaimer } from "@/app/disclaimer";
+import { FREE_DATA_SOURCE, NOT_INVESTMENT_ADVICE } from "@/lib/disclaimers";
 
 interface RowState {
   quote?: Quote;
@@ -50,18 +52,14 @@ export default function SharedWatchlistPage() {
 
   return (
     <div className="font-sans min-h-screen flex flex-col items-center gap-16 p-8 sm:p-20">
-      <nav className="w-full max-w-2xl flex justify-start">
-        <Link href="/shared" className="text-sm font-medium underline underline-offset-4 hover:no-underline">
-          ← Shared with me
-        </Link>
-      </nav>
-      <div className="w-full max-w-2xl flex flex-col gap-6">
+      <AppNav />
+      <main className="w-full max-w-2xl flex flex-col gap-6">
         <h1 className="text-2xl font-semibold">
           {ownerEmail ? `${ownerEmail}'s watchlist` : "Shared watchlist"}
         </h1>
         <p className="text-xs text-black/40 dark:text-white/40">Read-only — you can view but not edit this.</p>
 
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
 
         <ul className="flex flex-col divide-y divide-black/[.08] dark:divide-white/[.145] rounded-lg border border-black/[.08] dark:border-white/[.145]">
           {symbols === null && !error && (
@@ -93,7 +91,11 @@ export default function SharedWatchlistPage() {
             );
           })}
         </ul>
-      </div>
+
+        <Disclaimer>
+          {FREE_DATA_SOURCE} {NOT_INVESTMENT_ADVICE}
+        </Disclaimer>
+      </main>
     </div>
   );
 }

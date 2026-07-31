@@ -3,11 +3,17 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* Restrained indigo accent — wordmark + primary CTAs only, everything
+     else stays the existing black/white/gray palette. */
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -16,6 +22,9 @@
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    /* A touch lighter for contrast against the near-black dark background. */
+    --accent: #6366f1;
+    --accent-hover: #818cf8;
   }
 }
 
@@ -23,4 +32,12 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+input:focus-visible,
+select:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
 }

@@ -176,10 +176,21 @@ function valueProxyScore(symbol: string, ctx: RankContext): number | undefined {
   return score;
 }
 
-// Blends Momentum Factor and the Value proxy: a symbol only needs to be
-// scoreable on one of the two, mirroring value_proxy's own tolerance for
-// missing fundamentals.
-function momentumStyleRotationScore(symbol: string, ctx: RankContext): number | undefined {
+interface StyleRotationSubScores {
+  momentum: Map<string, number>;
+  value: Map<string, number>;
+}
+
+// Keyed by RankContext object identity, which the engine holds constant
+// across every scoreFn(symbol, ctx) call within one rebalance (a fresh ctx
+// is only built per rebalance date) — so the whole universe's sub-scores
+// get computed once per rebalance, not once per candidate symbol.
+const styleRotationCache = new WeakMap<RankContext, StyleRotationSubScores>();
+
+function styleRotationSubScores(ctx: RankContext): StyleRotationSubScores {
+  const cached = styleRotationCache.get(ctx);
+  if (cached) return cached;
+
   const momentum = new Map<string, number>();
   const value = new Map<string, number>();
   for (const u of ctx.universe) {
@@ -188,6 +199,16 @@ function momentumStyleRotationScore(symbol: string, ctx: RankContext): number | 
     if (m !== undefined) momentum.set(u.symbol, m);
     if (v !== undefined) value.set(u.symbol, v);
   }
+  const result = { momentum, value };
+  styleRotationCache.set(ctx, result);
+  return result;
+}
+
+// Blends Momentum Factor and the Value proxy: a symbol only needs to be
+// scoreable on one of the two, mirroring value_proxy's own tolerance for
+// missing fundamentals.
+function momentumStyleRotationScore(symbol: string, ctx: RankContext): number | undefined {
+  const { momentum, value } = styleRotationSubScores(ctx);
   if (!momentum.has(symbol) && !value.has(symbol)) return undefined;
 
   let score = 0;
@@ -269,16 +290,24 @@ function zScore(values: number[], x: number): number {
   return std === 0 ? 0 : (x - m) / std;
 }
 
-// Sums the z-scored Momentum Factor, Low Volatility, and Sector Momentum
-// sub-signals across whichever symbols are scoreable on all three at
-// this rebalance. Recomputes the whole universe's sub-scores on every
-// call (once per symbol per rebalance) — same accepted O(n) redundancy
-// as equalWeightMarketReturns; NIFTY_50-sized universes stay fast.
-function smartFactorCompositeScore(symbol: string, ctx: RankContext): number | undefined {
+interface SmartFactorSubScores {
+  momentum: Map<string, number>;
+  lowVol: Map<string, number>;
+  sectorMom: Map<string, number>;
+}
+
+// Same per-rebalance memoization as styleRotationSubScores above —
+// computed once per rebalance (keyed by RankContext identity) instead of
+// once per candidate symbol.
+const smartFactorCache = new WeakMap<RankContext, SmartFactorSubScores>();
+
+function smartFactorSubScores(ctx: RankContext): SmartFactorSubScores {
+  const cached = smartFactorCache.get(ctx);
+  if (cached) return cached;
+
   const momentum = new Map<string, number>();
   const lowVol = new Map<string, number>();
   const sectorMom = new Map<string, number>();
-
   for (const u of ctx.universe) {
     const m = momentumFactorScore(u.symbol, ctx);
     const v = lowVolatilityScore(u.symbol, ctx);
@@ -289,6 +318,16 @@ function smartFactorCompositeScore(symbol: string, ctx: RankContext): number | u
       sectorMom.set(u.symbol, s);
     }
   }
+  const result = { momentum, lowVol, sectorMom };
+  smartFactorCache.set(ctx, result);
+  return result;
+}
+
+// Sums the z-scored Momentum Factor, Low Volatility, and Sector Momentum
+// sub-signals across whichever symbols are scoreable on all three at
+// this rebalance.
+function smartFactorCompositeScore(symbol: string, ctx: RankContext): number | undefined {
+  const { momentum, lowVol, sectorMom } = smartFactorSubScores(ctx);
 
   if (!momentum.has(symbol)) return undefined; // not scoreable on all three sub-signals
   const momentumValues = Array.from(momentum.values());

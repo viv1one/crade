@@ -8,6 +8,7 @@ import type {
   StrategyParams,
 } from "@/lib/backtest/types";
 import type { Trade } from "@/lib/paper-trading/types";
+import type { AiReview } from "./use-backtest";
 
 export interface CrossSectionalBacktestRun {
   _id: string;
@@ -16,6 +17,7 @@ export interface CrossSectionalBacktestRun {
   equityCurve: EquityPoint[];
   trades: Trade[];
   metrics: BacktestMetrics;
+  aiReview?: AiReview;
   createdAt: string;
 }
 
@@ -32,6 +34,7 @@ export function useCrossSectionalBacktest() {
   const [current, setCurrent] = useState<CrossSectionalBacktestRun | null>(null);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [running, setRunning] = useState(false);
+  const [reviewLoading, setReviewLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadHistory = useCallback(() => {
@@ -68,5 +71,24 @@ export function useCrossSectionalBacktest() {
     }
   }, []);
 
-  return { history, historyLoaded, current, setCurrent, running, error, run };
+  const getReview = useCallback(async (id: string) => {
+    setReviewLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/backtest/cross-sectional/${id}/review`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "AI review failed");
+      const patch = (run: CrossSectionalBacktestRun) => (run._id === id ? { ...run, aiReview: data } : run);
+      setCurrent((prev) => (prev ? patch(prev) : prev));
+      setHistory((prev) => prev.map(patch));
+      return data as AiReview;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "AI review failed");
+      return null;
+    } finally {
+      setReviewLoading(false);
+    }
+  }, []);
+
+  return { history, historyLoaded, current, setCurrent, running, reviewLoading, error, run, getReview };
 }
