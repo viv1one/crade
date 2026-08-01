@@ -209,11 +209,17 @@ touching call sites.
     `lib/backtest/indicators.ts`'s `rsi()` over 3 months of daily bars; `volume_spike` as today's volume
     vs. the 20-day average), and on trigger sets `status: "triggered"` + `lastTriggeredAt` and pushes to
     every subscription for that user (pruning subscriptions that come back 404/410 — expired/unregistered
-    endpoints). Gated by `CRON_SECRET` (`Authorization: Bearer <secret>`) when that env var is set — this
-    is the header Vercel Cron sends automatically once you configure `CRON_SECRET` in the project's env
-    vars. Scheduled via `vercel.json` (`*/5 * * * *`); locally, hit it manually with the same header to
-    test. A "triggered" alert stays that way until the user flips it back to active/paused from
-    `app/alerts/alerts-panel.tsx` (`PATCH app/api/alerts/[id]/route.ts`).
+    endpoints). Gated by `CRON_SECRET` (`Authorization: Bearer <secret>`) when that env var is set.
+    Scheduled via `.github/workflows/evaluate-alerts.yml` (GitHub Actions, `*/5 * * * *`) rather than
+    Vercel's own `crons` in `vercel.json` — Vercel Hobby-tier projects reject any cron schedule more
+    frequent than once/day, and this endpoint needs 5-minute granularity to be useful, so a GitHub
+    Actions schedule pings it instead, sending the same `Authorization: Bearer` header Vercel Cron
+    would have. Needs two GitHub repo secrets (Settings > Secrets and variables > Actions):
+    `CRON_SECRET` (same value as the Vercel env var) and `CRADE_DEPLOYMENT_URL` (the deployed origin,
+    no trailing slash). If the project ever moves to Vercel Pro, `vercel.json`'s `crons` config could
+    replace this workflow — not required, just an option. Locally, hit the route manually with the
+    same header to test. A "triggered" alert stays that way until the user flips it back to
+    active/paused from `app/alerts/alerts-panel.tsx` (`PATCH app/api/alerts/[id]/route.ts`).
   - `app/api/alerts/route.ts` (list/create) + `app/api/alerts/[id]/route.ts` (pause/resume/delete) —
     plain CRUD over the `alerts` collection, `userId`-scoped.
 
