@@ -5,6 +5,7 @@ import type { ChatMessage, ChatTask } from "@/lib/ai";
 import { MarkdownContent } from "./markdown-content";
 import { Disclaimer } from "./disclaimer";
 import { NOT_INVESTMENT_ADVICE } from "@/lib/disclaimers";
+import { SYMBOL_SUGGESTIONS_ID } from "./symbol-datalist";
 
 const TASK_OPTIONS: { value: ChatTask; label: string }[] = [
   { value: "chat", label: "Chat" },
@@ -89,8 +90,9 @@ export function ChatPanel({ initialSymbol }: ChatPanelProps = {}) {
           value={symbol}
           onChange={(e) => setSymbol(e.target.value)}
           onBlur={(e) => loadHistory(e.target.value.trim().toUpperCase())}
-          placeholder="Symbol (optional), e.g. RELIANCE.NS"
+          placeholder="Symbol (optional), e.g. RELIANCE.NS or Adani"
           aria-label="Symbol to ground chat in (optional)"
+          list={SYMBOL_SUGGESTIONS_ID}
           className="input flex-1"
         />
         <select

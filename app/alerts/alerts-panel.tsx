@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Disclaimer } from "../disclaimer";
 import { NOT_INVESTMENT_ADVICE } from "@/lib/disclaimers";
+import { SymbolDatalist, SYMBOL_SUGGESTIONS_ID } from "../symbol-datalist";
 
 type ConditionType = "price_above" | "price_below" | "rsi_below" | "volume_spike";
 
@@ -94,6 +95,7 @@ export function AlertsPanel() {
 
   return (
     <div className="w-full max-w-2xl flex flex-col gap-6">
+      <SymbolDatalist />
       <h1 className="text-2xl font-semibold">Alerts</h1>
 
       {!pushGranted && (
@@ -107,8 +109,9 @@ export function AlertsPanel() {
         <input
           value={symbol}
           onChange={(e) => setSymbol(e.target.value)}
-          placeholder="Symbol, e.g. RELIANCE.NS"
+          placeholder="Symbol, e.g. RELIANCE.NS or Adani"
           aria-label="Symbol"
+          list={SYMBOL_SUGGESTIONS_ID}
           className="input flex-1"
         />
         <select

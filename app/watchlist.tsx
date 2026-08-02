@@ -8,6 +8,7 @@ import { rsi, sma } from "@/lib/backtest/indicators";
 import { useWatchlist } from "./use-watchlist";
 import { Disclaimer } from "./disclaimer";
 import { FREE_DATA_SOURCE, PAPER_TRADING_ONLY } from "@/lib/disclaimers";
+import { SYMBOL_SUGGESTIONS_ID } from "./symbol-datalist";
 
 function friendlyFetchError(raw: string): string {
   if (/request failed|providers failed|status \d{3}|fetch/i.test(raw)) {
@@ -172,8 +173,9 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Add symbol, e.g. RELIANCE.NS"
+          placeholder="Add symbol, e.g. RELIANCE.NS or Adani"
           aria-label="Add a stock symbol"
+          list={SYMBOL_SUGGESTIONS_ID}
           className="input flex-1"
         />
         <button type="submit" className="btn-primary">

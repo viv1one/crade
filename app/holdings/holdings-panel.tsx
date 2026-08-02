@@ -7,26 +7,7 @@ import { NOT_INVESTMENT_ADVICE, FREE_DATA_SOURCE, MANUAL_HOLDINGS_ONLY } from "@
 import { annualizedReturnPct } from "@/lib/holdings-cagr";
 import { parseBulkHoldings } from "@/lib/holdings-bulk-parse";
 import { NIFTY_50 } from "@/lib/screener/universe";
-
-const SYMBOL_SUGGESTIONS_ID = "nifty50-symbol-suggestions";
-
-// Shared by both the single-add symbol input and the bulk "find & insert"
-// helper below — one <datalist>, referenced by list="..." from either
-// input. Native browser autocomplete matches against both the option's
-// value (the ticker) and its visible text (the company name), so typing
-// "ad" surfaces ADANIENT.NS/ADANIPORTS.NS whether the user thinks in
-// tickers or names.
-function SymbolDatalist() {
-  return (
-    <datalist id={SYMBOL_SUGGESTIONS_ID}>
-      {NIFTY_50.map((s) => (
-        <option key={s.symbol} value={s.symbol}>
-          {s.name}
-        </option>
-      ))}
-    </datalist>
-  );
-}
+import { SymbolDatalist, SYMBOL_SUGGESTIONS_ID } from "../symbol-datalist";
 
 interface RealHolding {
   _id: string;

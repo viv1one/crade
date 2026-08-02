@@ -13,6 +13,7 @@ import { useWatchlist } from "../use-watchlist";
 import { MarkdownContent } from "../markdown-content";
 import { Disclaimer } from "../disclaimer";
 import { NOT_INVESTMENT_ADVICE } from "@/lib/disclaimers";
+import { SymbolDatalist, SYMBOL_SUGGESTIONS_ID } from "../symbol-datalist";
 
 const INTERVALS = ["1d", "1wk", "1mo"];
 const RANGES = ["3mo", "6mo", "1y", "2y", "5y"];
@@ -168,6 +169,7 @@ export function BacktestPanel() {
 
   return (
     <div className="w-full max-w-2xl flex flex-col gap-6">
+      <SymbolDatalist />
       <h1 className="text-2xl font-semibold">Backtest</h1>
 
       <div className="flex gap-2 flex-wrap">
@@ -195,8 +197,9 @@ export function BacktestPanel() {
             <input
               value={symbol}
               onChange={(e) => setSymbol(e.target.value)}
-              placeholder="Symbol, e.g. RELIANCE.NS"
+              placeholder="Symbol, e.g. RELIANCE.NS or Adani"
               aria-label="Symbol"
+              list={SYMBOL_SUGGESTIONS_ID}
               className="flex-1 input"
             />
           )}
@@ -219,15 +222,17 @@ export function BacktestPanel() {
               <input
                 value={symbolA}
                 onChange={(e) => setSymbolA(e.target.value)}
-                placeholder="Symbol A, e.g. HDFCBANK.NS"
+                placeholder="Symbol A, e.g. HDFCBANK.NS or Adani"
                 aria-label="Symbol A"
+                list={SYMBOL_SUGGESTIONS_ID}
                 className="flex-1 input"
               />
               <input
                 value={symbolB}
                 onChange={(e) => setSymbolB(e.target.value)}
-                placeholder="Symbol B, e.g. ICICIBANK.NS"
+                placeholder="Symbol B, e.g. ICICIBANK.NS or Adani"
                 aria-label="Symbol B"
+                list={SYMBOL_SUGGESTIONS_ID}
                 className="flex-1 input"
               />
             </div>

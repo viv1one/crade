@@ -11,6 +11,7 @@ import { AlertsSummary } from "./alerts-summary";
 import { MarketMovers } from "./market-movers";
 import { MarketDigest } from "./market-digest";
 import { ShareWatchlist } from "./share-watchlist";
+import { SymbolDatalist } from "./symbol-datalist";
 
 function HomeContent() {
   const portfolio = usePaperPortfolio();
@@ -19,6 +20,7 @@ function HomeContent() {
 
   return (
     <div className="font-sans min-h-screen flex flex-col items-center gap-16 p-8 sm:p-20">
+      <SymbolDatalist />
       <AppNav />
       <main className="contents">
         <div className="w-full max-w-2xl flex flex-col gap-6">
