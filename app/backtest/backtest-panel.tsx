@@ -180,16 +180,16 @@ export function BacktestPanel() {
             className={`text-xs rounded-full border px-3 py-1.5 transition-colors ${
               mode === m
                 ? "bg-foreground text-background border-foreground"
-                : "border-black/[.08] dark:border-white/[.145] hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a]"
+                : "border-border hover:bg-background"
             }`}
           >
             {MODE_LABELS[m]}
           </button>
         ))}
       </div>
-      <p className="text-xs text-black/50 dark:text-white/50 -mt-4">{MODE_BLURBS[mode]}</p>
+      <p className="text-xs text-foreground-muted -mt-4">{MODE_BLURBS[mode]}</p>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4 rounded-lg border border-black/[.08] dark:border-white/[.145] p-4">
+      <form onSubmit={handleSubmit} className="card flex flex-col gap-4 p-4">
         <div className="flex gap-2">
           {mode === "single" && (
             <input
@@ -197,7 +197,7 @@ export function BacktestPanel() {
               onChange={(e) => setSymbol(e.target.value)}
               placeholder="Symbol, e.g. RELIANCE.NS"
               aria-label="Symbol"
-              className="flex-1 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+              className="flex-1 input"
             />
           )}
           {mode === "portfolio" && (
@@ -206,11 +206,11 @@ export function BacktestPanel() {
               onChange={(e) => setSymbolsInput(e.target.value)}
               placeholder="Comma-separated symbols, e.g. RELIANCE.NS, TCS.NS"
               aria-label="Comma-separated symbols"
-              className="flex-1 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+              className="flex-1 input"
             />
           )}
           {mode === "cross_sectional" && (
-            <p className="flex-1 text-xs text-black/50 dark:text-white/50 self-center">
+            <p className="flex-1 text-xs text-foreground-muted self-center">
               Ranks and rebalances across the full NIFTY 50 universe — no symbol to pick.
             </p>
           )}
@@ -221,21 +221,21 @@ export function BacktestPanel() {
                 onChange={(e) => setSymbolA(e.target.value)}
                 placeholder="Symbol A, e.g. HDFCBANK.NS"
                 aria-label="Symbol A"
-                className="flex-1 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+                className="flex-1 input"
               />
               <input
                 value={symbolB}
                 onChange={(e) => setSymbolB(e.target.value)}
                 placeholder="Symbol B, e.g. ICICIBANK.NS"
                 aria-label="Symbol B"
-                className="flex-1 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+                className="flex-1 input"
               />
             </div>
           )}
           <select
             value={dataInterval}
             onChange={(e) => setDataInterval(e.target.value)}
-            className="rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-2 py-2 text-sm outline-none"
+            className="input px-2 py-2"
           >
             {INTERVALS.map((i) => (
               <option key={i} value={i}>
@@ -246,7 +246,7 @@ export function BacktestPanel() {
           <select
             value={range}
             onChange={(e) => setRange(e.target.value)}
-            className="rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-2 py-2 text-sm outline-none"
+            className="input px-2 py-2"
           >
             {RANGES.map((r) => (
               <option key={r} value={r}>
@@ -259,13 +259,13 @@ export function BacktestPanel() {
         {mode !== "pairs" && (
           <div className="flex flex-col gap-3">
             {visibleStrategies.length === 0 && (
-              <p className="text-xs text-black/50 dark:text-white/50">
+              <p className="text-xs text-foreground-muted">
                 No cross-sectional strategies are wired up yet.
               </p>
             )}
             {groupByFamily(visibleStrategies).map(([family, strategiesInFamily]) => (
               <div key={family} className="flex flex-col gap-1.5">
-                <span className="text-[10px] uppercase tracking-wide text-black/40 dark:text-white/40">
+                <span className="text-[10px] uppercase tracking-wide text-foreground-muted">
                   {family}
                 </span>
                 <div className="flex flex-wrap gap-2">
@@ -278,7 +278,7 @@ export function BacktestPanel() {
                       className={`text-xs rounded-full border px-3 py-1.5 transition-colors ${
                         strategyId === s.id
                           ? "bg-foreground text-background border-foreground"
-                          : "border-black/[.08] dark:border-white/[.145] hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a]"
+                          : "border-border hover:bg-background"
                       }`}
                     >
                       {s.name}
@@ -295,7 +295,7 @@ export function BacktestPanel() {
                 </div>
               </div>
             ))}
-            {strategy && <p className="text-xs text-black/50 dark:text-white/50">{strategy.description}</p>}
+            {strategy && <p className="text-xs text-foreground-muted">{strategy.description}</p>}
             {strategy?.approximation && (
               <p className="text-xs text-amber-600 dark:text-amber-400">{strategy.approximation}</p>
             )}
@@ -313,7 +313,7 @@ export function BacktestPanel() {
                       onChange={(e) =>
                         setParams((prev) => ({ ...prev, [spec.key]: Number(e.target.value) }))
                       }
-                      className="w-24 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-2 py-1 text-xs outline-none focus:border-foreground"
+                      className="input w-24 px-2 py-1 text-xs"
                     />
                   </label>
                 ))}
@@ -332,7 +332,7 @@ export function BacktestPanel() {
                 max={200}
                 value={pairsParams.lookback}
                 onChange={(e) => setPairsParams((prev) => ({ ...prev, lookback: Number(e.target.value) }))}
-                className="w-24 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-2 py-1 text-xs outline-none focus:border-foreground"
+                className="input w-24 px-2 py-1 text-xs"
               />
             </label>
             <label className="flex flex-col gap-1 text-xs">
@@ -344,7 +344,7 @@ export function BacktestPanel() {
                 step={0.1}
                 value={pairsParams.entryZ}
                 onChange={(e) => setPairsParams((prev) => ({ ...prev, entryZ: Number(e.target.value) }))}
-                className="w-24 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-2 py-1 text-xs outline-none focus:border-foreground"
+                className="input w-24 px-2 py-1 text-xs"
               />
             </label>
             <label className="flex flex-col gap-1 text-xs">
@@ -356,7 +356,7 @@ export function BacktestPanel() {
                 step={0.1}
                 value={pairsParams.exitZ}
                 onChange={(e) => setPairsParams((prev) => ({ ...prev, exitZ: Number(e.target.value) }))}
-                className="w-24 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-2 py-1 text-xs outline-none focus:border-foreground"
+                className="input w-24 px-2 py-1 text-xs"
               />
             </label>
           </div>
@@ -365,7 +365,7 @@ export function BacktestPanel() {
         <button
           type="submit"
           disabled={running || (mode !== "pairs" && !strategy)}
-          className="self-start rounded-lg bg-accent text-white px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors disabled:opacity-40"
+          className="btn-primary self-start disabled:opacity-40"
         >
           {running ? "Running…" : "Run Backtest"}
         </button>
@@ -396,29 +396,29 @@ export function BacktestPanel() {
 
       <div>
         <h3 className="text-sm font-medium mb-2">Past runs</h3>
-        <ul className="flex flex-col divide-y divide-black/[.08] dark:divide-white/[.145] rounded-lg border border-black/[.08] dark:border-white/[.145] max-h-64 overflow-y-auto">
+        <ul className="card flex flex-col divide-y divide-border max-h-64 overflow-y-auto">
           {mode === "single" && (
             <>
               {!single.historyLoaded && (
-                <li className="p-4 text-sm text-black/50 dark:text-white/50">Loading history…</li>
+                <li className="p-4 text-sm text-foreground-muted">Loading history…</li>
               )}
               {single.historyLoaded && single.history.length === 0 && (
-                <li className="p-4 text-sm text-black/50 dark:text-white/50">No backtests run yet.</li>
+                <li className="p-4 text-sm text-foreground-muted">No backtests run yet.</li>
               )}
               {single.history.map((run) => (
                 <li key={run._id}>
                   <button
                     onClick={() => single.setCurrent(run)}
-                    className="w-full flex items-center justify-between gap-4 p-3 text-xs text-left hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] transition-colors"
+                    className="w-full flex items-center justify-between gap-4 p-3 text-xs text-left hover:bg-background transition-colors"
                   >
                     <span className="font-mono">{run.config.symbol}</span>
-                    <span className="text-black/50 dark:text-white/50">
+                    <span className="text-foreground-muted">
                       {STRATEGIES[run.config.strategyId].name}
                     </span>
                     <span className={run.metrics.totalReturnPct >= 0 ? "text-green-600" : "text-red-500"}>
                       {pct(run.metrics.totalReturnPct)}
                     </span>
-                    <span className="text-black/40 dark:text-white/40">
+                    <span className="text-foreground-muted">
                       {new Date(run.createdAt).toLocaleDateString()}
                     </span>
                   </button>
@@ -429,10 +429,10 @@ export function BacktestPanel() {
           {mode === "portfolio" && (
             <>
               {!portfolio.historyLoaded && (
-                <li className="p-4 text-sm text-black/50 dark:text-white/50">Loading history…</li>
+                <li className="p-4 text-sm text-foreground-muted">Loading history…</li>
               )}
               {portfolio.historyLoaded && portfolio.history.length === 0 && (
-                <li className="p-4 text-sm text-black/50 dark:text-white/50">
+                <li className="p-4 text-sm text-foreground-muted">
                   No portfolio backtests run yet.
                 </li>
               )}
@@ -440,16 +440,16 @@ export function BacktestPanel() {
                 <li key={run._id}>
                   <button
                     onClick={() => portfolio.setCurrent(run)}
-                    className="w-full flex items-center justify-between gap-4 p-3 text-xs text-left hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] transition-colors"
+                    className="w-full flex items-center justify-between gap-4 p-3 text-xs text-left hover:bg-background transition-colors"
                   >
                     <span className="font-mono truncate max-w-[10rem]">{run.config.symbols.join(", ")}</span>
-                    <span className="text-black/50 dark:text-white/50">
+                    <span className="text-foreground-muted">
                       {STRATEGIES[run.config.strategyId].name}
                     </span>
                     <span className={run.metrics.totalReturnPct >= 0 ? "text-green-600" : "text-red-500"}>
                       {pct(run.metrics.totalReturnPct)}
                     </span>
-                    <span className="text-black/40 dark:text-white/40">
+                    <span className="text-foreground-muted">
                       {new Date(run.createdAt).toLocaleDateString()}
                     </span>
                   </button>
@@ -460,10 +460,10 @@ export function BacktestPanel() {
           {mode === "cross_sectional" && (
             <>
               {!crossSectional.historyLoaded && (
-                <li className="p-4 text-sm text-black/50 dark:text-white/50">Loading history…</li>
+                <li className="p-4 text-sm text-foreground-muted">Loading history…</li>
               )}
               {crossSectional.historyLoaded && crossSectional.history.length === 0 && (
-                <li className="p-4 text-sm text-black/50 dark:text-white/50">
+                <li className="p-4 text-sm text-foreground-muted">
                   No cross-sectional backtests run yet.
                 </li>
               )}
@@ -471,15 +471,15 @@ export function BacktestPanel() {
                 <li key={run._id}>
                   <button
                     onClick={() => crossSectional.setCurrent(run)}
-                    className="w-full flex items-center justify-between gap-4 p-3 text-xs text-left hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] transition-colors"
+                    className="w-full flex items-center justify-between gap-4 p-3 text-xs text-left hover:bg-background transition-colors"
                   >
-                    <span className="text-black/50 dark:text-white/50">
+                    <span className="text-foreground-muted">
                       {STRATEGIES[run.config.strategyId]?.name ?? run.config.strategyId}
                     </span>
                     <span className={run.metrics.totalReturnPct >= 0 ? "text-green-600" : "text-red-500"}>
                       {pct(run.metrics.totalReturnPct)}
                     </span>
-                    <span className="text-black/40 dark:text-white/40">
+                    <span className="text-foreground-muted">
                       {new Date(run.createdAt).toLocaleDateString()}
                     </span>
                   </button>
@@ -490,16 +490,16 @@ export function BacktestPanel() {
           {mode === "pairs" && (
             <>
               {!pairs.historyLoaded && (
-                <li className="p-4 text-sm text-black/50 dark:text-white/50">Loading history…</li>
+                <li className="p-4 text-sm text-foreground-muted">Loading history…</li>
               )}
               {pairs.historyLoaded && pairs.history.length === 0 && (
-                <li className="p-4 text-sm text-black/50 dark:text-white/50">No pairs backtests run yet.</li>
+                <li className="p-4 text-sm text-foreground-muted">No pairs backtests run yet.</li>
               )}
               {pairs.history.map((run) => (
                 <li key={run._id}>
                   <button
                     onClick={() => pairs.setCurrent(run)}
-                    className="w-full flex items-center justify-between gap-4 p-3 text-xs text-left hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] transition-colors"
+                    className="w-full flex items-center justify-between gap-4 p-3 text-xs text-left hover:bg-background transition-colors"
                   >
                     <span className="font-mono">
                       {run.config.symbolA} / {run.config.symbolB}
@@ -507,7 +507,7 @@ export function BacktestPanel() {
                     <span className={run.metrics.totalReturnPct >= 0 ? "text-green-600" : "text-red-500"}>
                       {pct(run.metrics.totalReturnPct)}
                     </span>
-                    <span className="text-black/40 dark:text-white/40">
+                    <span className="text-foreground-muted">
                       {new Date(run.createdAt).toLocaleDateString()}
                     </span>
                   </button>
@@ -545,14 +545,14 @@ function AiReviewSection({
       <button
         onClick={() => onReview(id)}
         disabled={reviewLoading}
-        className="self-start rounded-lg border border-black/[.08] dark:border-white/[.145] px-4 py-2 text-sm font-medium hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] transition-colors disabled:opacity-40"
+        className="btn-secondary self-start disabled:opacity-40"
       >
         {reviewLoading ? "Reviewing…" : aiReview ? "Refresh AI review" : "Get AI review"}
       </button>
       {aiReview && (
-        <div className="rounded-lg border border-black/[.08] dark:border-white/[.145] p-4">
+        <div className="card p-4">
           <MarkdownContent content={aiReview.content} />
-          <div className="mt-2 text-xs text-black/40 dark:text-white/40">
+          <div className="mt-2 text-xs text-foreground-muted">
             {aiReview.provider}/{aiReview.model}
           </div>
         </div>
@@ -596,17 +596,17 @@ function PortfolioResultView({
 
       <div>
         <h3 className="text-sm font-medium mb-2">Per-symbol contribution</h3>
-        <ul className="flex flex-col divide-y divide-black/[.08] dark:divide-white/[.145] rounded-lg border border-black/[.08] dark:border-white/[.145]">
+        <ul className="card flex flex-col divide-y divide-border">
           {run.bySymbol.map((s) => (
             <li key={s.symbol} className="flex items-center justify-between gap-4 p-3 text-xs">
               <span className="font-mono font-medium">{s.symbol}</span>
-              <span className="text-black/50 dark:text-white/50">
+              <span className="text-foreground-muted">
                 ₹{s.startingCash.toFixed(0)} → ₹{s.finalEquity.toFixed(0)}
               </span>
               <span className={s.totalReturnPct >= 0 ? "text-green-600" : "text-red-500"}>
                 {pct(s.totalReturnPct)}
               </span>
-              <span className="text-black/40 dark:text-white/40">{s.tradeCount} trades</span>
+              <span className="text-foreground-muted">{s.tradeCount} trades</span>
             </li>
           ))}
         </ul>
@@ -643,7 +643,7 @@ function SimpleResultView({
 
 function MetricsGrid({ metrics }: { metrics: BacktestRun["metrics"] }) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 rounded-lg border border-black/[.08] dark:border-white/[.145] p-4">
+    <div className="card grid grid-cols-2 sm:grid-cols-4 gap-4 p-4">
       <Metric label="Total return" value={pct(metrics.totalReturnPct)} positive={metrics.totalReturnPct >= 0} />
       <Metric
         label="vs. buy & hold"
@@ -664,9 +664,9 @@ function TradeLog({ trades, showSymbol }: { trades: BacktestRun["trades"]; showS
   return (
     <div>
       <h3 className="text-sm font-medium mb-2">Trade log</h3>
-      <ul className="flex flex-col divide-y divide-black/[.08] dark:divide-white/[.145] rounded-lg border border-black/[.08] dark:border-white/[.145] max-h-56 overflow-y-auto">
+      <ul className="card flex flex-col divide-y divide-border max-h-56 overflow-y-auto">
         {trades.length === 0 && (
-          <li className="p-4 text-sm text-black/50 dark:text-white/50">No trades were made.</li>
+          <li className="p-4 text-sm text-foreground-muted">No trades were made.</li>
         )}
         {trades.map((trade) => (
           <li key={trade.id} className="flex items-center justify-between gap-4 p-3 text-xs">
@@ -682,7 +682,7 @@ function TradeLog({ trades, showSymbol }: { trades: BacktestRun["trades"]; showS
                 {trade.realizedPnl >= 0 ? "+" : ""}₹{trade.realizedPnl.toFixed(2)}
               </span>
             )}
-            <span className="text-black/40 dark:text-white/40">
+            <span className="text-foreground-muted">
               {new Date(trade.timestamp).toLocaleDateString()}
             </span>
           </li>
@@ -695,7 +695,7 @@ function TradeLog({ trades, showSymbol }: { trades: BacktestRun["trades"]; showS
 function Metric({ label, value, positive }: { label: string; value: string; positive?: boolean }) {
   return (
     <div>
-      <div className="text-xs text-black/50 dark:text-white/50">{label}</div>
+      <div className="text-xs text-foreground-muted">{label}</div>
       <div
         className={`font-mono text-sm font-medium ${
           positive === undefined ? "" : positive ? "text-green-600" : "text-red-500"

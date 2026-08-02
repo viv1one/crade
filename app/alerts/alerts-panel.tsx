@@ -109,13 +109,13 @@ export function AlertsPanel() {
           onChange={(e) => setSymbol(e.target.value)}
           placeholder="Symbol, e.g. RELIANCE.NS"
           aria-label="Symbol"
-          className="flex-1 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+          className="input flex-1"
         />
         <select
           value={conditionType}
           onChange={(e) => setConditionType(e.target.value as ConditionType)}
           aria-label="Alert condition"
-          className="rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+          className="input"
         >
           {Object.entries(CONDITION_LABELS).map(([type, label]) => (
             <option key={type} value={type}>
@@ -129,24 +129,20 @@ export function AlertsPanel() {
           type="number"
           placeholder="Value"
           aria-label="Condition value"
-          className="w-28 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+          className="input w-28"
         />
-        <button
-          type="submit"
-          disabled={submitting}
-          className="rounded-lg bg-accent text-white px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors disabled:opacity-40"
-        >
+        <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-40">
           Add
         </button>
       </form>
       {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
 
-      <ul className="flex flex-col divide-y divide-black/[.08] dark:divide-white/[.145] rounded-lg border border-black/[.08] dark:border-white/[.145]">
+      <ul className="card flex flex-col divide-y divide-border overflow-hidden">
         {!loaded && (
-          <li className="p-4 text-sm text-black/50 dark:text-white/50">Loading alerts…</li>
+          <li className="p-4 text-sm text-foreground-muted">Loading alerts…</li>
         )}
         {loaded && alerts.length === 0 && (
-          <li className="p-4 text-sm text-black/50 dark:text-white/50">
+          <li className="p-4 text-sm text-foreground-muted">
             No alerts yet — add one above. Try: RELIANCE.NS, price above ₹1300.
           </li>
         )}
@@ -154,11 +150,11 @@ export function AlertsPanel() {
           <li key={alert._id} className="flex items-center justify-between gap-4 p-4">
             <div className="flex flex-col">
               <span className="font-mono text-sm font-medium">{alert.symbol}</span>
-              <span className="text-xs text-black/50 dark:text-white/50">
+              <span className="text-xs text-foreground-muted">
                 {CONDITION_LABELS[alert.condition.type]} {alert.condition.value}
               </span>
               {alert.lastTriggeredAt && (
-                <span className="text-xs text-black/40 dark:text-white/40">
+                <span className="text-xs text-foreground-muted">
                   Last triggered {new Date(alert.lastTriggeredAt).toLocaleString()}
                 </span>
               )}
@@ -170,20 +166,20 @@ export function AlertsPanel() {
                     ? "bg-green-600/10 text-green-600"
                     : alert.status === "triggered"
                       ? "bg-yellow-600/10 text-yellow-600"
-                      : "bg-black/[.05] text-black/50 dark:bg-white/[.06] dark:text-white/50"
+                      : "bg-background text-foreground-muted"
                 }`}
               >
                 {alert.status}
               </span>
               <button
                 onClick={() => toggleStatus(alert)}
-                className="text-xs rounded-full border border-black/[.08] dark:border-white/[.145] px-3 py-1.5 hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] transition-colors"
+                className="text-xs rounded-full border border-border px-3 py-1.5 hover:bg-background transition-colors"
               >
                 {alert.status === "active" ? "Pause" : "Activate"}
               </button>
               <button
                 onClick={() => remove(alert._id)}
-                className="text-xs text-black/50 dark:text-white/50 hover:text-red-500 transition-colors"
+                className="text-xs text-foreground-muted hover:text-red-500 transition-colors"
                 aria-label={`Remove alert for ${alert.symbol}`}
               >
                 ✕

@@ -39,10 +39,10 @@ export function PushSubscriptionsList({ refreshSignal }: PushSubscriptionsListPr
 
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-xs text-black/50 dark:text-white/50">
+      <span className="text-xs text-foreground-muted">
         Devices with push enabled ({subs.length}):
       </span>
-      <ul className="flex flex-col divide-y divide-black/[.08] dark:divide-white/[.145] rounded-lg border border-black/[.08] dark:border-white/[.145]">
+      <ul className="card flex flex-col divide-y divide-border overflow-hidden">
         {subs.map((s) => (
           <li key={s.id} className="flex items-center justify-between gap-4 p-2 text-xs">
             <span>
@@ -51,7 +51,7 @@ export function PushSubscriptionsList({ refreshSignal }: PushSubscriptionsListPr
             <button
               onClick={() => remove(s.id)}
               disabled={removingId === s.id}
-              className="text-black/50 dark:text-white/50 hover:text-red-500 transition-colors disabled:opacity-40"
+              className="text-foreground-muted hover:text-red-500 transition-colors disabled:opacity-40"
               aria-label={`Remove push subscription for ${s.host}`}
             >
               {removingId === s.id ? "Removing…" : "Remove"}

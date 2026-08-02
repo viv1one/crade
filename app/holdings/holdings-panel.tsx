@@ -221,7 +221,7 @@ export function HoldingsPanel() {
       <SymbolDatalist />
       <div>
         <h1 className="text-2xl font-semibold">My Holdings</h1>
-        <p className="text-sm text-black/50 dark:text-white/50 mt-1">
+        <p className="text-sm text-foreground-muted mt-1">
           Investments you already own, bought elsewhere (e.g. via your broker) — tracked here for
           research only. Separate from the simulated Paper Portfolio on the home page: no fake cash,
           no trades placed through Crade.
@@ -235,7 +235,7 @@ export function HoldingsPanel() {
           placeholder="Symbol, e.g. RELIANCE.NS or Adani"
           aria-label="Symbol"
           list={SYMBOL_SUGGESTIONS_ID}
-          className="flex-1 min-w-[10rem] rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+          className="input flex-1 min-w-[10rem]"
         />
         <input
           value={qty}
@@ -243,7 +243,7 @@ export function HoldingsPanel() {
           type="number"
           placeholder="Quantity"
           aria-label="Quantity"
-          className="w-28 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+          className="input w-28"
         />
         <input
           value={avgCost}
@@ -251,14 +251,14 @@ export function HoldingsPanel() {
           type="number"
           placeholder="Avg cost (₹)"
           aria-label="Average cost"
-          className="w-28 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+          className="input w-28"
         />
         <input
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="Note (optional), e.g. via Groww"
           aria-label="Note"
-          className="flex-1 min-w-[10rem] rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+          className="input flex-1 min-w-[10rem]"
         />
         <input
           value={purchasedAt}
@@ -267,13 +267,9 @@ export function HoldingsPanel() {
           max={new Date().toISOString().slice(0, 10)}
           aria-label="Purchase date (optional, for annualized return)"
           title="Purchase date (optional) — enables an annualized return alongside total P&L"
-          className="rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+          className="input"
         />
-        <button
-          type="submit"
-          disabled={submitting}
-          className="rounded-lg bg-accent text-white px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors disabled:opacity-40"
-        >
+        <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-40">
           Add
         </button>
       </form>
@@ -286,14 +282,14 @@ export function HoldingsPanel() {
       <button
         type="button"
         onClick={() => setBulkMode((v) => !v)}
-        className="self-start text-xs underline underline-offset-4 text-black/50 dark:text-white/50 hover:text-foreground"
+        className="self-start text-xs underline underline-offset-4 text-foreground-muted hover:text-foreground"
       >
         {bulkMode ? "Hide bulk add" : "Have several? Add multiple at once →"}
       </button>
 
       {bulkMode && (
         <form onSubmit={handleBulkAdd} className="flex flex-col gap-2">
-          <label className="text-xs text-black/50 dark:text-white/50" htmlFor="bulk-holdings">
+          <label className="text-xs text-foreground-muted" htmlFor="bulk-holdings">
             One holding per line: symbol, quantity, avg cost — e.g.
           </label>
           <input
@@ -302,7 +298,7 @@ export function HoldingsPanel() {
             list={SYMBOL_SUGGESTIONS_ID}
             placeholder="Find & insert a symbol, e.g. Adani"
             aria-label="Find and insert a symbol into the list below"
-            className="w-64 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+            className="input w-64"
           />
           <textarea
             id="bulk-holdings"
@@ -312,12 +308,12 @@ export function HoldingsPanel() {
             placeholder={"TCS 10 3800\nRELIANCE.NS, 5, 1300\nINFY 20 1450.50"}
             rows={5}
             aria-label="Multiple holdings, one per line"
-            className="rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm font-mono outline-none focus:border-foreground"
+            className="input font-mono"
           />
           <button
             type="submit"
             disabled={bulkSubmitting || !bulkText.trim()}
-            className="self-start rounded-lg bg-accent text-white px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors disabled:opacity-40"
+            className="btn-primary self-start disabled:opacity-40"
           >
             {bulkSubmitting ? "Adding…" : "Add all"}
           </button>
@@ -341,17 +337,17 @@ export function HoldingsPanel() {
       )}
 
       {loaded && holdings.length > 0 && (
-        <div className="grid grid-cols-3 gap-4 rounded-lg border border-black/[.08] dark:border-white/[.145] p-4">
+        <div className="card grid grid-cols-3 gap-4 p-4">
           <div>
-            <div className="text-xs text-black/50 dark:text-white/50">Invested</div>
+            <div className="text-xs text-foreground-muted">Invested</div>
             <div className="font-mono text-sm font-medium">₹{totalInvested.toFixed(2)}</div>
           </div>
           <div>
-            <div className="text-xs text-black/50 dark:text-white/50">Current value</div>
+            <div className="text-xs text-foreground-muted">Current value</div>
             <div className="font-mono text-sm font-medium">₹{totalValue.toFixed(2)}</div>
           </div>
           <div>
-            <div className="text-xs text-black/50 dark:text-white/50">Total P&amp;L</div>
+            <div className="text-xs text-foreground-muted">Total P&amp;L</div>
             <div
               className={`font-mono text-sm font-medium ${totalPnl >= 0 ? "text-green-600" : "text-red-500"}`}
             >
@@ -362,10 +358,10 @@ export function HoldingsPanel() {
         </div>
       )}
 
-      <ul className="flex flex-col divide-y divide-black/[.08] dark:divide-white/[.145] rounded-lg border border-black/[.08] dark:border-white/[.145]">
-        {!loaded && <li className="p-4 text-sm text-black/50 dark:text-white/50">Loading holdings…</li>}
+      <ul className="card flex flex-col divide-y divide-border overflow-hidden">
+        {!loaded && <li className="p-4 text-sm text-foreground-muted">Loading holdings…</li>}
         {loaded && holdings.length === 0 && (
-          <li className="p-4 text-sm text-black/50 dark:text-white/50">
+          <li className="p-4 text-sm text-foreground-muted">
             No holdings yet — add one above. Try: RELIANCE.NS, 10 shares @ ₹1300.
           </li>
         )}
@@ -388,7 +384,7 @@ export function HoldingsPanel() {
                 >
                   {h.symbol}
                 </Link>
-                <span className="text-xs text-black/50 dark:text-white/50">
+                <span className="text-xs text-foreground-muted">
                   {h.qty} @ avg ₹{h.avgCost.toFixed(2)}
                   {h.purchasedAt ? ` · bought ${new Date(h.purchasedAt).toLocaleDateString()}` : ""}
                   {h.note ? ` — ${h.note}` : ""}
@@ -404,7 +400,7 @@ export function HoldingsPanel() {
                     {pnlPct.toFixed(2)}%)
                   </div>
                   {cagr !== undefined && (
-                    <div className="text-black/40 dark:text-white/40" title="Annualized return since purchase date">
+                    <div className="text-foreground-muted" title="Annualized return since purchase date">
                       {cagr >= 0 ? "+" : ""}
                       {cagr.toFixed(2)}%/yr
                     </div>
@@ -413,7 +409,7 @@ export function HoldingsPanel() {
                 <button
                   onClick={() => remove(h._id)}
                   disabled={removingId === h._id}
-                  className="text-xs text-black/50 dark:text-white/50 hover:text-red-500 transition-colors disabled:opacity-40"
+                  className="text-xs text-foreground-muted hover:text-red-500 transition-colors disabled:opacity-40"
                   aria-label={`Remove ${h.symbol} from My Holdings`}
                 >
                   ✕

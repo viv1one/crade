@@ -33,7 +33,7 @@ export function PushSubscribeButton({ onSubscribed }: PushSubscribeButtonProps =
       <button
         onClick={handleClick}
         disabled={status === "loading"}
-        className="text-sm rounded-lg bg-accent text-white px-4 py-2 font-medium hover:bg-accent-hover transition-colors disabled:opacity-40 w-fit"
+        className="btn-primary text-sm w-fit disabled:opacity-40"
       >
         {status === "loading" ? "Enabling…" : "Enable push notifications on this device"}
       </button>

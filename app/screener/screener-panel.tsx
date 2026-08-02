@@ -100,7 +100,7 @@ export function ScreenerPanel() {
         <button
           onClick={() => load(true)}
           disabled={loading}
-          className="rounded-full border border-black/[.08] dark:border-white/[.145] px-4 py-2 text-sm font-medium hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] transition-colors disabled:opacity-40"
+          className="btn-secondary rounded-full disabled:opacity-40"
         >
           {loading ? "Refreshing…" : "Refresh"}
         </button>
@@ -117,7 +117,7 @@ export function ScreenerPanel() {
           value={sector}
           onChange={(e) => setSector(e.target.value)}
           aria-label="Filter by sector"
-          className="rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+          className="input"
         >
           <option value="">All sectors</option>
           {sectors.map((s) => (
@@ -132,7 +132,7 @@ export function ScreenerPanel() {
           type="number"
           placeholder="Min price"
           aria-label="Minimum price"
-          className="w-28 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+          className="input w-28"
         />
         <input
           value={maxPrice}
@@ -140,7 +140,7 @@ export function ScreenerPanel() {
           type="number"
           placeholder="Max price"
           aria-label="Maximum price"
-          className="w-28 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+          className="input w-28"
         />
         <input
           value={maxPE}
@@ -148,13 +148,13 @@ export function ScreenerPanel() {
           type="number"
           placeholder="Max P/E"
           aria-label="Maximum P/E ratio"
-          className="w-28 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+          className="input w-28"
         />
         <select
           value={sortKey}
           onChange={(e) => setSortKey(e.target.value as SortKey)}
           aria-label="Sort by"
-          className="rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+          className="input"
         >
           <option value="changePercent">Sort: % change</option>
           <option value="price">Sort: price</option>
@@ -165,10 +165,10 @@ export function ScreenerPanel() {
 
       {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
 
-      <div className="overflow-x-auto rounded-lg border border-black/[.08] dark:border-white/[.145] max-h-[32rem] overflow-y-auto">
+      <div className="card overflow-x-auto max-h-[32rem] overflow-y-auto">
         <table className="w-full text-sm">
-          <thead className="sticky top-0 z-10 bg-background">
-            <tr className="border-b border-black/[.08] dark:border-white/[.145] text-left text-xs text-black/50 dark:text-white/50">
+          <thead className="sticky top-0 z-10 bg-surface">
+            <tr className="border-b border-border text-left text-xs text-foreground-muted">
               <th className="p-3">Symbol</th>
               <th className="p-3">Sector</th>
               <th className="p-3 text-right">Price</th>
@@ -181,15 +181,15 @@ export function ScreenerPanel() {
           <tbody>
             {!loaded &&
               Array.from({ length: 8 }).map((_, i) => (
-                <tr key={i} className="border-b border-black/[.05] dark:border-white/[.05]">
+                <tr key={i} className="border-b border-border">
                   <td className="p-3" colSpan={7}>
-                    <div className="h-4 w-full animate-pulse rounded bg-black/[.05] dark:bg-white/[.06]" />
+                    <div className="h-4 w-full animate-pulse rounded bg-background" />
                   </td>
                 </tr>
               ))}
             {loaded && filtered.length === 0 && (
               <tr>
-                <td className="p-4 text-sm text-black/50 dark:text-white/50" colSpan={7}>
+                <td className="p-4 text-sm text-foreground-muted" colSpan={7}>
                   No stocks match these filters.
                 </td>
               </tr>
@@ -197,11 +197,11 @@ export function ScreenerPanel() {
             {filtered.map((row, i) => (
               <tr
                 key={row.symbol}
-                className={`border-b border-black/[.05] dark:border-white/[.05] last:border-0 ${
+                className={`border-b border-border last:border-0 ${
                   highlighted?.has(row.symbol)
                     ? "bg-yellow-500/10"
                     : i % 2 === 1
-                      ? "bg-black/[.02] dark:bg-white/[.02]"
+                      ? "bg-background/60"
                       : ""
                 }`}
               >
@@ -213,9 +213,9 @@ export function ScreenerPanel() {
                   >
                     {row.symbol}
                   </Link>
-                  <div className="text-xs text-black/50 dark:text-white/50">{row.name}</div>
+                  <div className="text-xs text-foreground-muted">{row.name}</div>
                 </td>
-                <td className="p-3 text-xs text-black/60 dark:text-white/60">{row.sector}</td>
+                <td className="p-3 text-xs text-foreground-muted">{row.sector}</td>
                 <td className="p-3 text-right font-mono">₹{row.price.toFixed(2)}</td>
                 <td
                   className={`p-3 text-right font-mono ${
@@ -247,7 +247,7 @@ export function ScreenerPanel() {
                     <button
                       onClick={() => addToWatchlist(row.symbol)}
                       disabled={addingSymbol === row.symbol}
-                      className="text-xs rounded-full border border-black/[.08] dark:border-white/[.145] px-3 py-1.5 hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] transition-colors disabled:opacity-40"
+                      className="text-xs rounded-full border border-border px-3 py-1.5 hover:bg-background transition-colors disabled:opacity-40"
                     >
                       {addingSymbol === row.symbol ? "Adding…" : "+ Watchlist"}
                     </button>
@@ -260,7 +260,7 @@ export function ScreenerPanel() {
       </div>
 
       {fetchedAt && (
-        <p className="text-xs text-black/40 dark:text-white/40">
+        <p className="text-xs text-foreground-muted">
           Data as of {new Date(fetchedAt).toLocaleString()} — cached for up to 10 minutes.
         </p>
       )}

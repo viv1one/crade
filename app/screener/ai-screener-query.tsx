@@ -53,27 +53,23 @@ export function AiScreenerQuery({ rows, onResult, onClear }: AiScreenerQueryProp
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-black/[.08] dark:border-white/[.145] p-4">
+    <div className="card flex flex-col gap-3 p-4">
       <form onSubmit={handleSubmit} className="flex gap-2">
         <input
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           placeholder="e.g. 5 stocks with positive momentum and a reasonable P/E"
           aria-label="Ask the AI to filter stocks"
-          className="flex-1 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+          className="input flex-1"
         />
-        <button
-          type="submit"
-          disabled={loading || rows.length === 0}
-          className="rounded-lg bg-accent text-white px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors disabled:opacity-40"
-        >
+        <button type="submit" disabled={loading || rows.length === 0} className="btn-primary disabled:opacity-40">
           {loading ? "Thinking…" : "Ask"}
         </button>
         {picks.length > 0 && (
           <button
             type="button"
             onClick={clear}
-            className="text-sm text-black/50 dark:text-white/50 hover:text-red-500 transition-colors"
+            className="text-sm text-foreground-muted hover:text-red-500 transition-colors"
           >
             Clear
           </button>
@@ -88,7 +84,7 @@ export function AiScreenerQuery({ rows, onResult, onClear }: AiScreenerQueryProp
             <span className="font-medium">Criteria used:</span> {criteria}
           </p>
           {picks.length === 0 ? (
-            <p className="text-sm text-black/50 dark:text-white/50">
+            <p className="text-sm text-foreground-muted">
               No stocks in the current data matched.
             </p>
           ) : (

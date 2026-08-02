@@ -60,7 +60,7 @@ export function EquityChart({ equityCurve, startingCash }: EquityChartProps) {
   }, [equityCurve, startingCash]);
 
   if (points.length === 0) {
-    return <p className="text-sm text-black/50 dark:text-white/50">No data to chart.</p>;
+    return <p className="text-sm text-foreground-muted">No data to chart.</p>;
   }
 
   const ticks = niceTicks(minY, maxY);
@@ -157,11 +157,11 @@ export function EquityChart({ equityCurve, startingCash }: EquityChartProps) {
 
       {hover && (
         <div
-          className="pointer-events-none absolute top-1 rounded-md border border-black/[.08] dark:border-white/[.145] bg-background px-2 py-1 text-xs shadow-sm"
+          className="pointer-events-none absolute top-1 rounded-md border border-border bg-surface px-2 py-1 text-xs shadow-sm"
           style={{ left: `${(hover.x / WIDTH) * 100}%`, transform: "translateX(-50%)" }}
         >
           <div className="font-mono font-medium">₹{hover.equity.toFixed(2)}</div>
-          <div className="text-black/50 dark:text-white/50">
+          <div className="text-foreground-muted">
             {new Date(hover.time * 1000).toLocaleDateString()}
           </div>
         </div>
