@@ -33,24 +33,24 @@ export function MarketDigest() {
         <button
           onClick={generate}
           disabled={loading}
-          className="text-xs rounded-full border border-black/[.08] dark:border-white/[.145] px-3 py-1.5 w-fit hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] transition-colors disabled:opacity-40"
+          className="text-xs rounded-full border border-border px-3 py-1.5 w-fit hover:bg-background transition-colors disabled:opacity-40"
         >
           {loading ? "Generating…" : "Generate AI market digest"}
         </button>
       )}
       {error && <p role="alert" className="text-xs text-red-500">{error}</p>}
       {content && (
-        <div className="rounded-lg border border-black/[.08] dark:border-white/[.145] p-3 flex flex-col gap-2">
+        <div className="card p-3 flex flex-col gap-2">
           <MarkdownContent content={content} />
           <div className="flex items-center justify-between">
             {fetchedAt && (
-              <span className="text-xs text-black/40 dark:text-white/40">
+              <span className="text-xs text-foreground-muted">
                 Based on screener data as of {new Date(fetchedAt).toLocaleTimeString()}
               </span>
             )}
             <button
               onClick={() => setContent(null)}
-              className="text-xs text-black/40 dark:text-white/40 hover:text-black/60 dark:hover:text-white/60 transition-colors"
+              className="text-xs text-foreground-muted hover:text-foreground transition-colors"
             >
               Dismiss
             </button>

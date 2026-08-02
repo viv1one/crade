@@ -53,13 +53,13 @@ export function ShareWatchlist() {
       <button
         onClick={() => setExpanded((v) => !v)}
         aria-expanded={expanded}
-        className="text-xs text-black/50 dark:text-white/50 underline underline-offset-4 hover:no-underline"
+        className="text-xs text-foreground-muted underline underline-offset-4 hover:no-underline"
       >
         {expanded ? "Hide sharing" : `Share this watchlist${shares.length > 0 ? ` (${shares.length})` : ""}`}
       </button>
 
       {expanded && (
-        <div className="mt-2 flex flex-col gap-2 rounded-lg border border-black/[.08] dark:border-white/[.145] p-3">
+        <div className="card mt-2 flex flex-col gap-2 p-3">
           <form onSubmit={handleShare} className="flex gap-2">
             <input
               type="email"
@@ -67,19 +67,19 @@ export function ShareWatchlist() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Invite by email"
               aria-label="Email to invite"
-              className="flex-1 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-1.5 text-xs outline-none focus:border-foreground"
+              className="input flex-1 py-1.5 text-xs"
             />
             <button
               type="submit"
               disabled={submitting}
-              className="text-xs rounded-lg bg-accent text-white px-3 py-1.5 font-medium hover:bg-accent-hover transition-colors disabled:opacity-40"
+              className="btn-primary text-xs py-1.5 disabled:opacity-40"
             >
               Invite
             </button>
           </form>
           {error && <p className="text-xs text-red-500">{error}</p>}
           {shares.length === 0 ? (
-            <p className="text-xs text-black/40 dark:text-white/40">Not shared with anyone yet.</p>
+            <p className="text-xs text-foreground-muted">Not shared with anyone yet.</p>
           ) : (
             <ul className="flex flex-col gap-1">
               {shares.map((s) => (
@@ -88,7 +88,7 @@ export function ShareWatchlist() {
                   <button
                     onClick={() => revoke(s._id)}
                     aria-label={`Revoke access for ${s.invitedEmail}`}
-                    className="text-black/40 dark:text-white/40 hover:text-red-500 transition-colors"
+                    className="text-foreground-muted hover:text-red-500 transition-colors"
                   >
                     Revoke
                   </button>
@@ -96,7 +96,7 @@ export function ShareWatchlist() {
               ))}
             </ul>
           )}
-          <p className="text-xs text-black/40 dark:text-white/40">
+          <p className="text-xs text-foreground-muted">
             They&apos;ll see this watchlist read-only if they sign in with that email.
           </p>
         </div>

@@ -51,7 +51,7 @@ export function AlertsSummary() {
           {triggered.map((a) => (
             <li key={a._id} className="text-sm font-mono">
               {a.symbol}{" "}
-              <span className="font-sans text-black/60 dark:text-white/60">
+              <span className="font-sans text-foreground-muted">
                 — {CONDITION_LABELS[a.condition.type] ?? a.condition.type} {a.condition.value}
               </span>
             </li>
@@ -62,7 +62,7 @@ export function AlertsSummary() {
   }
 
   return (
-    <div className="w-full max-w-2xl flex items-center justify-between text-sm text-black/50 dark:text-white/50">
+    <div className="w-full max-w-2xl flex items-center justify-between text-sm text-foreground-muted">
       <span>{activeCount} active alert{activeCount > 1 ? "s" : ""}</span>
       <Link href="/alerts" className="text-xs underline underline-offset-4 hover:no-underline">
         Manage alerts →

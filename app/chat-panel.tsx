@@ -91,12 +91,12 @@ export function ChatPanel({ initialSymbol }: ChatPanelProps = {}) {
           onBlur={(e) => loadHistory(e.target.value.trim().toUpperCase())}
           placeholder="Symbol (optional), e.g. RELIANCE.NS"
           aria-label="Symbol to ground chat in (optional)"
-          className="flex-1 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+          className="input flex-1"
         />
         <select
           value={task}
           onChange={(e) => setTask(e.target.value as ChatTask)}
-          className="rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+          className="input"
         >
           {TASK_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -106,12 +106,12 @@ export function ChatPanel({ initialSymbol }: ChatPanelProps = {}) {
         </select>
       </div>
 
-      <div className="flex flex-col gap-2 rounded-lg border border-black/[.08] dark:border-white/[.145] p-4 min-h-40 max-h-96 overflow-y-auto">
+      <div className="card flex flex-col gap-2 p-4 min-h-40 max-h-96 overflow-y-auto">
         {!historyLoaded && (
-          <p className="text-sm text-black/50 dark:text-white/50">Loading history…</p>
+          <p className="text-sm text-foreground-muted">Loading history…</p>
         )}
         {historyLoaded && messages.length === 0 && (
-          <p className="text-sm text-black/50 dark:text-white/50">
+          <p className="text-sm text-foreground-muted">
             Ask about a stock, e.g. &ldquo;why did this move today?&rdquo;
           </p>
         )}
@@ -121,7 +121,7 @@ export function ChatPanel({ initialSymbol }: ChatPanelProps = {}) {
             className={`rounded-lg px-3 py-2 max-w-[85%] ${
               m.role === "user"
                 ? "self-end bg-foreground text-background text-sm"
-                : "self-start bg-black/[.05] dark:bg-white/[.06]"
+                : "self-start bg-background"
             }`}
           >
             <span className="sr-only">{m.role === "user" ? "You: " : "Assistant: "}</span>
@@ -129,13 +129,13 @@ export function ChatPanel({ initialSymbol }: ChatPanelProps = {}) {
           </div>
         ))}
         {loading && (
-          <div className="self-start text-sm text-black/50 dark:text-white/50">Thinking…</div>
+          <div className="self-start text-sm text-foreground-muted">Thinking…</div>
         )}
       </div>
 
       {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
       {meta && (
-        <p className="text-xs text-black/40 dark:text-white/40">
+        <p className="text-xs text-foreground-muted">
           via {meta.provider} ({meta.model})
         </p>
       )}
@@ -146,13 +146,9 @@ export function ChatPanel({ initialSymbol }: ChatPanelProps = {}) {
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask something…"
           aria-label="Message"
-          className="flex-1 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+          className="input flex-1"
         />
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded-lg bg-accent text-white px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors disabled:opacity-40"
-        >
+        <button type="submit" disabled={loading} className="btn-primary disabled:opacity-40">
           Send
         </button>
       </form>

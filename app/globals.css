@@ -1,17 +1,26 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-  /* Restrained indigo accent — wordmark + primary CTAs only, everything
-     else stays the existing black/white/gray palette. */
-  --accent: #4f46e5;
-  --accent-hover: #4338ca;
+  /* Soft cool-gray canvas, not pure white — cards (.card below) get their
+     surface color from --surface, so they read as floating panels rather
+     than blending into the page background. Stripe dashboard's actual
+     palette: a dark desaturated navy for text (not pure black), a
+     restrained blue-violet accent for primary actions/links only. */
+  --background: #f6f7f9;
+  --surface: #ffffff;
+  --foreground: #1a1f36;
+  --foreground-muted: #697386;
+  --border: #e3e8ee;
+  --accent: #635bff;
+  --accent-hover: #4b44d6;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
   --color-foreground: var(--foreground);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-border: var(--border);
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --font-sans: var(--font-geist-sans);
@@ -20,11 +29,13 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    /* A touch lighter for contrast against the near-black dark background. */
-    --accent: #6366f1;
-    --accent-hover: #818cf8;
+    --background: #0a0e17;
+    --surface: #151a26;
+    --foreground: #e3e8ee;
+    --foreground-muted: #8792a2;
+    --border: #2a3142;
+    --accent: #8b85ff;
+    --accent-hover: #a29dff;
   }
 }
 
@@ -40,4 +51,77 @@ button:focus-visible,
 a:focus-visible {
   outline: 2px solid var(--foreground);
   outline-offset: 2px;
+}
+
+@layer components {
+  /* Floating panel — the base unit almost every section/list/form wraps
+     in. Replaces the old "rounded-lg border border-black/[.08]
+     dark:border-white/[.145]" idiom that was independently copy-pasted
+     across ~17 files (border only, no surface differentiation, no
+     shadow) with one shared class that actually looks like a Stripe
+     dashboard panel. */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    box-shadow:
+      0 2px 5px -1px rgba(50, 50, 93, 0.08),
+      0 1px 3px -1px rgba(0, 0, 0, 0.06);
+  }
+
+  .input {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--foreground);
+    outline: none;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+  .input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+  .input::placeholder {
+    color: var(--foreground-muted);
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+    border-radius: 0.5rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition:
+      background-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+    box-shadow: 0 2px 5px -1px color-mix(in srgb, var(--accent) 40%, transparent);
+  }
+  .btn-primary:disabled {
+    opacity: 0.5;
+  }
+
+  .btn-secondary {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--foreground);
+    border-radius: 0.5rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: background-color 0.15s ease;
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--background);
+  }
+  .btn-secondary:disabled {
+    opacity: 0.5;
+  }
 }

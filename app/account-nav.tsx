@@ -23,7 +23,7 @@ export function AccountNav() {
   if (!email) return null;
 
   return (
-    <div className="flex items-center gap-3 text-sm text-black/60 dark:text-white/60">
+    <div className="flex items-center gap-3 text-sm text-foreground-muted">
       <span>{email}</span>
       <button onClick={handleLogout} className="underline underline-offset-4 hover:no-underline">
         Log out

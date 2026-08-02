@@ -62,14 +62,14 @@ export function Portfolio({ cash, holdings, trades, error, loaded, onReset }: Po
           <button
             onClick={refreshPrices}
             disabled={!loaded || loading || symbols.length === 0}
-            className="rounded-full border border-black/[.08] dark:border-white/[.145] px-4 py-2 text-sm font-medium hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] transition-colors disabled:opacity-40"
+            className="btn-secondary rounded-full disabled:opacity-40"
           >
             {loading ? "Refreshing…" : "Refresh"}
           </button>
           <button
             onClick={onReset}
             disabled={!loaded}
-            className="rounded-full border border-black/[.08] dark:border-white/[.145] px-4 py-2 text-sm font-medium text-black/60 dark:text-white/60 hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] transition-colors disabled:opacity-40"
+            className="rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-background transition-colors disabled:opacity-40"
           >
             Reset
           </button>
@@ -78,22 +78,22 @@ export function Portfolio({ cash, holdings, trades, error, loaded, onReset }: Po
 
       {error && <p className="text-sm text-red-500">{error}</p>}
       {!loaded && (
-        <p className="text-sm text-black/50 dark:text-white/50">Loading portfolio…</p>
+        <p className="text-sm text-foreground-muted">Loading portfolio…</p>
       )}
 
       {loaded && (
         <>
-          <div className="grid grid-cols-3 gap-4 rounded-lg border border-black/[.08] dark:border-white/[.145] p-4">
+          <div className="card grid grid-cols-3 gap-4 p-4">
             <div>
-              <div className="text-xs text-black/50 dark:text-white/50">Cash</div>
+              <div className="text-xs text-foreground-muted">Cash</div>
               <div className="font-mono text-sm font-medium">₹{cash.toFixed(2)}</div>
             </div>
             <div>
-              <div className="text-xs text-black/50 dark:text-white/50">Total value</div>
+              <div className="text-xs text-foreground-muted">Total value</div>
               <div className="font-mono text-sm font-medium">₹{totalValue.toFixed(2)}</div>
             </div>
             <div>
-              <div className="text-xs text-black/50 dark:text-white/50">Total P&amp;L</div>
+              <div className="text-xs text-foreground-muted">Total P&amp;L</div>
               <div
                 className={`font-mono text-sm font-medium ${
                   totalPnl >= 0 ? "text-green-600" : "text-red-500"
@@ -106,9 +106,9 @@ export function Portfolio({ cash, holdings, trades, error, loaded, onReset }: Po
 
           <div>
             <h3 className="text-sm font-medium mb-2">Holdings</h3>
-            <ul className="flex flex-col divide-y divide-black/[.08] dark:divide-white/[.145] rounded-lg border border-black/[.08] dark:border-white/[.145]">
+            <ul className="card flex flex-col divide-y divide-border overflow-hidden">
               {symbols.length === 0 && (
-                <li className="p-4 text-sm text-black/50 dark:text-white/50">
+                <li className="p-4 text-sm text-foreground-muted">
                   No open positions — buy something from the watchlist above.
                 </li>
               )}
@@ -121,7 +121,7 @@ export function Portfolio({ cash, holdings, trades, error, loaded, onReset }: Po
                   <li key={symbol} className="flex items-center justify-between gap-4 p-4">
                     <div className="flex flex-col">
                       <span className="font-mono text-sm font-medium">{symbol}</span>
-                      <span className="text-xs text-black/50 dark:text-white/50">
+                      <span className="text-xs text-foreground-muted">
                         {holding.qty} @ avg ₹{holding.avgCost.toFixed(2)}
                       </span>
                     </div>
@@ -146,9 +146,9 @@ export function Portfolio({ cash, holdings, trades, error, loaded, onReset }: Po
 
           <div>
             <h3 className="text-sm font-medium mb-2">Trade history</h3>
-            <ul className="flex flex-col divide-y divide-black/[.08] dark:divide-white/[.145] rounded-lg border border-black/[.08] dark:border-white/[.145] max-h-64 overflow-y-auto">
+            <ul className="card flex flex-col divide-y divide-border max-h-64 overflow-y-auto">
               {trades.length === 0 && (
-                <li className="p-4 text-sm text-black/50 dark:text-white/50">No trades yet.</li>
+                <li className="p-4 text-sm text-foreground-muted">No trades yet.</li>
               )}
               {trades.map((trade) => (
                 <li key={trade.id} className="flex items-center justify-between gap-4 p-3 text-xs">
@@ -168,7 +168,7 @@ export function Portfolio({ cash, holdings, trades, error, loaded, onReset }: Po
                       {trade.realizedPnl >= 0 ? "+" : ""}₹{trade.realizedPnl.toFixed(2)}
                     </span>
                   )}
-                  <span className="text-black/40 dark:text-white/40">
+                  <span className="text-foreground-muted">
                     {new Date(trade.timestamp).toLocaleTimeString()}
                   </span>
                 </li>
@@ -178,7 +178,7 @@ export function Portfolio({ cash, holdings, trades, error, loaded, onReset }: Po
         </>
       )}
 
-      <p className="text-xs text-black/40 dark:text-white/40">
+      <p className="text-xs text-foreground-muted">
         Simulated only — starting balance ₹1,00,000 fake cash, no real orders placed. For live
         trading, use your broker (e.g. Groww) directly.
       </p>

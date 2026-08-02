@@ -23,14 +23,14 @@ export function MarketMovers() {
   return (
     <div className="w-full max-w-2xl flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-medium text-black/60 dark:text-white/60">Nifty 50 movers</h2>
+        <h2 className="text-sm font-medium text-foreground-muted">Nifty 50 movers</h2>
         <Link href="/screener" className="text-xs underline underline-offset-4 hover:no-underline">
           Full screener →
         </Link>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1">
-          <span className="text-xs text-black/40 dark:text-white/40">Top gainers</span>
+          <span className="text-xs text-foreground-muted">Top gainers</span>
           {gainers.map((r) => (
             <div key={r.symbol} className="flex items-center justify-between text-sm">
               <span className="font-mono">{r.symbol}</span>
@@ -41,7 +41,7 @@ export function MarketMovers() {
           ))}
         </div>
         <div className="flex flex-col gap-1">
-          <span className="text-xs text-black/40 dark:text-white/40">Top losers</span>
+          <span className="text-xs text-foreground-muted">Top losers</span>
           {losers.map((r) => (
             <div key={r.symbol} className="flex items-center justify-between text-sm">
               <span className="font-mono">{r.symbol}</span>

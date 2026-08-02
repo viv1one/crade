@@ -15,19 +15,19 @@ const NAV_LINKS = [
 
 export function AppNav() {
   return (
-    <nav className="w-full max-w-4xl flex flex-wrap justify-between items-center gap-4">
+    <nav className="card w-full max-w-4xl flex flex-wrap justify-between items-center gap-4 px-5 py-3">
       <div className="flex items-center gap-4">
         <Link href="/" className="text-lg font-semibold text-accent">
           Crade
         </Link>
         <AccountNav />
       </div>
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-wrap items-center gap-5">
         {NAV_LINKS.map((link) => (
           <Link
             key={link.href}
             href={link.href}
-            className="text-sm font-medium underline underline-offset-4 hover:no-underline"
+            className="text-sm font-medium text-foreground-muted hover:text-foreground transition-colors"
           >
             {link.label}
           </Link>

@@ -153,7 +153,7 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
             className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
               showIndicators
                 ? "bg-foreground text-background border-foreground"
-                : "border-black/[.08] dark:border-white/[.145] hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a]"
+                : "border-border hover:bg-background"
             }`}
           >
             RSI/SMA
@@ -161,7 +161,7 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
           <button
             onClick={refreshAll}
             disabled={!loaded}
-            className="rounded-full border border-black/[.08] dark:border-white/[.145] px-4 py-2 text-sm font-medium hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] transition-colors disabled:opacity-40"
+            className="btn-secondary rounded-full disabled:opacity-40"
           >
             Refresh all
           </button>
@@ -174,18 +174,15 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
           onChange={(e) => setInput(e.target.value)}
           placeholder="Add symbol, e.g. RELIANCE.NS"
           aria-label="Add a stock symbol"
-          className="flex-1 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+          className="input flex-1"
         />
-        <button
-          type="submit"
-          className="rounded-lg bg-accent text-white px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors"
-        >
+        <button type="submit" className="btn-primary">
           Add
         </button>
       </form>
 
       {isNew && !starterNoteDismissed && (
-        <p className="text-xs text-black/40 dark:text-white/40 -mt-4">
+        <p className="text-xs text-foreground-muted -mt-4">
           Starter picks — remove any you don&apos;t want.{" "}
           <button
             type="button"
@@ -197,12 +194,12 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
         </p>
       )}
 
-      <ul className="flex flex-col divide-y divide-black/[.08] dark:divide-white/[.145] rounded-lg border border-black/[.08] dark:border-white/[.145]">
+      <ul className="card flex flex-col divide-y divide-border overflow-hidden">
         {!loaded && (
-          <li className="p-4 text-sm text-black/50 dark:text-white/50">Loading watchlist…</li>
+          <li className="p-4 text-sm text-foreground-muted">Loading watchlist…</li>
         )}
         {loaded && symbols.length === 0 && (
-          <li className="p-4 text-sm text-black/50 dark:text-white/50">
+          <li className="p-4 text-sm text-foreground-muted">
             No symbols yet — add one above.
           </li>
         )}
@@ -245,15 +242,15 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
                   {showIndicators && (() => {
                     const ind = indicatorState[symbol];
                     if (!ind || ind.loading) {
-                      return <span className="text-xs text-black/40 dark:text-white/40">Loading indicators…</span>;
+                      return <span className="text-xs text-foreground-muted">Loading indicators…</span>;
                     }
                     if (ind.error) {
-                      return <span className="text-xs text-black/40 dark:text-white/40">Indicators unavailable</span>;
+                      return <span className="text-xs text-foreground-muted">Indicators unavailable</span>;
                     }
                     const rsiValue = ind.rsi14;
                     const rsiFlag = rsiValue !== undefined && rsiValue < 30 ? " (oversold)" : rsiValue !== undefined && rsiValue > 70 ? " (overbought)" : "";
                     return (
-                      <span className="text-xs text-black/50 dark:text-white/50">
+                      <span className="text-xs text-foreground-muted">
                         RSI(14): {rsiValue !== undefined ? rsiValue.toFixed(0) : "—"}
                         {rsiFlag} · SMA20: {ind.sma20 !== undefined ? ind.sma20.toFixed(2) : "—"} · SMA50:{" "}
                         {ind.sma50 !== undefined ? ind.sma50.toFixed(2) : "—"}
@@ -265,13 +262,13 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
                   <button
                     onClick={() => fetchQuote(symbol)}
                     disabled={row.loading}
-                    className="text-xs rounded-full border border-black/[.08] dark:border-white/[.145] px-3 py-1.5 hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] transition-colors disabled:opacity-50"
+                    className="text-xs rounded-full border border-border px-3 py-1.5 hover:bg-background transition-colors disabled:opacity-50"
                   >
                     {row.loading ? "Loading…" : "Refresh"}
                   </button>
                   <button
                     onClick={() => removeSymbol(symbol)}
-                    className="text-xs text-black/50 dark:text-white/50 hover:text-red-500 transition-colors"
+                    className="text-xs text-foreground-muted hover:text-red-500 transition-colors"
                     aria-label={`Remove ${symbol}`}
                   >
                     ✕
@@ -286,7 +283,7 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
                   step={1}
                   value={row.qtyInput}
                   onChange={(e) => patchRow(symbol, { qtyInput: e.target.value })}
-                  className="w-20 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-2 py-1 text-xs outline-none focus:border-foreground"
+                  className="input w-20 px-2 py-1 text-xs"
                   aria-label={`Quantity for ${symbol}`}
                 />
                 <button
