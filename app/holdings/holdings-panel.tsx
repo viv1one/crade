@@ -1,11 +1,32 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Disclaimer } from "../disclaimer";
 import { NOT_INVESTMENT_ADVICE, FREE_DATA_SOURCE, MANUAL_HOLDINGS_ONLY } from "@/lib/disclaimers";
 import { annualizedReturnPct } from "@/lib/holdings-cagr";
 import { parseBulkHoldings } from "@/lib/holdings-bulk-parse";
+import { NIFTY_50 } from "@/lib/screener/universe";
+
+const SYMBOL_SUGGESTIONS_ID = "nifty50-symbol-suggestions";
+
+// Shared by both the single-add symbol input and the bulk "find & insert"
+// helper below — one <datalist>, referenced by list="..." from either
+// input. Native browser autocomplete matches against both the option's
+// value (the ticker) and its visible text (the company name), so typing
+// "ad" surfaces ADANIENT.NS/ADANIPORTS.NS whether the user thinks in
+// tickers or names.
+function SymbolDatalist() {
+  return (
+    <datalist id={SYMBOL_SUGGESTIONS_ID}>
+      {NIFTY_50.map((s) => (
+        <option key={s.symbol} value={s.symbol}>
+          {s.name}
+        </option>
+      ))}
+    </datalist>
+  );
+}
 
 interface RealHolding {
   _id: string;
@@ -34,6 +55,8 @@ export function HoldingsPanel() {
   const [bulkText, setBulkText] = useState("");
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
   const [bulkResult, setBulkResult] = useState<{ added: number; errors: string[] } | null>(null);
+  const [symbolPicker, setSymbolPicker] = useState("");
+  const bulkTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   function load() {
     fetch("/api/holdings")
@@ -164,6 +187,20 @@ export function HoldingsPanel() {
     }
   }
 
+  // Fires as the user types/selects in the bulk "find a symbol" helper.
+  // Datalist selection sets the input's value to the chosen option's
+  // value (the ticker) — treat an exact match against the known universe
+  // as "they picked a suggestion," append a line for it, and clear the
+  // picker so it's ready for the next one.
+  function handleSymbolPick(value: string) {
+    setSymbolPicker(value);
+    const match = NIFTY_50.find((s) => s.symbol === value.trim().toUpperCase());
+    if (!match) return;
+    setBulkText((prev) => (prev && !prev.endsWith("\n") ? `${prev}\n${match.symbol} ` : `${prev}${match.symbol} `));
+    setSymbolPicker("");
+    bulkTextareaRef.current?.focus();
+  }
+
   async function remove(id: string) {
     setRemovingId(id);
     try {
@@ -181,6 +218,7 @@ export function HoldingsPanel() {
 
   return (
     <div className="w-full max-w-2xl flex flex-col gap-6">
+      <SymbolDatalist />
       <div>
         <h1 className="text-2xl font-semibold">My Holdings</h1>
         <p className="text-sm text-black/50 dark:text-white/50 mt-1">
@@ -194,8 +232,9 @@ export function HoldingsPanel() {
         <input
           value={symbol}
           onChange={(e) => setSymbol(e.target.value)}
-          placeholder="Symbol, e.g. RELIANCE.NS"
+          placeholder="Symbol, e.g. RELIANCE.NS or Adani"
           aria-label="Symbol"
+          list={SYMBOL_SUGGESTIONS_ID}
           className="flex-1 min-w-[10rem] rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
         />
         <input
@@ -257,8 +296,17 @@ export function HoldingsPanel() {
           <label className="text-xs text-black/50 dark:text-white/50" htmlFor="bulk-holdings">
             One holding per line: symbol, quantity, avg cost — e.g.
           </label>
+          <input
+            value={symbolPicker}
+            onChange={(e) => handleSymbolPick(e.target.value)}
+            list={SYMBOL_SUGGESTIONS_ID}
+            placeholder="Find & insert a symbol, e.g. Adani"
+            aria-label="Find and insert a symbol into the list below"
+            className="w-64 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+          />
           <textarea
             id="bulk-holdings"
+            ref={bulkTextareaRef}
             value={bulkText}
             onChange={(e) => setBulkText(e.target.value)}
             placeholder={"TCS 10 3800\nRELIANCE.NS, 5, 1300\nINFY 20 1450.50"}
