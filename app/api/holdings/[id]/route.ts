@@ -19,7 +19,7 @@ export async function PATCH(
   }
 
   const body = await request.json();
-  const update: { qty?: number; avgCost?: number; note?: string } = {};
+  const update: { qty?: number; avgCost?: number; note?: string; purchasedAt?: Date } = {};
 
   if (body.qty !== undefined) {
     const qty = Number(body.qty);
@@ -37,6 +37,13 @@ export async function PATCH(
   }
   if (typeof body.note === "string") {
     update.note = body.note.trim();
+  }
+  if (body.purchasedAt !== undefined) {
+    const date = new Date(body.purchasedAt);
+    if (Number.isNaN(date.getTime())) {
+      return NextResponse.json({ error: "purchasedAt is not a valid date" }, { status: 400 });
+    }
+    update.purchasedAt = date;
   }
   if (Object.keys(update).length === 0) {
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Disclaimer } from "../disclaimer";
 import { NOT_INVESTMENT_ADVICE, FREE_DATA_SOURCE, MANUAL_HOLDINGS_ONLY } from "@/lib/disclaimers";
+import { annualizedReturnPct } from "@/lib/holdings-cagr";
 
 interface RealHolding {
   _id: string;
@@ -11,6 +12,7 @@ interface RealHolding {
   qty: number;
   avgCost: number;
   note?: string;
+  purchasedAt?: string;
 }
 
 export function HoldingsPanel() {
@@ -22,6 +24,7 @@ export function HoldingsPanel() {
   const [qty, setQty] = useState("");
   const [avgCost, setAvgCost] = useState("");
   const [note, setNote] = useState("");
+  const [purchasedAt, setPurchasedAt] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
@@ -96,6 +99,7 @@ export function HoldingsPanel() {
           qty: numericQty,
           avgCost: numericAvgCost,
           note: note.trim() || undefined,
+          purchasedAt: purchasedAt || undefined,
         }),
       });
       const data = await res.json();
@@ -104,6 +108,7 @@ export function HoldingsPanel() {
       setQty("");
       setAvgCost("");
       setNote("");
+      setPurchasedAt("");
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add holding");
@@ -169,6 +174,15 @@ export function HoldingsPanel() {
           aria-label="Note"
           className="flex-1 min-w-[10rem] rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
         />
+        <input
+          value={purchasedAt}
+          onChange={(e) => setPurchasedAt(e.target.value)}
+          type="date"
+          max={new Date().toISOString().slice(0, 10)}
+          aria-label="Purchase date (optional, for annualized return)"
+          title="Purchase date (optional) — enables an annualized return alongside total P&L"
+          className="rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+        />
         <button
           type="submit"
           disabled={submitting}
@@ -216,6 +230,11 @@ export function HoldingsPanel() {
           const price = prices[h.symbol] ?? h.avgCost;
           const pnl = (price - h.avgCost) * h.qty;
           const pnlPct = ((price - h.avgCost) / h.avgCost) * 100;
+          const invested = h.qty * h.avgCost;
+          const currentValue = h.qty * price;
+          const cagr = h.purchasedAt
+            ? annualizedReturnPct(invested, currentValue, new Date(h.purchasedAt))
+            : undefined;
           return (
             <li key={h._id} className="flex items-center justify-between gap-4 p-4">
               <div className="flex flex-col">
@@ -228,6 +247,7 @@ export function HoldingsPanel() {
                 </Link>
                 <span className="text-xs text-black/50 dark:text-white/50">
                   {h.qty} @ avg ₹{h.avgCost.toFixed(2)}
+                  {h.purchasedAt ? ` · bought ${new Date(h.purchasedAt).toLocaleDateString()}` : ""}
                   {h.note ? ` — ${h.note}` : ""}
                 </span>
               </div>
@@ -240,6 +260,12 @@ export function HoldingsPanel() {
                     ({pnl >= 0 ? "+" : ""}
                     {pnlPct.toFixed(2)}%)
                   </div>
+                  {cagr !== undefined && (
+                    <div className="text-black/40 dark:text-white/40" title="Annualized return since purchase date">
+                      {cagr >= 0 ? "+" : ""}
+                      {cagr.toFixed(2)}%/yr
+                    </div>
+                  )}
                 </div>
                 <button
                   onClick={() => remove(h._id)}

@@ -139,6 +139,25 @@ describe("app/api/holdings routes", () => {
     expect(list).toHaveLength(1); // merged, not a duplicate row
   });
 
+  it("POST accepts an optional purchasedAt and rejects an unparseable one", async () => {
+    const { POST } = await import("./route");
+    const good = await POST(postReq({ symbol: "TCS.NS", qty: 10, avgCost: 3000, purchasedAt: "2024-01-15" }));
+    expect(good.status).toBe(200);
+    const goodData = await good.json();
+    expect(new Date(goodData.purchasedAt).toISOString().slice(0, 10)).toBe("2024-01-15");
+
+    const bad = await POST(postReq({ symbol: "INFY.NS", qty: 1, avgCost: 1000, purchasedAt: "not-a-date" }));
+    expect(bad.status).toBe(400);
+  });
+
+  it("merging into an existing holding keeps the earlier of the two purchase dates", async () => {
+    const { POST } = await import("./route");
+    await POST(postReq({ symbol: "TCS.NS", qty: 10, avgCost: 3000, purchasedAt: "2024-06-01" }));
+    const res = await POST(postReq({ symbol: "TCS.NS", qty: 10, avgCost: 4000, purchasedAt: "2023-01-01" }));
+    const data = await res.json();
+    expect(new Date(data.purchasedAt).toISOString().slice(0, 10)).toBe("2023-01-01");
+  });
+
   it("PATCH updates qty/avgCost/note for the owning user only", async () => {
     const { POST } = await import("./route");
     const created = await (await POST(postReq({ symbol: "TCS.NS", qty: 10, avgCost: 3000 }))).json();

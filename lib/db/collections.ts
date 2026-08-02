@@ -96,6 +96,10 @@ export interface RealHolding {
   qty: number;
   avgCost: number;
   note?: string;
+  // When the user says they bought this — optional, since qty/avgCost alone
+  // is already enough for point-in-time P&L. Only needed for annualized
+  // (CAGR) return; see lib/holdings-cagr.ts.
+  purchasedAt?: Date;
   createdAt: Date;
 }
 

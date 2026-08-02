@@ -3,6 +3,16 @@ import { ObjectId } from "mongodb";
 import { requireUserOrResponse } from "@/lib/auth/api";
 import { getCollections } from "@/lib/db/collections";
 
+// Accepts an ISO date string (from an <input type="date">) — undefined if
+// absent, null if present but unparseable, so the caller can tell "not
+// given" apart from "given but invalid" and 400 on the latter.
+function parseOptionalDate(value: unknown): Date | undefined | null {
+  if (value === undefined || value === null || value === "") return undefined;
+  if (typeof value !== "string") return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 export async function GET() {
   const user = await requireUserOrResponse();
   if (user instanceof NextResponse) return user;
@@ -31,6 +41,7 @@ export async function POST(request: Request) {
   const qty = Number(body.qty);
   const avgCost = Number(body.avgCost);
   const note = typeof body.note === "string" && body.note.trim() ? body.note.trim() : undefined;
+  const purchasedAt = parseOptionalDate(body.purchasedAt);
 
   if (!symbol) {
     return NextResponse.json({ error: "symbol is required" }, { status: 400 });
@@ -41,6 +52,9 @@ export async function POST(request: Request) {
   if (!Number.isFinite(avgCost) || avgCost <= 0) {
     return NextResponse.json({ error: "avgCost must be a positive number" }, { status: 400 });
   }
+  if (purchasedAt === null) {
+    return NextResponse.json({ error: "purchasedAt is not a valid date" }, { status: 400 });
+  }
 
   const { realHoldings } = await getCollections();
   const userId = new ObjectId(user.id);
@@ -49,9 +63,24 @@ export async function POST(request: Request) {
   if (existing) {
     const newQty = existing.qty + qty;
     const newAvgCost = (existing.qty * existing.avgCost + qty * avgCost) / newQty;
+    // A blended position doesn't have one true purchase date — approximate
+    // with the earliest tranche's date (money has been in since at least
+    // then), rather than attempting a weighted-average-date/IRR calculation
+    // that would be overkill for a personal tracker.
+    const mergedPurchasedAt =
+      existing.purchasedAt && purchasedAt
+        ? new Date(Math.min(existing.purchasedAt.getTime(), purchasedAt.getTime()))
+        : (existing.purchasedAt ?? purchasedAt);
     const result = await realHoldings.findOneAndUpdate(
       { _id: existing._id },
-      { $set: { qty: newQty, avgCost: newAvgCost, ...(note ? { note } : {}) } },
+      {
+        $set: {
+          qty: newQty,
+          avgCost: newAvgCost,
+          ...(note ? { note } : {}),
+          ...(mergedPurchasedAt ? { purchasedAt: mergedPurchasedAt } : {}),
+        },
+      },
       { returnDocument: "after" }
     );
     return NextResponse.json(result);
@@ -64,6 +93,7 @@ export async function POST(request: Request) {
     qty,
     avgCost,
     ...(note ? { note } : {}),
+    ...(purchasedAt ? { purchasedAt } : {}),
     createdAt: new Date(),
   };
   await realHoldings.insertOne(doc);
