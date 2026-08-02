@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Disclaimer } from "../disclaimer";
 import { NOT_INVESTMENT_ADVICE, FREE_DATA_SOURCE, MANUAL_HOLDINGS_ONLY } from "@/lib/disclaimers";
 import { annualizedReturnPct } from "@/lib/holdings-cagr";
+import { parseBulkHoldings } from "@/lib/holdings-bulk-parse";
 
 interface RealHolding {
   _id: string;
@@ -28,6 +29,11 @@ export function HoldingsPanel() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
+
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkText, setBulkText] = useState("");
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
+  const [bulkResult, setBulkResult] = useState<{ added: number; errors: string[] } | null>(null);
 
   function load() {
     fetch("/api/holdings")
@@ -117,6 +123,47 @@ export function HoldingsPanel() {
     }
   }
 
+  // Submits parsed rows one at a time (not Promise.all) — if the same
+  // symbol appears on two lines, each POST needs to see the previous one's
+  // merge already applied, or a parallel race would silently drop one.
+  async function handleBulkAdd(e: React.FormEvent) {
+    e.preventDefault();
+    setBulkResult(null);
+    const { rows, errors: parseErrors } = parseBulkHoldings(bulkText);
+    const lineErrors = parseErrors.map((err) => `Line ${err.line}: ${err.raw || "(blank)"} — ${err.message}`);
+
+    if (rows.length === 0) {
+      setBulkResult({ added: 0, errors: lineErrors.length > 0 ? lineErrors : ["Nothing to add — enter at least one line"] });
+      return;
+    }
+
+    setBulkSubmitting(true);
+    let added = 0;
+    const submitErrors = [...lineErrors];
+    for (const row of rows) {
+      try {
+        const res = await fetch("/api/holdings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ symbol: row.symbol, qty: row.qty, avgCost: row.avgCost }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Failed to add");
+        added++;
+      } catch (err) {
+        submitErrors.push(
+          `Line ${row.line}: ${row.symbol} — ${err instanceof Error ? err.message : "failed to add"}`
+        );
+      }
+    }
+    setBulkSubmitting(false);
+    setBulkResult({ added, errors: submitErrors });
+    if (added > 0) {
+      setBulkText("");
+      load();
+    }
+  }
+
   async function remove(id: string) {
     setRemovingId(id);
     try {
@@ -195,6 +242,54 @@ export function HoldingsPanel() {
         <p role="alert" className="text-sm text-red-500">
           {error}
         </p>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setBulkMode((v) => !v)}
+        className="self-start text-xs underline underline-offset-4 text-black/50 dark:text-white/50 hover:text-foreground"
+      >
+        {bulkMode ? "Hide bulk add" : "Have several? Add multiple at once →"}
+      </button>
+
+      {bulkMode && (
+        <form onSubmit={handleBulkAdd} className="flex flex-col gap-2">
+          <label className="text-xs text-black/50 dark:text-white/50" htmlFor="bulk-holdings">
+            One holding per line: symbol, quantity, avg cost — e.g.
+          </label>
+          <textarea
+            id="bulk-holdings"
+            value={bulkText}
+            onChange={(e) => setBulkText(e.target.value)}
+            placeholder={"TCS 10 3800\nRELIANCE.NS, 5, 1300\nINFY 20 1450.50"}
+            rows={5}
+            aria-label="Multiple holdings, one per line"
+            className="rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm font-mono outline-none focus:border-foreground"
+          />
+          <button
+            type="submit"
+            disabled={bulkSubmitting || !bulkText.trim()}
+            className="self-start rounded-lg bg-accent text-white px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors disabled:opacity-40"
+          >
+            {bulkSubmitting ? "Adding…" : "Add all"}
+          </button>
+          {bulkResult && (
+            <div role="status" className="text-sm">
+              {bulkResult.added > 0 && (
+                <p className="text-green-600">
+                  Added {bulkResult.added} holding{bulkResult.added === 1 ? "" : "s"}.
+                </p>
+              )}
+              {bulkResult.errors.length > 0 && (
+                <ul className="text-red-500 text-xs list-disc list-inside">
+                  {bulkResult.errors.map((msg, i) => (
+                    <li key={i}>{msg}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </form>
       )}
 
       {loaded && holdings.length > 0 && (
