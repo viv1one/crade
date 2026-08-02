@@ -41,9 +41,9 @@ export function HelpChatPanel() {
     <div className="w-full max-w-2xl flex flex-col gap-4">
       <h2 className="text-xl font-semibold">Ask how to use Crade</h2>
 
-      <div className="flex flex-col gap-2 rounded-lg border border-black/[.08] dark:border-white/[.145] p-4 min-h-32 max-h-96 overflow-y-auto">
+      <div className="card flex flex-col gap-2 p-4 min-h-32 max-h-96 overflow-y-auto">
         {messages.length === 0 && (
-          <p className="text-sm text-black/50 dark:text-white/50">
+          <p className="text-sm text-foreground-muted">
             e.g. &ldquo;how do I get notified when a stock hits a price?&rdquo; or &ldquo;how does
             paper trading work?&rdquo;
           </p>
@@ -54,14 +54,14 @@ export function HelpChatPanel() {
             className={`rounded-lg px-3 py-2 max-w-[85%] ${
               m.role === "user"
                 ? "self-end bg-foreground text-background text-sm"
-                : "self-start bg-black/[.05] dark:bg-white/[.06]"
+                : "self-start bg-background"
             }`}
           >
             {m.role === "assistant" ? <MarkdownContent content={m.content} /> : m.content}
           </div>
         ))}
         {loading && (
-          <div className="self-start text-sm text-black/50 dark:text-white/50">Thinking…</div>
+          <div className="self-start text-sm text-foreground-muted">Thinking…</div>
         )}
       </div>
 
@@ -73,13 +73,9 @@ export function HelpChatPanel() {
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask a question about using the app…"
           aria-label="Ask a question about using the app"
-          className="flex-1 rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+          className="input flex-1"
         />
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded-lg bg-accent text-white px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors disabled:opacity-40"
-        >
+        <button type="submit" disabled={loading} className="btn-primary disabled:opacity-40">
           Send
         </button>
       </form>

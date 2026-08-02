@@ -25,12 +25,12 @@ export default function SharedWithMePage() {
       <AppNav />
       <main className="w-full max-w-2xl flex flex-col gap-6">
         <h1 className="text-2xl font-semibold">Shared with me</h1>
-        <ul className="flex flex-col divide-y divide-black/[.08] dark:divide-white/[.145] rounded-lg border border-black/[.08] dark:border-white/[.145]">
+        <ul className="card flex flex-col divide-y divide-border overflow-hidden">
           {rows === null && (
-            <li className="p-4 text-sm text-black/50 dark:text-white/50">Loading…</li>
+            <li className="p-4 text-sm text-foreground-muted">Loading…</li>
           )}
           {rows?.length === 0 && (
-            <li className="p-4 text-sm text-black/50 dark:text-white/50">
+            <li className="p-4 text-sm text-foreground-muted">
               Nobody has shared anything with you yet.
             </li>
           )}

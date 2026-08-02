@@ -33,60 +33,61 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-6 p-8">
-      <h1 className="text-2xl font-semibold">Create your Crade account</h1>
-      <form onSubmit={handleSubmit} className="w-full max-w-sm flex flex-col gap-3">
-        <label className="flex flex-col gap-1 text-sm">
-          Email
-          <input
-            type="email"
-            required
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email"
-            className="rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Password
-          <input
-            type="password"
-            required
-            minLength={8}
-            autoComplete="new-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password (min 8 characters)"
-            className="rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
-          />
-        </label>
-        <label className="flex items-start gap-2 text-xs text-black/60 dark:text-white/60">
-          <input
-            type="checkbox"
-            required
-            checked={consented}
-            onChange={(e) => setConsented(e.target.checked)}
-            className="mt-0.5"
-          />
-          I understand Crade is a simulation-only research tool, not investment advice, and not
-          connected to any broker.
-        </label>
-        {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded-lg bg-accent text-white px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors disabled:opacity-40"
-        >
-          {loading ? "Creating account…" : "Sign up"}
-        </button>
-      </form>
-      <p className="text-sm text-black/60 dark:text-white/60">
-        Already have an account?{" "}
-        <Link href="/login" className="underline underline-offset-4 hover:no-underline">
-          Log in
-        </Link>
-      </p>
+    <div className="min-h-screen flex flex-col items-center justify-center gap-6 p-8 bg-background">
+      <div className="card w-full max-w-sm flex flex-col gap-6 p-8">
+        <div className="flex flex-col items-center gap-1">
+          <span className="text-lg font-semibold text-accent">Crade</span>
+          <h1 className="text-xl font-semibold">Create your account</h1>
+        </div>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          <label className="flex flex-col gap-1 text-sm">
+            Email
+            <input
+              type="email"
+              required
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email"
+              className="input"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            Password
+            <input
+              type="password"
+              required
+              minLength={8}
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password (min 8 characters)"
+              className="input"
+            />
+          </label>
+          <label className="flex items-start gap-2 text-xs text-foreground-muted">
+            <input
+              type="checkbox"
+              required
+              checked={consented}
+              onChange={(e) => setConsented(e.target.checked)}
+              className="mt-0.5"
+            />
+            I understand Crade is a simulation-only research tool, not investment advice, and not
+            connected to any broker.
+          </label>
+          {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
+          <button type="submit" disabled={loading} className="btn-primary disabled:opacity-40">
+            {loading ? "Creating account…" : "Sign up"}
+          </button>
+        </form>
+        <p className="text-sm text-foreground-muted text-center">
+          Already have an account?{" "}
+          <Link href="/login" className="underline underline-offset-4 hover:no-underline">
+            Log in
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }

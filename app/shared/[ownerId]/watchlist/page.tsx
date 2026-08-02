@@ -57,16 +57,16 @@ export default function SharedWatchlistPage() {
         <h1 className="text-2xl font-semibold">
           {ownerEmail ? `${ownerEmail}'s watchlist` : "Shared watchlist"}
         </h1>
-        <p className="text-xs text-black/40 dark:text-white/40">Read-only — you can view but not edit this.</p>
+        <p className="text-xs text-foreground-muted">Read-only — you can view but not edit this.</p>
 
         {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
 
-        <ul className="flex flex-col divide-y divide-black/[.08] dark:divide-white/[.145] rounded-lg border border-black/[.08] dark:border-white/[.145]">
+        <ul className="card flex flex-col divide-y divide-border overflow-hidden">
           {symbols === null && !error && (
-            <li className="p-4 text-sm text-black/50 dark:text-white/50">Loading…</li>
+            <li className="p-4 text-sm text-foreground-muted">Loading…</li>
           )}
           {symbols?.length === 0 && (
-            <li className="p-4 text-sm text-black/50 dark:text-white/50">This watchlist is empty.</li>
+            <li className="p-4 text-sm text-foreground-muted">This watchlist is empty.</li>
           )}
           {symbols?.map((symbol) => {
             const row = rowState[symbol];
@@ -74,7 +74,7 @@ export default function SharedWatchlistPage() {
               <li key={symbol} className="flex items-center justify-between p-4">
                 <span className="font-mono text-sm font-medium">{symbol}</span>
                 {row?.loading && (
-                  <span className="text-xs text-black/40 dark:text-white/40">Loading…</span>
+                  <span className="text-xs text-foreground-muted">Loading…</span>
                 )}
                 {row?.error && <span className="text-xs text-red-500">{row.error}</span>}
                 {row?.quote && (

@@ -32,48 +32,49 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-6 p-8">
-      <h1 className="text-2xl font-semibold">Log in to Crade</h1>
-      <form onSubmit={handleSubmit} className="w-full max-w-sm flex flex-col gap-3">
-        <label className="flex flex-col gap-1 text-sm">
-          Email
-          <input
-            type="email"
-            required
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email"
-            className="rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Password
-          <input
-            type="password"
-            required
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
-            className="rounded-lg border border-black/[.08] dark:border-white/[.145] bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
-          />
-        </label>
-        {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded-lg bg-accent text-white px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors disabled:opacity-40"
-        >
-          {loading ? "Logging in…" : "Log in"}
-        </button>
-      </form>
-      <p className="text-sm text-black/60 dark:text-white/60">
-        No account?{" "}
-        <Link href="/signup" className="underline underline-offset-4 hover:no-underline">
-          Sign up
-        </Link>
-      </p>
+    <div className="min-h-screen flex flex-col items-center justify-center gap-6 p-8 bg-background">
+      <div className="card w-full max-w-sm flex flex-col gap-6 p-8">
+        <div className="flex flex-col items-center gap-1">
+          <span className="text-lg font-semibold text-accent">Crade</span>
+          <h1 className="text-xl font-semibold">Log in</h1>
+        </div>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          <label className="flex flex-col gap-1 text-sm">
+            Email
+            <input
+              type="email"
+              required
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email"
+              className="input"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            Password
+            <input
+              type="password"
+              required
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password"
+              className="input"
+            />
+          </label>
+          {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
+          <button type="submit" disabled={loading} className="btn-primary disabled:opacity-40">
+            {loading ? "Logging in…" : "Log in"}
+          </button>
+        </form>
+        <p className="text-sm text-foreground-muted text-center">
+          No account?{" "}
+          <Link href="/signup" className="underline underline-offset-4 hover:no-underline">
+            Sign up
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }

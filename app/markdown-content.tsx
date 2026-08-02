@@ -14,7 +14,7 @@ const components: Components = {
   strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
   em: ({ children }) => <em className="italic">{children}</em>,
   code: ({ children }) => (
-    <code className="bg-black/[.06] dark:bg-white/[.08] rounded px-1 py-0.5 font-mono text-xs">
+    <code className="bg-background rounded px-1 py-0.5 font-mono text-xs">
       {children}
     </code>
   ),

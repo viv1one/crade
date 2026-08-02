@@ -42,16 +42,16 @@ export default function HelpPage() {
       <main className="w-full max-w-2xl flex flex-col gap-6">
         <div>
           <h1 className="text-2xl font-semibold">How to use Crade</h1>
-          <p className="text-sm text-black/50 dark:text-white/50 mt-1">
+          <p className="text-sm text-foreground-muted mt-1">
             A personal/internal research tool — not investment advice, not connected to any broker.
           </p>
         </div>
 
-        <div className="flex flex-col divide-y divide-black/[.08] dark:divide-white/[.145] rounded-lg border border-black/[.08] dark:border-white/[.145]">
+        <div className="card flex flex-col divide-y divide-border overflow-hidden">
           {SECTIONS.map((s) => (
             <div key={s.title} className="p-4">
               <h2 className="text-sm font-medium mb-1">{s.title}</h2>
-              <p className="text-sm text-black/60 dark:text-white/60">{s.body}</p>
+              <p className="text-sm text-foreground-muted">{s.body}</p>
             </div>
           ))}
         </div>
