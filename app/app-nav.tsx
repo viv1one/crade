@@ -5,6 +5,7 @@ import { AccountNav } from "./account-nav";
 
 const NAV_LINKS = [
   { href: "/", label: "Home" },
+  { href: "/holdings", label: "My Holdings" },
   { href: "/alerts", label: "Alerts" },
   { href: "/screener", label: "Screener" },
   { href: "/shared", label: "Shared with me" },

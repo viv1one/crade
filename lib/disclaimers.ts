@@ -11,3 +11,6 @@ export const FREE_DATA_SOURCE =
 
 export const PAPER_TRADING_ONLY =
   "Buy/Sell are simulated paper trades, not real orders — Crade has no broker connection.";
+
+export const MANUAL_HOLDINGS_ONLY =
+  "You enter these manually — Crade doesn't connect to your broker, verify them, or place any trades.";

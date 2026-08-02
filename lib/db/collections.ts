@@ -84,6 +84,21 @@ export interface Alert {
   lastTriggeredAt?: Date;
 }
 
+// A real, pre-existing investment the user tells Crade about manually — not
+// connected to a broker, not verified, not part of the simulated paper-
+// trading flow in lib/paper-trading/. Named RealHolding (not Holding) to
+// stay textually distinct from lib/paper-trading/types.ts's Holding
+// wherever both are in scope.
+export interface RealHolding {
+  _id: ObjectId;
+  userId: ObjectId;
+  symbol: string;
+  qty: number;
+  avgCost: number;
+  note?: string;
+  createdAt: Date;
+}
+
 export interface Candle {
   time: number;
   open: number;
@@ -215,6 +230,7 @@ export async function getCollections() {
     shares: db.collection<Share>("shares"),
     paperPortfolios: db.collection<PaperPortfolio>("paper_portfolios"),
     alerts: db.collection<Alert>("alerts"),
+    realHoldings: db.collection<RealHolding>("real_holdings"),
     priceCache: db.collection<PriceCache>("price_cache"),
     screenerSnapshots: db.collection<ScreenerSnapshot>("screener_snapshots"),
     lastKnownQuotes: db.collection<LastKnownQuote>("last_known_quotes"),
