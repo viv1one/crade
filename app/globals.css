@@ -5,14 +5,26 @@
      surface color from --surface, so they read as floating panels rather
      than blending into the page background. Stripe dashboard's actual
      palette: a dark desaturated navy for text (not pure black), a
-     restrained blue-violet accent for primary actions/links only. */
-  --background: #f6f7f9;
+     restrained blue accent for primary actions/links only.
+     --background is the design system's surface-base (#F2F6F9). --accent
+     is a darkened derivative of the design system's spec accent (#517BDF)
+     rather than that literal hex — #517BDF only clears ~4.0:1 against
+     white, short of the 4.5:1 text-contrast floor the same design system
+     requires, and it's used here both as button-fill (white label text)
+     and as inline link/logo text, so it has to satisfy that floor on its
+     own. The literal #517BDF is kept as --focus-ring, where WCAG only
+     asks for 3:1 (non-text), which it clears easily. --border intentionally
+     does NOT use the design system's border-default (#131E2B, near-black)
+     — that value assumes a dark card surface and would read as a heavy
+     black rule on this light theme's white cards. */
+  --background: #f2f6f9;
   --surface: #ffffff;
   --foreground: #1a1f36;
-  --foreground-muted: #697386;
+  --foreground-muted: #636d7f;
   --border: #e3e8ee;
-  --accent: #635bff;
-  --accent-hover: #4b44d6;
+  --accent: #4264b6;
+  --accent-hover: #375397;
+  --focus-ring: #517bdf;
 }
 
 @theme inline {
@@ -34,8 +46,11 @@
     --foreground: #e3e8ee;
     --foreground-muted: #8792a2;
     --border: #2a3142;
-    --accent: #8b85ff;
-    --accent-hover: #a29dff;
+    /* Same --accent as light mode: darkened enough to clear 4.5:1 against
+       white button labels, but still ~3.4:1 against this near-black page
+       background, so it stays legible as inline logo/link text too. */
+    --accent: #4264b6;
+    --accent-hover: #718ac8;
   }
 }
 
@@ -43,14 +58,29 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
 }
 
 input:focus-visible,
 select:focus-visible,
 button:focus-visible,
 a:focus-visible {
-  outline: 2px solid var(--foreground);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
+}
+
+:disabled {
+  cursor: not-allowed;
 }
 
 @layer components {
@@ -63,7 +93,9 @@ a:focus-visible {
   .card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 0.75rem;
+    /* 15px is the nearest value on the design system's mandated radius
+       scale (3/4/7/15/22/33/35px) to this card's previous 12px. */
+    border-radius: 15px;
     box-shadow:
       0 2px 5px -1px rgba(50, 50, 93, 0.08),
       0 1px 3px -1px rgba(0, 0, 0, 0.06);
@@ -72,7 +104,9 @@ a:focus-visible {
   .input {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 0.5rem;
+    /* 7px is the nearest value on the mandated radius scale to the
+       previous 8px. */
+    border-radius: 7px;
     padding: 0.5rem 0.75rem;
     font-size: 0.875rem;
     color: var(--foreground);
@@ -92,7 +126,7 @@ a:focus-visible {
   .btn-primary {
     background: var(--accent);
     color: white;
-    border-radius: 0.5rem;
+    border-radius: 7px;
     padding: 0.5rem 1rem;
     font-size: 0.875rem;
     font-weight: 500;
@@ -112,7 +146,7 @@ a:focus-visible {
     background: var(--surface);
     border: 1px solid var(--border);
     color: var(--foreground);
-    border-radius: 0.5rem;
+    border-radius: 7px;
     padding: 0.5rem 1rem;
     font-size: 0.875rem;
     font-weight: 500;
