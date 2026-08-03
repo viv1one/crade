@@ -149,7 +149,29 @@ export interface CrossSectionalBacktestResult {
   config: CrossSectionalBacktestConfig;
   equityCurve: EquityPoint[];
   trades: Trade[];
+  // The top-N symbols still held as of the last rebalance in the run — since
+  // range/interval combos always walk up to the latest available bar, this
+  // is what the strategy would currently tell you to hold, not just a
+  // historical artifact.
+  finalHoldings: string[];
   metrics: BacktestMetrics;
+}
+
+// One row in the strategy leaderboard (see lib/backtest/leaderboard.ts) —
+// every registered "cross_sectional" strategy run over the same universe,
+// interval, and range, so their metrics are directly comparable.
+export interface LeaderboardEntry {
+  strategyId: StrategyId;
+  name: string;
+  family?: string;
+  approximation?: string;
+  metrics: BacktestMetrics;
+  currentPicks: string[];
+}
+
+export interface LeaderboardResult {
+  entries: LeaderboardEntry[];
+  fetchedAt: string;
 }
 
 // What a cross-sectional scoring function sees at one rebalance date.

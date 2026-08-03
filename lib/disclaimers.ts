@@ -14,3 +14,6 @@ export const PAPER_TRADING_ONLY =
 
 export const MANUAL_HOLDINGS_ONLY =
   "You enter these manually — Crade doesn't connect to your broker, verify them, or place any trades.";
+
+export const BACKTESTED_NOT_PREDICTIVE =
+  "Ranked by backtested historical performance only — no strategy here is a forecast of future returns, and past performance never guarantees future results.";

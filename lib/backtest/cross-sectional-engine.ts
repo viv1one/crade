@@ -122,6 +122,7 @@ export function runCrossSectionalBacktest(
   }
 
   const trades = state.trades.slice().reverse(); // store.ts prepends, restore chronological order
+  const finalHoldings = Object.keys(state.holdings);
 
   const buyHoldReturnPct = (() => {
     const picks = initialTopN ?? [];
@@ -136,6 +137,7 @@ export function runCrossSectionalBacktest(
   return {
     equityCurve,
     trades,
+    finalHoldings,
     metrics: computeMetrics(equityCurve, trades, startingCash, buyHoldReturnPct),
   };
 }

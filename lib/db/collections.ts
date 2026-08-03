@@ -6,6 +6,7 @@ import type {
   BacktestMetrics,
   CrossSectionalBacktestConfig,
   EquityPoint,
+  LeaderboardEntry,
   PairsBacktestConfig,
   PortfolioBacktestConfig,
   SymbolContribution,
@@ -220,6 +221,18 @@ export interface PairsBacktest {
   createdAt: Date;
 }
 
+// Cached, shared across every user — not ownerId-scoped, same reasoning as
+// ScreenerSnapshot above. Keyed by `${interval}:${range}` (see
+// app/api/backtest/leaderboard/route.ts) since that pair fully determines
+// the backtest inputs; every registered cross-sectional strategy runs with
+// its own default params, so there's nothing else to key on.
+export interface StrategyLeaderboardSnapshot {
+  _id: ObjectId;
+  key: string;
+  entries: LeaderboardEntry[];
+  fetchedAt: Date;
+}
+
 export async function getDb() {
   const client = await clientPromise;
   return client.db();
@@ -244,6 +257,7 @@ export async function getCollections() {
     portfolioBacktests: db.collection<PortfolioBacktest>("portfolio_backtests"),
     crossSectionalBacktests: db.collection<CrossSectionalBacktest>("cross_sectional_backtests"),
     pairsBacktests: db.collection<PairsBacktest>("pairs_backtests"),
+    strategyLeaderboards: db.collection<StrategyLeaderboardSnapshot>("strategy_leaderboards"),
     aiSessions: db.collection<AiSession>("ai_sessions"),
     pushSubscriptions: db.collection<PushSubscriptionDoc>("push_subscriptions"),
   };

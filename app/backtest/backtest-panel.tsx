@@ -2,28 +2,36 @@
 
 import { useEffect, useState } from "react";
 import { STRATEGIES } from "@/lib/backtest/strategies";
-import type { PairsParams, StrategyDef, StrategyId, StrategyParams } from "@/lib/backtest/types";
+import type {
+  LeaderboardResult,
+  PairsParams,
+  StrategyDef,
+  StrategyId,
+  StrategyParams,
+} from "@/lib/backtest/types";
 import { DEFAULT_STARTING_CASH } from "@/lib/backtest/types";
 import { EquityChart } from "./equity-chart";
 import { useBacktest, type AiReview, type BacktestRun } from "../use-backtest";
 import { usePortfolioBacktest, type PortfolioBacktestRun } from "../use-portfolio-backtest";
 import { useCrossSectionalBacktest, type CrossSectionalBacktestRun } from "../use-cross-sectional-backtest";
 import { usePairsBacktest, type PairsBacktestRun } from "../use-pairs-backtest";
+import { useStrategyLeaderboard } from "../use-strategy-leaderboard";
 import { useWatchlist } from "../use-watchlist";
 import { MarkdownContent } from "../markdown-content";
 import { Disclaimer } from "../disclaimer";
-import { NOT_INVESTMENT_ADVICE } from "@/lib/disclaimers";
+import { NOT_INVESTMENT_ADVICE, BACKTESTED_NOT_PREDICTIVE } from "@/lib/disclaimers";
 import { SymbolDatalist, SYMBOL_SUGGESTIONS_ID } from "../symbol-datalist";
 
 const INTERVALS = ["1d", "1wk", "1mo"];
 const RANGES = ["3mo", "6mo", "1y", "2y", "5y"];
-type Mode = "single" | "portfolio" | "cross_sectional" | "pairs";
+type Mode = "single" | "portfolio" | "cross_sectional" | "pairs" | "leaderboard";
 
 const MODE_LABELS: Record<Mode, string> = {
   single: "Single symbol",
   portfolio: "Portfolio (basket)",
   cross_sectional: "Cross-sectional (NIFTY 50)",
   pairs: "Pairs",
+  leaderboard: "Strategy leaderboard",
 };
 
 const MODE_BLURBS: Record<Mode, string> = {
@@ -31,6 +39,7 @@ const MODE_BLURBS: Record<Mode, string> = {
   portfolio: "Run the same strategy across a basket of stocks at once, with starting cash split equally.",
   cross_sectional: "Rank all NIFTY 50 stocks against each other and hold the top performers — a 'pick the best of the bunch' approach, not tied to any one stock.",
   pairs: "Bets on two related stocks' prices converging again — a market-neutral trade (one long, one short), not a directional bet on either stock alone.",
+  leaderboard: "Backtests every stock-ranking strategy over the same period and shows which performed best historically, plus what each currently holds. Not a prediction of future returns.",
 };
 
 const DEFAULT_PAIRS_PARAMS: PairsParams = { lookback: 20, entryZ: 2, exitZ: 0.5 };
@@ -65,6 +74,7 @@ export function BacktestPanel() {
   const portfolio = usePortfolioBacktest();
   const crossSectional = useCrossSectionalBacktest();
   const pairs = usePairsBacktest();
+  const leaderboard = useStrategyLeaderboard();
   const { symbols: watchlistSymbols } = useWatchlist();
 
   const [mode, setMode] = useState<Mode>("single");
@@ -142,7 +152,7 @@ export function BacktestPanel() {
         params,
         startingCash: DEFAULT_STARTING_CASH,
       });
-    } else {
+    } else if (mode === "pairs") {
       if (!symbolA.trim() || !symbolB.trim()) return;
       pairs.run({
         symbolA: symbolA.trim().toUpperCase(),
@@ -152,6 +162,8 @@ export function BacktestPanel() {
         params: pairsParams,
         startingCash: DEFAULT_STARTING_CASH,
       });
+    } else {
+      leaderboard.run(dataInterval, range);
     }
   }
 
@@ -160,12 +172,14 @@ export function BacktestPanel() {
     mode === "single" ? single.running
     : mode === "portfolio" ? portfolio.running
     : mode === "cross_sectional" ? crossSectional.running
-    : pairs.running;
+    : mode === "pairs" ? pairs.running
+    : leaderboard.running;
   const error =
     mode === "single" ? single.error
     : mode === "portfolio" ? portfolio.error
     : mode === "cross_sectional" ? crossSectional.error
-    : pairs.error;
+    : mode === "pairs" ? pairs.error
+    : leaderboard.error;
 
   return (
     <div className="w-full max-w-2xl flex flex-col gap-6">
@@ -173,7 +187,7 @@ export function BacktestPanel() {
       <h1 className="text-2xl font-semibold">Backtest</h1>
 
       <div className="flex gap-2 flex-wrap">
-        {(["single", "portfolio", "cross_sectional", "pairs"] as Mode[]).map((m) => (
+        {(["single", "portfolio", "cross_sectional", "pairs", "leaderboard"] as Mode[]).map((m) => (
           <button
             key={m}
             type="button"
@@ -215,6 +229,12 @@ export function BacktestPanel() {
           {mode === "cross_sectional" && (
             <p className="flex-1 text-xs text-foreground-muted self-center">
               Ranks and rebalances across the full NIFTY 50 universe — no symbol to pick.
+            </p>
+          )}
+          {mode === "leaderboard" && (
+            <p className="flex-1 text-xs text-foreground-muted self-center">
+              Runs every cross-sectional strategy across the full NIFTY 50 universe — no symbol or
+              strategy to pick.
             </p>
           )}
           {mode === "pairs" && (
@@ -261,7 +281,7 @@ export function BacktestPanel() {
           </select>
         </div>
 
-        {mode !== "pairs" && (
+        {mode !== "pairs" && mode !== "leaderboard" && (
           <div className="flex flex-col gap-3">
             {visibleStrategies.length === 0 && (
               <p className="text-xs text-foreground-muted">
@@ -369,10 +389,10 @@ export function BacktestPanel() {
 
         <button
           type="submit"
-          disabled={running || (mode !== "pairs" && !strategy)}
+          disabled={running || (mode !== "pairs" && mode !== "leaderboard" && !strategy)}
           className="btn-primary self-start disabled:opacity-40"
         >
-          {running ? "Running…" : "Run Backtest"}
+          {running ? "Running…" : mode === "leaderboard" ? "Run Leaderboard" : "Run Backtest"}
         </button>
       </form>
 
@@ -398,7 +418,11 @@ export function BacktestPanel() {
       {mode === "pairs" && pairs.current && (
         <SimpleResultView run={pairs.current} showSymbol reviewLoading={pairs.reviewLoading} onReview={pairs.getReview} />
       )}
+      {mode === "leaderboard" && leaderboard.result && (
+        <LeaderboardResultView result={leaderboard.result} />
+      )}
 
+      {mode !== "leaderboard" && (
       <div>
         <h3 className="text-sm font-medium mb-2">Past runs</h3>
         <ul className="card flex flex-col divide-y divide-border max-h-64 overflow-y-auto">
@@ -522,13 +546,16 @@ export function BacktestPanel() {
           )}
         </ul>
       </div>
+      )}
 
       <Disclaimer>
         Backtests run against free Yahoo Finance historical data — prototyping only. Results are
         simulated, long-only (pairs mode is the one exception — it simulates a market-neutral
         spread), and do not account for slippage or brokerage charges. Portfolio mode splits
         starting cash equally across symbols and runs each independently. Cross-sectional mode ranks
-        and rebalances the full NIFTY 50 universe. {NOT_INVESTMENT_ADVICE}
+        and rebalances the full NIFTY 50 universe. Leaderboard mode runs every cross-sectional
+        strategy over the same period and is cached for 30 minutes — not recomputed per click.{" "}
+        {BACKTESTED_NOT_PREDICTIVE} {NOT_INVESTMENT_ADVICE}
       </Disclaimer>
     </div>
   );
@@ -642,6 +669,61 @@ function SimpleResultView({
       <EquityChart equityCurve={run.equityCurve} startingCash={run.config.startingCash} />
       <TradeLog trades={run.trades} showSymbol={showSymbol} />
       <AiReviewSection id={run._id} aiReview={run.aiReview} reviewLoading={reviewLoading} onReview={onReview} />
+    </div>
+  );
+}
+
+function LeaderboardResultView({ result }: { result: LeaderboardResult }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="card overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="text-left text-foreground-muted border-b border-border">
+              <th className="p-3 font-medium">Strategy</th>
+              <th className="p-3 font-medium">CAGR</th>
+              <th className="p-3 font-medium">Total return</th>
+              <th className="p-3 font-medium">Max drawdown</th>
+              <th className="p-3 font-medium">Sharpe</th>
+              <th className="p-3 font-medium">Current picks</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {result.entries.map((entry) => (
+              <tr key={entry.strategyId}>
+                <td className="p-3">
+                  {entry.name}
+                  {entry.approximation && (
+                    <span
+                      title="Proxy: approximates data no current provider actually returns"
+                      className="ml-1.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 text-[10px] font-medium"
+                    >
+                      Proxy
+                    </span>
+                  )}
+                </td>
+                <td className={`p-3 ${entry.metrics.cagrPct >= 0 ? "text-green-600" : "text-red-500"}`}>
+                  {pct(entry.metrics.cagrPct)}
+                </td>
+                <td
+                  className={`p-3 ${entry.metrics.totalReturnPct >= 0 ? "text-green-600" : "text-red-500"}`}
+                >
+                  {pct(entry.metrics.totalReturnPct)}
+                </td>
+                <td className="p-3">-{entry.metrics.maxDrawdownPct.toFixed(2)}%</td>
+                <td className="p-3">{entry.metrics.sharpe.toFixed(2)}</td>
+                <td className="p-3 font-mono">
+                  {entry.currentPicks.length > 0 ? entry.currentPicks.join(", ") : "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-xs text-foreground-muted">
+        As of {new Date(result.fetchedAt).toLocaleString()}. Ranked by backtested CAGR, highest
+        first.
+      </p>
     </div>
   );
 }
