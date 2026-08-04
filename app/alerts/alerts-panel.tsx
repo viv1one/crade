@@ -4,8 +4,7 @@ import { useEffect, useState } from "react";
 import { Disclaimer } from "../disclaimer";
 import { NOT_INVESTMENT_ADVICE } from "@/lib/disclaimers";
 import { SymbolDatalist, SYMBOL_SUGGESTIONS_ID } from "../symbol-datalist";
-
-type ConditionType = "price_above" | "price_below" | "rsi_below" | "volume_spike";
+import { CONDITION_LABELS, type ConditionType } from "@/lib/alerts/labels";
 
 interface Alert {
   _id: string;
@@ -15,13 +14,6 @@ interface Alert {
   status: "active" | "paused" | "triggered";
   lastTriggeredAt?: string;
 }
-
-const CONDITION_LABELS: Record<ConditionType, string> = {
-  price_above: "Price above (₹)",
-  price_below: "Price below (₹)",
-  rsi_below: "RSI(14) below",
-  volume_spike: "Volume ≥ N× avg",
-};
 
 export function AlertsPanel() {
   const [alerts, setAlerts] = useState<Alert[]>([]);

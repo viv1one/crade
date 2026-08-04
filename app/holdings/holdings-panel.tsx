@@ -8,6 +8,9 @@ import { annualizedReturnPct } from "@/lib/holdings-cagr";
 import { parseBulkHoldings } from "@/lib/holdings-bulk-parse";
 import { NIFTY_50 } from "@/lib/screener/universe";
 import { SymbolDatalist, SYMBOL_SUGGESTIONS_ID } from "../symbol-datalist";
+import { PortfolioDiagnostics } from "../portfolio-diagnostics";
+import { HoldingsDiversify } from "../holdings-diversify";
+import { CONDITION_LABELS, type ConditionType } from "@/lib/alerts/labels";
 
 interface RealHolding {
   _id: string;
@@ -38,6 +41,15 @@ export function HoldingsPanel() {
   const [bulkResult, setBulkResult] = useState<{ added: number; errors: string[] } | null>(null);
   const [symbolPicker, setSymbolPicker] = useState("");
   const bulkTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Quick "create an alert from this holding" — a convenience shortcut over
+  // the existing POST /api/alerts (no backend changes needed), pre-filled
+  // with a sensible default rather than requiring a trip to the Alerts page.
+  const [alertFormFor, setAlertFormFor] = useState<string | null>(null);
+  const [alertConditionType, setAlertConditionType] = useState<ConditionType>("price_below");
+  const [alertValue, setAlertValue] = useState("");
+  const [alertSubmitting, setAlertSubmitting] = useState(false);
+  const [alertCreatedFor, setAlertCreatedFor] = useState<string | null>(null);
 
   function load() {
     fetch("/api/holdings")
@@ -192,6 +204,38 @@ export function HoldingsPanel() {
     }
   }
 
+  function openAlertForm(h: RealHolding) {
+    setAlertFormFor(h.symbol);
+    setAlertConditionType("price_below");
+    // Pre-fill 10% under the live price if we have one, else 10% under
+    // avgCost — a reasonable default, not a recommendation to trade at it.
+    const basePrice = prices[h.symbol] ?? h.avgCost;
+    setAlertValue((basePrice * 0.9).toFixed(2));
+    setAlertCreatedFor(null);
+  }
+
+  async function createQuickAlert(symbol: string) {
+    const numericValue = Number(alertValue);
+    if (!Number.isFinite(numericValue)) return;
+    setAlertSubmitting(true);
+    try {
+      const res = await fetch("/api/alerts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          symbol,
+          condition: { type: alertConditionType, value: numericValue },
+        }),
+      });
+      if (res.ok) {
+        setAlertFormFor(null);
+        setAlertCreatedFor(symbol);
+      }
+    } finally {
+      setAlertSubmitting(false);
+    }
+  }
+
   const totalInvested = holdings.reduce((sum, h) => sum + h.qty * h.avgCost, 0);
   const totalValue = holdings.reduce((sum, h) => sum + h.qty * (prices[h.symbol] ?? h.avgCost), 0);
   const totalPnl = totalValue - totalInvested;
@@ -339,6 +383,13 @@ export function HoldingsPanel() {
         </div>
       )}
 
+      <PortfolioDiagnostics
+        endpoint="/api/holdings/diagnostics"
+        hasHoldings={holdings.length > 0}
+        allowDeepAnalysis
+      />
+      <HoldingsDiversify hasHoldings={holdings.length > 0} />
+
       <ul className="card flex flex-col divide-y divide-border overflow-hidden">
         {!loaded && <li className="p-4 text-sm text-foreground-muted">Loading holdings…</li>}
         {loaded && holdings.length === 0 && (
@@ -356,46 +407,102 @@ export function HoldingsPanel() {
             ? annualizedReturnPct(invested, currentValue, new Date(h.purchasedAt))
             : undefined;
           return (
-            <li key={h._id} className="flex items-center justify-between gap-4 p-4">
-              <div className="flex flex-col">
-                <Link
-                  href={`/?symbol=${encodeURIComponent(h.symbol)}#chat`}
-                  className="font-mono text-sm font-medium underline-offset-4 hover:underline"
-                  title={`Research ${h.symbol} in AI Chat`}
-                >
-                  {h.symbol}
-                </Link>
-                <span className="text-xs text-foreground-muted">
-                  {h.qty} @ avg ₹{h.avgCost.toFixed(2)}
-                  {h.purchasedAt ? ` · bought ${new Date(h.purchasedAt).toLocaleDateString()}` : ""}
-                  {h.note ? ` — ${h.note}` : ""}
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className={`text-xs text-right ${pnl >= 0 ? "text-green-600" : "text-red-500"}`}>
-                  <div>
-                    {pnl >= 0 ? "+" : ""}₹{pnl.toFixed(2)}
-                  </div>
-                  <div>
-                    ({pnl >= 0 ? "+" : ""}
-                    {pnlPct.toFixed(2)}%)
-                  </div>
-                  {cagr !== undefined && (
-                    <div className="text-foreground-muted" title="Annualized return since purchase date">
-                      {cagr >= 0 ? "+" : ""}
-                      {cagr.toFixed(2)}%/yr
-                    </div>
-                  )}
+            <li key={h._id} className="flex flex-col gap-2 p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-col">
+                  <Link
+                    href={`/?symbol=${encodeURIComponent(h.symbol)}#chat`}
+                    className="font-mono text-sm font-medium underline-offset-4 hover:underline"
+                    title={`Research ${h.symbol} in AI Chat`}
+                  >
+                    {h.symbol}
+                  </Link>
+                  <span className="text-xs text-foreground-muted">
+                    {h.qty} @ avg ₹{h.avgCost.toFixed(2)}
+                    {h.purchasedAt ? ` · bought ${new Date(h.purchasedAt).toLocaleDateString()}` : ""}
+                    {h.note ? ` — ${h.note}` : ""}
+                  </span>
                 </div>
-                <button
-                  onClick={() => remove(h._id)}
-                  disabled={removingId === h._id}
-                  className="text-xs text-foreground-muted hover:text-red-500 transition-colors disabled:opacity-40"
-                  aria-label={`Remove ${h.symbol} from My Holdings`}
-                >
-                  ✕
-                </button>
+                <div className="flex items-center gap-3">
+                  <div className={`text-xs text-right ${pnl >= 0 ? "text-green-600" : "text-red-500"}`}>
+                    <div>
+                      {pnl >= 0 ? "+" : ""}₹{pnl.toFixed(2)}
+                    </div>
+                    <div>
+                      ({pnl >= 0 ? "+" : ""}
+                      {pnlPct.toFixed(2)}%)
+                    </div>
+                    {cagr !== undefined && (
+                      <div className="text-foreground-muted" title="Annualized return since purchase date">
+                        {cagr >= 0 ? "+" : ""}
+                        {cagr.toFixed(2)}%/yr
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => openAlertForm(h)}
+                    className="text-xs text-foreground-muted hover:text-foreground transition-colors"
+                    aria-label={`Create an alert for ${h.symbol}`}
+                    title="Create an alert for this holding"
+                  >
+                    🔔
+                  </button>
+                  <button
+                    onClick={() => remove(h._id)}
+                    disabled={removingId === h._id}
+                    className="text-xs text-foreground-muted hover:text-red-500 transition-colors disabled:opacity-40"
+                    aria-label={`Remove ${h.symbol} from My Holdings`}
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
+
+              {alertFormFor === h.symbol && (
+                <div className="flex items-center gap-2 rounded-lg bg-background p-2">
+                  <select
+                    value={alertConditionType}
+                    onChange={(e) => setAlertConditionType(e.target.value as ConditionType)}
+                    aria-label="Alert condition"
+                    className="input text-xs"
+                  >
+                    {Object.entries(CONDITION_LABELS).map(([type, label]) => (
+                      <option key={type} value={type}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    value={alertValue}
+                    onChange={(e) => setAlertValue(e.target.value)}
+                    type="number"
+                    aria-label="Condition value"
+                    className="input w-24 text-xs"
+                  />
+                  <button
+                    onClick={() => createQuickAlert(h.symbol)}
+                    disabled={alertSubmitting}
+                    className="btn-primary text-xs disabled:opacity-40"
+                  >
+                    {alertSubmitting ? "Creating…" : "Create"}
+                  </button>
+                  <button
+                    onClick={() => setAlertFormFor(null)}
+                    className="text-xs text-foreground-muted hover:text-foreground transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+              {alertCreatedFor === h.symbol && (
+                <p className="text-xs text-green-600">
+                  Alert created —{" "}
+                  <Link href="/alerts" className="underline underline-offset-4">
+                    view on the Alerts page
+                  </Link>
+                  .
+                </p>
+              )}
             </li>
           );
         })}

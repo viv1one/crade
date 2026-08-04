@@ -5,7 +5,13 @@ export interface ChatMessage {
 
 // Task hint used to pick a provider/model — e.g. cheap/free NIM for batch
 // summaries, a paid model for latency-sensitive user-facing chat.
-export type ChatTask = "explain_move" | "summarize" | "chat" | "digest" | "backtest_review";
+export type ChatTask =
+  | "explain_move"
+  | "summarize"
+  | "chat"
+  | "digest"
+  | "backtest_review"
+  | "portfolio_review";
 
 export interface ChatOptions {
   task: ChatTask;

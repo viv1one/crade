@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Trade, Holding } from "@/lib/paper-trading/types";
 import { STARTING_CASH } from "@/lib/paper-trading/types";
+import { PortfolioDiagnostics } from "./portfolio-diagnostics";
 
 interface PortfolioProps {
   cash: number;
@@ -103,6 +104,8 @@ export function Portfolio({ cash, holdings, trades, error, loaded, onReset }: Po
               </div>
             </div>
           </div>
+
+          <PortfolioDiagnostics endpoint="/api/portfolio/diagnostics" hasHoldings={symbols.length > 0} />
 
           <div>
             <h3 className="text-sm font-medium mb-2">Holdings</h3>

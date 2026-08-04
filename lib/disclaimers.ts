@@ -17,3 +17,6 @@ export const MANUAL_HOLDINGS_ONLY =
 
 export const BACKTESTED_NOT_PREDICTIVE =
   "Ranked by backtested historical performance only — no strategy here is a forecast of future returns, and past performance never guarantees future results.";
+
+export const DIAGNOSTICS_NOT_PREDICTIVE =
+  "Concentration, sector, and factor reads on your current holdings only — not a forecast of future returns or profit, and not investment advice.";

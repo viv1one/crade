@@ -51,6 +51,7 @@ const chainByTask: Record<ChatTask, string[]> = {
   explain_move: ["anthropic", "nim", "openai", "nim-large"],
   chat: ["anthropic", "openai", "nim", "nim-large"],
   backtest_review: ["nim", "anthropic", "openai", "nim-large"],
+  portfolio_review: ["nim", "anthropic", "openai", "nim-large"],
 };
 
 async function callProvider(

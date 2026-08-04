@@ -241,6 +241,90 @@ touching call sites.
     anymore. If you add a new way symbols can enter the list, make sure it still funnels through this
     effect (keyed on the `symbols` array) rather than needing its own fetch call.
 
+- **`lib/portfolio/`** — on-demand AI diagnostics, shared between the paper-trading portfolio
+  (below) and the real-holdings tracker (`app/holdings/`, next section) — added because neither
+  had a feature that looked at a user's *current holdings* (only raw P&L was ever shown).
+  `diagnostics.ts` is pure/I/O-free (mirrors `lib/paper-trading/store.ts`'s convention):
+  `computePortfolioDiagnostics()` turns `{ holdings, cash, prices, bars, fundamentals }` into
+  allocation %, concentration (top-holding %, top-3 %, Herfindahl index), sector exposure (via
+  `NIFTY_50`'s `sector` field, unmatched symbols bucketed as `"Other"`), and per-holding trailing
+  6-month return / 60-day volatility — reusing `lib/backtest/indicators.ts`'s existing
+  `trailingReturn`/`volatility` directly rather than duplicating that math. Its holdings param is
+  typed `Record<string, PositionInput>` (`{qty, avgCost}`), a local type — **not** an import of
+  `lib/paper-trading/types.ts`'s `Holding` — because real holdings and paper trading are
+  deliberately kept logically separate elsewhere in this codebase (see `app/api/holdings/
+  route.ts`'s comment on reimplementing weighted-average-cost rather than importing
+  `lib/paper-trading/store.ts`'s version); `Holding` and `RealHolding` are both structurally
+  assignable to `PositionInput`, so nothing about either feature needed to change. `cash` is
+  `number | undefined` for the same reason — the real-holdings tracker has no cash concept at all,
+  and `computePortfolioDiagnostics`/`formatDiagnosticsForPrompt` render "not tracked" rather than
+  a misleading 0% when it's absent, never coercing a missing concept into a real-looking number.
+  The **default** diagnostics path deliberately does not build a `RankContext` or call into
+  `lib/backtest/cross-sectional-strategies.ts`'s `ScoreFn`s (rankings need the full NIFTY_50
+  universe, `sectorMomentumScore` especially — fetching ~50 symbols to describe a handful of
+  holdings isn't proportionate for every click). `factor-tilt.ts` is the **opt-in "deep analysis"**
+  exception: `computeFactorTilts()` *does* build one `RankContext` covering the full universe and
+  calls four existing `ScoreFn`s (`momentum_factor`, `low_volatility`, `sector_momentum`,
+  `value_proxy` — no changes to that file, `getScoreFn` was already exported for exactly this kind
+  of standalone lookup) to report each held symbol's **percentile rank** within the whole NIFTY 50
+  distribution — gated behind an explicit UI checkbox precisely because it's meaningfully more
+  expensive. `fetch.ts` has two I/O functions: `fetchHoldingsData()` (small worker pool, concurrency
+  5, same shape as `lib/screener/fetch.ts`, fetches quote/history/fundamentals per *held* symbol
+  only — degrading the same way `fetchScreenerData` does, a missing quote drops that symbol's
+  price/bars, missing fundamentals leave fields `undefined`, never zero) and `fetchUniverseData()`
+  (the same pool shape but over *all* of `NIFTY_50`, bars+fundamentals only, no quote — only ever
+  called for the deep-analysis path, never the default one). Both diagnostics routes
+  (`app/api/portfolio/diagnostics/route.ts`, `app/api/holdings/diagnostics/route.ts`) feed the
+  formatted text through the `"portfolio_review"` `ChatTask` (`lib/ai/`), each with its own system
+  prompt copying the exact anti-prediction discipline already proven in `app/api/screener/
+  ai-query/route.ts`: explicitly forbidden from predicting returns or claiming a trade will
+  maximize profit, only allowed to describe patterns in the numbers given (percentiles included —
+  "relative standing," never a forecast). `app/portfolio-diagnostics.tsx` is the shared on-demand
+  panel (same shape as `app/market-digest.tsx`), parameterized by an `endpoint` prop and an
+  `allowDeepAnalysis` prop (only the real-holdings call site sets it — paper-trading's endpoint
+  doesn't understand `{ deep: true }`, so its checkbox never renders). This exists to close a real
+  gap without crossing into prescriptive rebalancing advice — exactly the "confidence about future
+  returns" framing the screener AI-query route (and SEBI's Investment Adviser rules, `docs/plan.md`
+  §7) already rule out elsewhere in this codebase.
+
+### `app/holdings/` — manually-tracked real holdings, separate from paper trading
+
+Lets a user record investments they already own (bought via their actual broker, e.g. Groww) for
+research purposes only — no fake cash, no simulated fills, not the same thing as the home page's
+`Portfolio`/`lib/paper-trading/` at all. `realHoldings` (`lib/db/collections.ts`'s `RealHolding`:
+`{symbol, qty, avgCost, note?, purchasedAt?}`, `userId`-scoped) is a flat list, not keyed by a
+single portfolio doc the way `paper_portfolios` is — `app/api/holdings/route.ts`'s `POST` merges
+into an existing row by symbol (qty accumulates, `avgCost` becomes the new weighted average,
+`purchasedAt` takes the earlier of the two dates) rather than creating duplicates, deliberately
+reimplementing that averaging math instead of importing `lib/paper-trading/store.ts`'s version —
+see that route's own comment on why the two features stay logically separate. `lib/holdings-
+cagr.ts`'s `annualizedReturnPct()` is the one thing specific to this feature (paper trading has no
+notion of "how long has this been held," since a simulated buy is always "now"). `app/holdings/
+holdings-panel.tsx` supports both one-at-a-time and bulk add (`lib/holdings-bulk-parse.ts`, one
+holding per line).
+
+Three AI/convenience additions layer on top of the manual list, using data from `lib/portfolio/`
+(see above) and the existing `/api/alerts` — none of them required any change to the core
+add/edit/remove flow:
+- **Diagnostics** — `app/api/holdings/diagnostics/route.ts` + the shared
+  `<PortfolioDiagnostics endpoint="/api/holdings/diagnostics" allowDeepAnalysis />`.
+- **Diversification suggestions** — `app/api/holdings/diversify/route.ts` +
+  `app/holdings-diversify.tsx`: computes the portfolio's current sector exposure and which of
+  `lib/screener/universe.ts`'s `SECTORS` have zero exposure, loads the same cached
+  `screener_snapshots` doc `app/api/digest/route.ts` reads (same freshness gate, so this costs
+  nothing beyond one chat call), and asks the model to suggest up to 5 real NIFTY 50 symbols
+  (excluding ones already held) that would fill sector gaps — same anti-prediction, "pick only
+  from the real table, exclude fabricated tickers" contract `ai-query` already uses.
+  `lib/screener/format.ts`'s `formatScreenerRowsForPrompt()` is a small extraction from `ai-query`'s
+  formerly-private CSV formatter, now shared verbatim by both routes rather than drifting into two
+  copies.
+- **Quick alert-from-holding** — a 🔔 button per holding row in `holdings-panel.tsx` that expands
+  an inline mini-form (condition type + value, pre-filled 10% under the live price or `avgCost`)
+  and posts straight to the existing `POST /api/alerts` — no backend changes, purely a shortcut so
+  creating an alert doesn't require a separate trip to `/alerts` and retyping the symbol.
+  `ConditionType`/`CONDITION_LABELS` moved to `lib/alerts/labels.ts` since this UI and
+  `app/alerts/alerts-panel.tsx` both need the identical map.
+
 ### Sharing (`shares` collection) — read-only peer invites, not a team/org model
 
 Per `docs/enterprise-plan.md` Phase 1: any user can invite another person (by email) to view their
