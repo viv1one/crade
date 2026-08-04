@@ -22,8 +22,15 @@ jobs:
           # fetched: 0, done: true immediately.
           for offset in $(seq 0 50 2499); do
             echo "Refreshing offset=$offset"
-            curl -sf -X GET \
+            response=$(curl -s -w '\n%{http_code}' -X GET \
               -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-              "${{ secrets.CRADE_DEPLOYMENT_URL }}/api/cron/refresh-screener?offset=$offset&limit=50"
-            echo
+              "${{ secrets.CRADE_DEPLOYMENT_URL }}/api/cron/refresh-screener?offset=$offset&limit=50")
+            http_code=$(tail -n1 <<< "$response")
+            body=$(sed '$d' <<< "$response")
+            echo "HTTP $http_code: $body"
+            if [ "$http_code" != "200" ]; then
+              echo "::error::Batch at offset=$offset failed with HTTP $http_code"
+              exit 1
+            fi
+            grep -q '"done":true' <<< "$body" && break
           done
