@@ -76,7 +76,7 @@ export function HoldingsDiversify({ hasHoldings }: { hasHoldings: boolean }) {
             </button>
           </div>
           <Disclaimer>
-            Matched against your portfolio&apos;s sector gaps and real current Nifty 50 data — not
+            Matched against your portfolio&apos;s sector gaps and real current NSE data — not
             a prediction of future returns and not investment advice.
           </Disclaimer>
         </div>

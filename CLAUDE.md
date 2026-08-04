@@ -365,20 +365,56 @@ telling it not to reference button/field names beyond what's literally listed in
 family of issue as the market-data fabrication bug documented above; small models embellish specifics
 that weren't given to them unless told not to, repeatedly, across different features.
 
-### `lib/screener/` — Nifty 50 screener with AI-assisted filtering
+### `lib/screener/` — Nifty 50 + all-NSE screener with AI-assisted filtering
 
-- `universe.ts` — `NIFTY_50`: a **hardcoded snapshot** of Nifty 50 constituents (symbol/name/sector).
-  There's no bulk "list all NSE stocks" data source wired in, so this is the stock universe until one
-  exists. Index composition drifts over time — re-verify against NSE's published list periodically,
-  don't treat it as live/authoritative.
-- `fetch.ts` — `fetchScreenerData()`: a small worker-pool (concurrency 5, not `Promise.all` over all 50)
-  fetches quote + fundamentals per symbol. A missing quote drops the row; missing fundamentals just
-  leave those fields `undefined` (see the Yahoo `getFundamentals` note above — this happens routinely).
-- `app/api/screener/route.ts` — cached in the `screener_snapshots` collection, 10-minute TTL, `?refresh=
-  true` to force. Public (no auth) — same reasoning as `/api/quote`/`/api/history`: stateless market
-  data, not per-user.
-- `app/screener/screener-panel.tsx` — manual filters (sector, price range, max P/E, sort) plus
-  `ai-screener-query.tsx`.
+- `universe.ts` — `NIFTY_50`: a **hand-curated snapshot** of Nifty 50 constituents
+  (symbol/name/sector). Index composition drifts over time — re-verify against NSE's published
+  list periodically, don't treat it as live/authoritative. Live check already caught real drift:
+  NSE's current EQ-series listing is missing `TATAMOTORS.NS`/`LTIM.NS` under those exact symbols
+  (most likely a corporate action/symbol change since this snapshot was curated), which is exactly
+  why the union below never just re-exports the generated list.
+  `nse-universe.ts` — **GENERATED FILE**, do not hand-edit — `ALL_NSE_STOCKS` (~2,000
+  symbol/name pairs, no sector), regenerated via `npm run generate:nse-universe`
+  (`scripts/generate-nse-universe.mjs`, which fetches NSE's public bulk equity-listing CSV at
+  `nsearchives.nseindia.com/content/equities/EQUITY_L.csv` and filters to `SERIES === "EQ"` —
+  normal rolling-settlement equities, excludes `BE`/`BZ` trade-to-trade/surveillance series). Same
+  "unofficial, not licensed for redistribution, prototyping only" footing as every other free
+  NSE/Yahoo integration here, and the same "may behave differently off this sandbox's egress IP,
+  don't assume it works without checking" caveat already given to `nse-free.ts`.
+  `ALL_NSE_UNIVERSE` — the actual universe most consumers should use: `NIFTY_50` **unioned** with
+  `ALL_NSE_STOCKS` (deduped by symbol, Nifty 50 members keep their real curated sector, everything
+  else gets `"Other"` — the same fallback `lib/portfolio/diagnostics.ts`'s `sectorFor()` already
+  uses for any symbol outside the curated 50). Built as a union specifically so NSE's live listing
+  drifting away from a NIFTY_50 symbol (see above) never silently regresses a consumer that used to
+  work — `app/symbol-datalist.tsx` learned this the direct way during development.
+- `fetch.ts` — `fetchScreenerData(universe: UniverseStock[])`: a small worker-pool (concurrency 5,
+  not `Promise.all`) fetches quote + fundamentals per symbol in the *passed-in* universe. A missing
+  quote drops the row; missing fundamentals just leave those fields `undefined` (see the Yahoo
+  `getFundamentals` note above — this happens routinely). Deliberately takes the universe as a
+  parameter rather than hardcoding one — the only caller that ever passes more than 50 symbols is
+  the batched cron route below, never a synchronous request.
+- **Two screener universes, two very different refresh strategies** — `app/api/screener/route.ts`:
+  - `nifty50` (default, `?universe` omitted): unchanged from before — on-demand, synchronous,
+    10-minute TTL in `screener_snapshots`, `?refresh=true` to force. Cheap enough (50 symbols) to
+    fetch inside a single request.
+  - `all_nse` (`?universe=all_nse`): **read-only from cache**, no synchronous fetch fallback, ever.
+    Fetching all ~2,000 symbols inside one request would run well past any reasonable serverless
+    timeout and burst-load the free provider in one continuous run — the same failure mode already
+    documented for NSE/Yahoo under sustained load. Instead, `app/api/cron/refresh-screener/route.ts`
+    (`CRON_SECRET`-gated, same fail-closed check as `evaluate-alerts`) fetches one small slice
+    (`?offset=&limit=50`) per call and **merges** those rows into the snapshot by symbol, leaving
+    every other symbol's row untouched — so the cache is never empty after the first cycle and
+    reads don't need to know a refresh is mid-flight, just a mix of freshnesses.
+    `.github/workflows/refresh-screener.yml` calls it with a sequence of offsets, hourly, covering
+    the full universe over ~40 short requests per run instead of one giant one — reuses the same
+    `CRON_SECRET`/`CRADE_DEPLOYMENT_URL` secrets `evaluate-alerts.yml` already needs, no new
+    secrets required.
+  - Both public (no auth) — same reasoning as `/api/quote`/`/api/history`: stateless market data,
+    not per-user.
+- `app/screener/screener-panel.tsx` — a Nifty 50 / All NSE stocks tab toggle plus manual filters
+  (sector, price range, max P/E, sort) and `ai-screener-query.tsx`. The All-NSE tab has no
+  "Refresh" button (nothing safe to trigger on demand — see above), just a "Reload cached data"
+  button and an "as of" caption instead.
 - `app/api/screener/ai-query/route.ts` — natural-language filtering, but **deliberately not** a
   "which stocks will return well, how confident are you" feature: the system prompt explicitly forbids
   claiming confidence about future returns (no model can back that up, and it's the kind of output
@@ -386,7 +422,21 @@ that weren't given to them unless told not to, repeatedly, across different feat
   the top of this file). Instead it translates the question into concrete criteria against the real data
   the client already has loaded, and every returned symbol is checked against that same dataset before
   being shown — a hallucinated ticker not in the table gets filtered out, not displayed. Requires auth
-  (it's an AI-cost-incurring action, same as chat).
+  (it's an AI-cost-incurring action, same as chat). `format.ts`'s `formatScreenerRowsForPrompt()` is
+  the shared CSV-block formatter this route and `app/api/holdings/diversify/route.ts` both use, so
+  they see the identical data contract rather than two independently-drifting copies. Works
+  unchanged against whichever universe the client currently has loaded (Nifty 50 or All NSE) — it
+  only ever reasons over the `rows` it's handed, no universe-specific logic of its own.
+- **Deliberate scope boundary**: cross-sectional backtests (`app/api/backtest/cross-sectional/route.ts`)
+  and the Holdings "deep factor analysis" toggle (`lib/portfolio/factor-tilt.ts`) **stay Nifty-50-only**,
+  not expanded to `ALL_NSE_UNIVERSE`. Both are live, synchronous, user-triggered historical-bar
+  fetches with no cache to fall back to — there's no safe way to run either over ~2,000 symbols
+  inside one request without hitting the exact timeout/rate-limit problem the batched screener
+  refresh above exists to avoid, and pre-materializing historical bars for the whole universe (the
+  only way to make that safe) is a materially bigger project than what was asked. Revisit if
+  backtesting/deep-analysis over the full universe becomes a real requirement — it would need its
+  own cached, batch-refreshed historical-bars store, not just a bigger `universe` array passed into
+  the existing live-fetch code path.
 
 ### PWA plumbing
 

@@ -1,0 +1,29 @@
+name: Refresh all-NSE screener snapshot
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refresh the all-NSE screener snapshot in batches
+        run: |
+          # One curl per 50-symbol slice of the ~2,000-symbol NSE universe,
+          # sequentially within this single job run — each individual
+          # request stays small/fast (see app/api/cron/refresh-screener/
+          # route.ts), and the whole run comfortably finishes well inside
+          # one hourly tick. The upper bound (2500) is deliberately above
+          # the current universe size (~2,079) so this doesn't need
+          # updating every time npm run generate:nse-universe picks up a
+          # few new listings — offsets past the real end just return
+          # fetched: 0, done: true immediately.
+          for offset in $(seq 0 50 2499); do
+            echo "Refreshing offset=$offset"
+            curl -sf -X GET \
+              -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+              "${{ secrets.CRADE_DEPLOYMENT_URL }}/api/cron/refresh-screener?offset=$offset&limit=50"
+            echo
+          done

@@ -16,7 +16,10 @@ function formatMarketCap(value?: number): string {
   return `₹${(value / 1e6).toFixed(0)}M`;
 }
 
+type Universe = "nifty50" | "all_nse";
+
 export function ScreenerPanel() {
+  const [universe, setUniverse] = useState<Universe>("nifty50");
   const [rows, setRows] = useState<ScreenerRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -33,11 +36,15 @@ export function ScreenerPanel() {
   const [watchlist, setWatchlist] = useState<string[]>([]);
   const [addingSymbol, setAddingSymbol] = useState<string | null>(null);
 
-  async function load(refresh = false) {
+  async function load(currentUniverse: Universe, refresh = false) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/screener${refresh ? "?refresh=true" : ""}`);
+      const params = new URLSearchParams();
+      if (currentUniverse === "all_nse") params.set("universe", "all_nse");
+      if (refresh) params.set("refresh", "true");
+      const qs = params.toString();
+      const res = await fetch(`/api/screener${qs ? `?${qs}` : ""}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to load screener data");
       setRows(data.rows);
@@ -57,7 +64,10 @@ export function ScreenerPanel() {
   }
 
   useEffect(() => {
-    load();
+    load(universe);
+  }, [universe]);
+
+  useEffect(() => {
     loadWatchlist();
   }, []);
 
@@ -96,15 +106,51 @@ export function ScreenerPanel() {
   return (
     <div className="w-full max-w-4xl flex flex-col gap-6">
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold">Screener — Nifty 50</h1>
-        <button
-          onClick={() => load(true)}
-          disabled={loading}
-          className="btn-secondary rounded-full disabled:opacity-40"
-        >
-          {loading ? "Refreshing…" : "Refresh"}
-        </button>
+        <h1 className="text-2xl font-semibold">
+          Screener — {universe === "nifty50" ? "Nifty 50" : "All NSE stocks"}
+        </h1>
+        {universe === "nifty50" ? (
+          <button
+            onClick={() => load(universe, true)}
+            disabled={loading}
+            className="btn-secondary rounded-full disabled:opacity-40"
+          >
+            {loading ? "Refreshing…" : "Refresh"}
+          </button>
+        ) : (
+          <button
+            onClick={() => load(universe)}
+            disabled={loading}
+            className="btn-secondary rounded-full disabled:opacity-40"
+          >
+            {loading ? "Loading…" : "Reload cached data"}
+          </button>
+        )}
       </div>
+
+      <div className="flex gap-2" role="tablist" aria-label="Screener universe">
+        {(["nifty50", "all_nse"] as const).map((u) => (
+          <button
+            key={u}
+            role="tab"
+            aria-selected={universe === u}
+            onClick={() => setUniverse(u)}
+            className={`text-xs rounded-full px-3 py-1.5 border transition-colors ${
+              universe === u
+                ? "border-foreground bg-foreground text-background"
+                : "border-border hover:bg-background"
+            }`}
+          >
+            {u === "nifty50" ? "Nifty 50" : "All NSE stocks (~2,000)"}
+          </button>
+        ))}
+      </div>
+      {universe === "all_nse" && (
+        <p className="text-xs text-foreground-muted">
+          Refreshed automatically in the background, roughly once an hour, in batches — rows may
+          have slightly different freshnesses rather than one single snapshot moment.
+        </p>
+      )}
 
       <AiScreenerQuery
         rows={rows}
@@ -261,7 +307,9 @@ export function ScreenerPanel() {
 
       {fetchedAt && (
         <p className="text-xs text-foreground-muted">
-          Data as of {new Date(fetchedAt).toLocaleString()} — cached for up to 10 minutes.
+          {universe === "nifty50"
+            ? `Data as of ${new Date(fetchedAt).toLocaleString()} — cached for up to 10 minutes.`
+            : `Most recent row in this batch as of ${new Date(fetchedAt).toLocaleString()}.`}
         </p>
       )}
     </div>

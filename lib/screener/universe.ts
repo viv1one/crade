@@ -1,8 +1,10 @@
-// A curated snapshot of Nifty 50 constituents — not fetched live, since
-// there's no bulk "list all NSE stocks" data source wired into this app
-// (see docs/plan.md §4). Index composition changes periodically; treat this
-// as a reasonable starting universe, not an authoritative/current source.
-// Re-verify against NSE's published Nifty 50 list before relying on it.
+import { ALL_NSE_STOCKS } from "./nse-universe";
+
+// A curated snapshot of Nifty 50 constituents — not fetched live. Index
+// composition changes periodically; treat this as a reasonable starting
+// universe, not an authoritative/current source. Re-verify against NSE's
+// published Nifty 50 list before relying on it. See ALL_NSE_UNIVERSE below
+// for the full NSE listing.
 export interface UniverseStock {
   symbol: string;
   name: string;
@@ -64,3 +66,24 @@ export const NIFTY_50: UniverseStock[] = [
 ];
 
 export const SECTORS = [...new Set(NIFTY_50.map((s) => s.sector))].sort();
+
+// The full NSE EQ-series listing (~2,000 symbols, generated — see
+// scripts/generate-nse-universe.mjs) merged with NIFTY_50, deduped by
+// symbol. Built as a union rather than just re-exporting the generated
+// list because the two sources can drift independently: NSE's live listing
+// has already been observed missing two of NIFTY_50's own hand-curated
+// symbols (TATAMOTORS.NS, LTIM.NS — most likely a corporate action/symbol
+// change since this snapshot was curated, not a bug in either source). A
+// straight swap would silently regress every NIFTY_50-dependent consumer
+// for those symbols; the union guarantees it never does. NIFTY_50 members
+// keep their real curated sector; everything else gets "Other" — the same
+// fallback lib/portfolio/diagnostics.ts's sectorFor() already uses for any
+// symbol outside the curated 50, not a new convention.
+const nifty50Symbols = new Set(NIFTY_50.map((s) => s.symbol));
+export const ALL_NSE_UNIVERSE: UniverseStock[] = [
+  ...NIFTY_50,
+  ...ALL_NSE_STOCKS.filter((s) => !nifty50Symbols.has(s.symbol)).map((s) => ({
+    ...s,
+    sector: "Other",
+  })),
+];

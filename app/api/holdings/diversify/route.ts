@@ -13,20 +13,28 @@ import { chat } from "@/lib/ai";
 // with the criteria derived from the portfolio's own sector gaps instead
 // of a free-text question.
 const SYSTEM_PROMPT =
-  "You are suggesting Nifty 50 stocks that would diversify a user's real investment portfolio, " +
+  "You are suggesting NSE-listed stocks that would diversify a user's real investment portfolio, " +
   "based on the portfolio's current sector exposure (given below) and a table of real, current " +
-  "Nifty 50 stock data. You cannot predict future returns and must never claim confidence about " +
+  "NSE stock data. You cannot predict future returns and must never claim confidence about " +
   "future performance — only reason about the data you were given (sector, price, % change, " +
   "P/E, market cap, dividend yield). Prefer stocks from sectors the portfolio has little or no " +
-  "exposure to. Never suggest a symbol already in the user's holdings (listed below) — exclude " +
-  "those entirely. Explain each pick in terms of the actual numbers and how it would change the " +
-  "portfolio's sector mix, not a return forecast. " +
+  "exposure to. Some rows have sector \"Other\" — that means unclassified in this app's data, " +
+  "not a real sector name; don't invent a more specific sector for them. Never suggest a symbol " +
+  "already in the user's holdings (listed below) — exclude those entirely. Explain each pick in " +
+  "terms of the actual numbers and how it would change the portfolio's sector mix, not a return " +
+  "forecast. " +
   "Respond with ONLY valid JSON, no other text, in this exact shape: " +
   '{"criteria": "short description of the diversification approach used", "picks": [{"symbol": ' +
   '"EXACT.NS", "reason": "why this one, citing the actual numbers and sector gap"}]}. Include at ' +
   "most 5 picks.";
 
-const MAX_SNAPSHOT_AGE_MS = 60 * 60 * 1000;
+// Looser than app/api/digest/route.ts's 1-hour assumption of a single
+// atomic fetch — the all_nse snapshot is refreshed in small batches over
+// roughly an hour by app/api/cron/refresh-screener/route.ts, so individual
+// rows can legitimately be a few hours old between cycles. Matches
+// withFundamentalsCache's existing 6-hour precedent for slow-moving data
+// (lib/market-data/cache.ts).
+const MAX_SNAPSHOT_AGE_MS = 6 * 60 * 60 * 1000;
 
 interface AiPick {
   symbol: string;
@@ -59,16 +67,19 @@ export async function POST() {
     return NextResponse.json({ error: "Could not compute portfolio diagnostics" }, { status: 500 });
   }
 
-  const snapshot = await screenerSnapshots.findOne({ universe: "nifty50" });
+  const snapshot = await screenerSnapshots.findOne({ universe: "all_nse" });
   if (!snapshot || snapshot.rows.length === 0) {
     return NextResponse.json(
-      { error: "No screener data available yet — visit the Screener page first" },
+      {
+        error:
+          "No screener data available yet — visit the Screener page's \"All NSE stocks\" tab first",
+      },
       { status: 400 }
     );
   }
   if (Date.now() - snapshot.fetchedAt.getTime() > MAX_SNAPSHOT_AGE_MS) {
     return NextResponse.json(
-      { error: "Screener data is over an hour old — visit the Screener page to refresh it first" },
+      { error: "Screener data is too old — visit the Screener page's \"All NSE stocks\" tab first" },
       { status: 400 }
     );
   }
@@ -92,7 +103,7 @@ export async function POST() {
         { role: "system", content: SYSTEM_PROMPT },
         {
           role: "user",
-          content: `Portfolio:\n${portfolioText}\n\nNifty 50 data:\n${formatScreenerRowsForPrompt(snapshot.rows)}`,
+          content: `Portfolio:\n${portfolioText}\n\nNSE data:\n${formatScreenerRowsForPrompt(snapshot.rows)}`,
         },
       ],
       { task: "portfolio_review" }

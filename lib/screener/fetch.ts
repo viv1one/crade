@@ -1,10 +1,10 @@
 import { marketData } from "../market-data";
-import { NIFTY_50 } from "./universe";
+import type { UniverseStock } from "./universe";
 import type { ScreenerRow } from "./types";
 
 const CONCURRENCY = 5;
 
-async function fetchOne(stock: (typeof NIFTY_50)[number]): Promise<ScreenerRow | null> {
+async function fetchOne(stock: UniverseStock): Promise<ScreenerRow | null> {
   let quote;
   try {
     quote = await marketData.getQuote(stock.symbol);
@@ -37,11 +37,17 @@ async function fetchOne(stock: (typeof NIFTY_50)[number]): Promise<ScreenerRow |
   };
 }
 
-// Small worker-pool fetch instead of Promise.all(NIFTY_50.map(...)) — 50
+// Small worker-pool fetch instead of Promise.all(universe.map(...)) — many
 // simultaneous requests against a free, keyless API is a good way to get
-// rate-limited mid-scan.
-export async function fetchScreenerData(): Promise<ScreenerRow[]> {
-  const queue = [...NIFTY_50];
+// rate-limited mid-scan. Takes the universe as a parameter (rather than
+// hardcoding NIFTY_50) so it can also be called with a small slice of the
+// full ~2,000-symbol NSE listing — see app/api/cron/refresh-screener/route.ts,
+// which is the only caller that ever passes more than NIFTY_50-sized input;
+// fetching the whole ~2,000-symbol universe in one call would run well past
+// any reasonable request timeout, which is exactly why that route only ever
+// passes a small slice at a time.
+export async function fetchScreenerData(universe: UniverseStock[]): Promise<ScreenerRow[]> {
+  const queue = [...universe];
   const rows: ScreenerRow[] = [];
 
   async function worker() {
