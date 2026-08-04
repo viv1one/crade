@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "generate:nse-universe": "node scripts/generate-nse-universe.mjs"
+    "generate:nse-universe": "node scripts/generate-nse-universe.mjs",
+    "seed:screener-local": "node scripts/seed-screener-locally.mjs"
   },
   "dependencies": {
     "mongodb": "^7.5.0",

@@ -408,7 +408,16 @@ that weren't given to them unless told not to, repeatedly, across different feat
     `.github/workflows/refresh-screener.yml` calls it with a sequence of offsets, hourly, covering
     the full universe over ~40 short requests per run instead of one giant one — reuses the same
     `CRON_SECRET`/`CRADE_DEPLOYMENT_URL` secrets `evaluate-alerts.yml` already needs, no new
-    secrets required.
+    secrets required. **This workflow can only ever reach a public deployed URL, never
+    `localhost`** — so in local dev the `all_nse` cache never fills up on its own, no matter how
+    long the dev server runs. Run `npm run seed:screener-local`
+    (`scripts/seed-screener-locally.mjs`) once against a running `npm run dev` to manually drive
+    the same endpoint through every batch (reads `CRON_SECRET` from `.env.local`, ~2,079 of 2,081
+    symbols land successfully — the 2 missing are the same `TATAMOTORS.NS`/`LTIM.NS` drift noted
+    above, confirmed live: their quotes aren't fetchable under those tickers either, not just
+    absent from the bulk listing). Verified end-to-end: full local run took a genuinely long time
+    (tens of minutes, real network latency across ~2,000 sequential-ish requests) — expect that,
+    it's not stuck.
   - Both public (no auth) — same reasoning as `/api/quote`/`/api/history`: stateless market data,
     not per-user.
 - `app/screener/screener-panel.tsx` — a Nifty 50 / All NSE stocks tab toggle plus manual filters
