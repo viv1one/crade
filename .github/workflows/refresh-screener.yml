@@ -5,6 +5,18 @@ on:
     - cron: "0 * * * *"
   workflow_dispatch: {}
 
+# A live run took ~1h45m end to end (sustained free-provider throttling —
+# most batches needed a retry, see the run loop below), not the ~15
+# minutes originally assumed when this was scheduled hourly. Without this
+# guard, the next hourly trigger would start a second run on top of one
+# still limping through retries, doubling request pressure on an already-
+# throttled provider — a vicious cycle. cancel-in-progress: false queues
+# the newest pending trigger instead of killing in-flight progress, so
+# runs end up executing back-to-back rather than overlapping.
+concurrency:
+  group: refresh-screener
+  cancel-in-progress: false
+
 jobs:
   refresh:
     runs-on: ubuntu-latest
