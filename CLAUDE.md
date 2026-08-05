@@ -36,6 +36,9 @@ silently, and the chat panel surfaces that error in the UI. Push notifications n
 `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` (a real `mailto:`/`https:` URI — no angle brackets, `web-push`
 rejects those) plus `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (same value as `VAPID_PUBLIC_KEY`, browser-exposed).
 The alert cron endpoint needs `CRON_SECRET` if you want it to reject unauthenticated callers (see below).
+Optional, dev-only: `pip install -r requirements.txt` (a local `python3` with `jugaad-data` on its
+`PATH`) enables the `jugaad-data` market-data provider — see `lib/market-data/` below. Nothing else in
+the app needs Python; skip this and everything still works off the existing free HTTP providers.
 
 ## Architecture
 
@@ -86,6 +89,21 @@ touching call sites.
 - **`lib/market-data/`**
   - `types.ts` — the `MarketDataProvider` interface: `getQuote`, `getHistorical`, `getFundamentals`.
     Any new data source (Kite Connect, a licensed vendor) implements this interface.
+  - `providers/jugaad-data.ts` — wraps the `jugaad-data` Python library (`scripts/jugaad_bridge.py`,
+    shelled out to via `node:child_process`) against NSE's current site. Verified live from a dev
+    environment to actually get through where `nse-free.ts`'s own hand-rolled session-cookie handling
+    (below) was observed blocked: quotes, historical bars, and real P/E + market cap (straight from
+    NSE's own `secInfo`/`tradeInfo` response fields, no HTML scrape) all worked in ~1-2s. Listed first
+    in the fallback chain by data quality, not availability — this only works where a local `python3`
+    has `jugaad-data` installed (`pip install -r requirements.txt`, optional, dev-only; see Commands
+    above), which Vercel's Node serverless functions don't have. In production the first call fails
+    fast (`ENOENT`) and `withFallback()` just moves on to the next provider — nothing here needs an
+    explicit prod/dev branch, the fallback chain already handles "not available" for free. A sibling
+    Node-only package (`nse-bse-api`) was evaluated as a production-viable alternative but rejected:
+    its quote endpoint hit the same NSE block `nse-free.ts` already documents (no improvement there),
+    and its one working method (historical data) came with an unfixable high-severity transitive
+    vulnerability (`adm-zip`, `npm audit` `fixAvailable: false`) for a narrow, non-essential gain — not
+    worth the standing supply-chain risk.
   - `providers/yahoo-free.ts` — unauthenticated Yahoo Finance chart-API. **Prototyping only** — NSE/Yahoo
     terms don't permit redistributing this data to other users. Do not build multi-user features on top
     of it without swapping in a licensed provider first. Uses `fetch-with-retry.ts`
@@ -114,10 +132,11 @@ touching call sites.
     first, not just Yahoo/NSE. `getQuote`/`getHistorical` reject immediately (no network call) since
     this provider only covers fundamentals — see `fallback-provider.ts` below for why it's still safe
     to list first in the chain.
-  - `fallback-provider.ts` — `withFallback([screener-in, yahoo, nse])`: tries each provider in order
-    per-method independently (a quote can succeed on yahoo while fundamentals come from screener-in).
-    screener-in is listed first specifically to prioritize it for `getFundamentals` (currently the most
-    reliable of the three for that one method) — this costs nothing for `getQuote`/`getHistorical`
+  - `fallback-provider.ts` — `withFallback([jugaad-data, screener-in, yahoo, nse])`: tries each
+    provider in order per-method independently (a quote can succeed on yahoo while fundamentals come
+    from screener-in). jugaad-data is listed first per above (dev-only, best when available).
+    screener-in is listed next specifically to prioritize it for `getFundamentals` (currently the most
+    reliable free HTTP source for that one method) — this costs nothing for `getQuote`/`getHistorical`
     since its versions of those reject immediately, so the chain moves on to yahoo essentially
     instantly for everything except fundamentals.
   - `cache.ts` / `cached-provider.ts` — two independent cache wrappers: `withHistoricalCache()` for
@@ -140,8 +159,8 @@ touching call sites.
     outage, not a way to make degraded data look fresh: `app/watchlist.tsx` checks `quote.stale` and
     disables Buy/Sell on that row rather than letting a trade price off it silently.
   - `index.ts` — exports `marketData`, the fully-composed provider, outer to inner: `withCoalescing(
-    withFundamentalsCache(withHistoricalCache(withStaleQuoteFallback(withFallback([yahoo, nse])))))`.
-    Swap/extend the chain here, not at call sites.
+    withFundamentalsCache(withHistoricalCache(withStaleQuoteFallback(withFallback([jugaad-data,
+    screener-in, yahoo, nse])))))`. Swap/extend the chain here, not at call sites.
 
 - **`lib/ai/`**
   - `types.ts` — `ChatMessage`, `ChatTask` (`explain_move` | `summarize` | `chat` | `digest`),

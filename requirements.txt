@@ -1,0 +1,5 @@
+# Only needed for scripts/jugaad_bridge.py (lib/market-data/providers/jugaad-data.ts) —
+# an optional, dev-environment-only market data provider. Nothing else in
+# the app touches Python. Install with: pip install -r requirements.txt
+jugaad-data
+pandas
