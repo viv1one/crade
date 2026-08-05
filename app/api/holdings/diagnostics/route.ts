@@ -17,7 +17,7 @@ import { chat } from "@/lib/ai";
 // rather than simulated paper trades — and this tracker has no cash
 // concept at all (see PositionInput's cash: undefined case in
 // lib/portfolio/diagnostics.ts), so the model is told not to assume one.
-const SYSTEM_PROMPT =
+const BASE_SYSTEM_PROMPT =
   "You are writing a short portfolio diagnostic for Crade, an internal research tool, based on " +
   "the user's real investment holdings given below (manually entered by the user for research — " +
   "not connected to a broker, not simulated). Point out what's noteworthy: concentration risk " +
@@ -27,9 +27,20 @@ const SYSTEM_PROMPT =
   "claim or imply a cash percentage beyond what's given. You cannot predict future returns and " +
   "must never claim confidence about future performance or suggest a trade will maximize profit " +
   "— only describe patterns in the data you were given. If a field is marked not available for a " +
-  "holding, say so rather than guessing. This is not investment advice. If a deep factor " +
-  "analysis section is present, its percentiles are relative standing within the Nifty 50 " +
-  "universe, not a forecast — describe them the same cautious way.";
+  "holding, say so rather than guessing. This is not investment advice.";
+
+// Appended only when deep=true and a "Deep factor analysis" section is
+// actually present in the data — deliberately not always part of the
+// prompt. When it was unconditional, the model would volunteer a "Deep
+// Factor Analysis" heading and claim "not enough data" even on plain
+// (non-deep) requests where no such section existed at all — exactly the
+// unprompted-invention failure mode this app is otherwise careful to
+// avoid (see lib/ai/context.ts's fabrication notes). Giving the model no
+// cue at all when the section isn't there is the fix, not a stronger
+// "don't guess" instruction.
+const DEEP_ANALYSIS_CLAUSE =
+  " A \"Deep factor analysis\" section is included below — its percentiles are relative standing " +
+  "within the Nifty 50 universe, not a forecast — describe them the same cautious way.";
 
 export async function POST(request: Request) {
   const user = await requireUserOrResponse();
@@ -66,10 +77,12 @@ export async function POST(request: Request) {
     dataText += `\n\n${formatFactorTiltsForPrompt(tilts)}`;
   }
 
+  const systemPrompt = deep ? BASE_SYSTEM_PROMPT + DEEP_ANALYSIS_CLAUSE : BASE_SYSTEM_PROMPT;
+
   try {
     const result = await chat(
       [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: systemPrompt },
         { role: "user", content: `Data:\n${dataText}\n\nWrite the diagnostic summary.` },
       ],
       { task: "portfolio_review" }

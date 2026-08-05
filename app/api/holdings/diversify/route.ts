@@ -67,19 +67,29 @@ export async function POST() {
     return NextResponse.json({ error: "Could not compute portfolio diagnostics" }, { status: 500 });
   }
 
+  // Neither message tells the user to "visit the Screener page" — that tab
+  // only reads this same cache (app/api/screener/route.ts's all_nse path
+  // is deliberately read-only, see CLAUDE.md), it never triggers a
+  // refresh, so that instruction would just be wrong. The only thing that
+  // actually fills this cache is the scheduled cron
+  // (app/api/cron/refresh-screener/route.ts) or, in local dev,
+  // `npm run seed:screener-local`.
   const snapshot = await screenerSnapshots.findOne({ universe: "all_nse" });
   if (!snapshot || snapshot.rows.length === 0) {
     return NextResponse.json(
       {
         error:
-          "No screener data available yet — visit the Screener page's \"All NSE stocks\" tab first",
+          "No screener data cached yet — the background refresh job hasn't populated it. Try again once it has (roughly hourly in production).",
       },
       { status: 400 }
     );
   }
   if (Date.now() - snapshot.fetchedAt.getTime() > MAX_SNAPSHOT_AGE_MS) {
     return NextResponse.json(
-      { error: "Screener data is too old — visit the Screener page's \"All NSE stocks\" tab first" },
+      {
+        error:
+          "Cached screener data is too old — the background refresh job should update it automatically; try again shortly.",
+      },
       { status: 400 }
     );
   }
