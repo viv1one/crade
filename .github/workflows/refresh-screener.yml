@@ -11,26 +11,40 @@ jobs:
     steps:
       - name: Refresh the all-NSE screener snapshot in batches
         run: |
-          # One curl per 50-symbol slice of the ~2,000-symbol NSE universe,
-          # sequentially within this single job run — each individual
-          # request stays small/fast (see app/api/cron/refresh-screener/
-          # route.ts), and the whole run comfortably finishes well inside
-          # one hourly tick. The upper bound (2500) is deliberately above
-          # the current universe size (~2,079) so this doesn't need
-          # updating every time npm run generate:nse-universe picks up a
-          # few new listings — offsets past the real end just return
-          # fetched: 0, done: true immediately.
-          for offset in $(seq 0 50 2499); do
+          # One curl per 20-symbol slice of the ~2,000-symbol NSE universe,
+          # sequentially within this single job run (see
+          # app/api/cron/refresh-screener/route.ts). Smaller than the
+          # original 50-symbol batch size — a live run showed a batch
+          # occasionally exceeding Vercel's function timeout (504) under
+          # cold-start/network variance, which used to abort the *entire*
+          # job on a single bad batch. Now: retry once, and if it still
+          # fails, log a warning and move on to the next offset rather than
+          # exiting — that batch's symbols just stay stale until the next
+          # hourly cycle, which is an acceptable tradeoff (this cache is
+          # already documented as "a mix of freshnesses," never atomic).
+          # The upper bound (2500) is deliberately above the current
+          # universe size (~2,079) so this doesn't need updating every time
+          # npm run generate:nse-universe picks up a few new listings —
+          # offsets past the real end just return fetched: 0, done: true.
+          for offset in $(seq 0 20 2499); do
             echo "Refreshing offset=$offset"
-            response=$(curl -s -w '\n%{http_code}' -X GET \
-              -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-              "${{ secrets.CRADE_DEPLOYMENT_URL }}/api/cron/refresh-screener?offset=$offset&limit=50")
-            http_code=$(tail -n1 <<< "$response")
-            body=$(sed '$d' <<< "$response")
-            echo "HTTP $http_code: $body"
-            if [ "$http_code" != "200" ]; then
-              echo "::error::Batch at offset=$offset failed with HTTP $http_code"
-              exit 1
+            success=false
+            for attempt in 1 2; do
+              response=$(curl -s -w '\n%{http_code}' -X GET \
+                -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+                "${{ secrets.CRADE_DEPLOYMENT_URL }}/api/cron/refresh-screener?offset=$offset&limit=20")
+              http_code=$(tail -n1 <<< "$response")
+              body=$(sed '$d' <<< "$response" | head -c 500)
+              if [ "$http_code" == "200" ]; then
+                echo "HTTP $http_code: $body"
+                success=true
+                grep -q '"done":true' <<< "$body" && { echo "Universe complete."; exit 0; }
+                break
+              fi
+              echo "HTTP $http_code (attempt $attempt/2): $body"
+              sleep 3
+            done
+            if [ "$success" != "true" ]; then
+              echo "::warning::Batch at offset=$offset failed after 2 attempts — skipping, will retry next scheduled run"
             fi
-            grep -q '"done":true' <<< "$body" && break
           done
