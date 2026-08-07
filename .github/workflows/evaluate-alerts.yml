@@ -2,7 +2,12 @@ name: Evaluate alerts
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    # Every 4 hours — this is not a real-time trading app, so alerts don't
+    # need minute-level freshness. Was */5 (every 5 min), which alone could
+    # cost up to ~8,640 min/month against a 2,000 min/month Actions budget.
+    # Use workflow_dispatch (Actions tab > this workflow > Run workflow) to
+    # force an immediate check without waiting for the schedule.
+    - cron: "0 */4 * * *"
   workflow_dispatch: {}
 
 jobs:

@@ -2,7 +2,12 @@ name: Refresh all-NSE screener snapshot
 
 on:
   schedule:
-    - cron: "0 * * * *"
+    # Every 6 hours, not hourly — this cache already tolerates a "mix of
+    # freshnesses" by design, so hourly was spending budget for no real
+    # benefit. Use workflow_dispatch (Actions tab > this workflow > Run
+    # workflow) to force an immediate refresh without waiting for the
+    # schedule.
+    - cron: "0 */6 * * *"
   workflow_dispatch: {}
 
 # A live run took ~1h45m end to end (sustained free-provider throttling —
@@ -20,6 +25,13 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
+    # Hard cap on billed minutes for this job. A live run once took ~1h45m
+    # under sustained provider throttling — without this cap, a bad run
+    # every 6 hours could burn most of the monthly Actions budget on its
+    # own. Capping here means a throttled run just leaves the tail of the
+    # universe stale until the next cycle (already an accepted tradeoff,
+    # see the loop's own comments below), rather than eating the budget.
+    timeout-minutes: 15
     steps:
       - name: Refresh the all-NSE screener snapshot in batches
         run: |
