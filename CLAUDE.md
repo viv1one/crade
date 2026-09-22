@@ -81,10 +81,11 @@ touching call sites.
     user;` — turns "not logged in" into a 401 in one line instead of a repeated try/catch per route.
   - `app/api/auth/{signup,login,logout,me}/route.ts` + `app/login/page.tsx` + `app/signup/page.tsx` +
     `app/account-nav.tsx` (email + logout, shown in the main page nav).
-  - `middleware.ts` (project root) — redirects to `/login` when the `crade_session` cookie is *absent*.
-    This is a fast, Edge-safe UX redirect only, **not** the authoritative check — it never touches Mongo,
-    so an expired/invalid-but-present cookie still gets past it. `requireUserOrResponse()` in each Route
-    Handler is what actually enforces access control. API routes are excluded from the middleware
+  - `proxy.ts` (project root — renamed from `middleware.ts`/`export function middleware` in the
+    Next.js 16 upgrade; same file, same `matcher`) redirects to `/login` when the `crade_session` cookie
+    is *absent*. This is a fast UX redirect only, **not** the authoritative check — it never touches
+    Mongo, so an expired/invalid-but-present cookie still gets past it. `requireUserOrResponse()` in
+    each Route Handler is what actually enforces access control. API routes are excluded from the
     matcher; they gate themselves individually (`/api/quote`, `/api/history` intentionally stay public —
     stateless market-data lookups, no per-user data involved).
 
@@ -642,7 +643,7 @@ backed by `use-watchlist.ts`) and `Portfolio` (holdings, live unrealized P&L, tr
 mounts `ChatPanel` and `AccountNav` standalone. This is the one place in `app/` that isn't a server
 component — everything here is client-fetched state, not data-heavy server rendering. `app/error.tsx`
 is the route-segment error boundary (Next.js convention) for anything that throws during render.
-`middleware.ts` gates every page except `/login` and `/signup` on the session cookie being present.
+`proxy.ts` gates every page except `/login` and `/signup` on the session cookie being present.
 
 The top of the home page is a dashboard cluster (`alerts-summary.tsx` + `market-movers.tsx` +
 `market-digest.tsx`) added so the most time-sensitive info doesn't require navigating to
@@ -677,3 +678,13 @@ The one deliberately-deferred item is real broker execution (`docs/plan.md`'s V3
 SEBI's algo-trading framework (mandatory since April 1, 2026, see §7 and the top of this file), not a
 capability gap. The `lib/` interfaces exist specifically so that work can build on stable seams
 rather than needing this document rewritten each time a data source or AI provider changes.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
