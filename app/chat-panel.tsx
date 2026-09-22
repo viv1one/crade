@@ -98,6 +98,7 @@ export function ChatPanel({ initialSymbol }: ChatPanelProps = {}) {
         <select
           value={task}
           onChange={(e) => setTask(e.target.value as ChatTask)}
+          aria-label="Chat task"
           className="input"
         >
           {TASK_OPTIONS.map((opt) => (
@@ -123,7 +124,7 @@ export function ChatPanel({ initialSymbol }: ChatPanelProps = {}) {
             className={`rounded-lg px-3 py-2 max-w-[85%] ${
               m.role === "user"
                 ? "self-end bg-foreground text-background text-sm"
-                : "self-start bg-background"
+                : "self-start bg-surface-sunken"
             }`}
           >
             <span className="sr-only">{m.role === "user" ? "You: " : "Assistant: "}</span>
@@ -131,11 +132,13 @@ export function ChatPanel({ initialSymbol }: ChatPanelProps = {}) {
           </div>
         ))}
         {loading && (
-          <div className="self-start text-sm text-foreground-muted">Thinking…</div>
+          <div className="self-start flex items-center gap-2 text-sm text-foreground-muted">
+            <span className="spinner" aria-hidden="true" /> Thinking…
+          </div>
         )}
       </div>
 
-      {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
+      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
       {meta && (
         <p className="text-xs text-foreground-muted">
           via {meta.provider} ({meta.model})

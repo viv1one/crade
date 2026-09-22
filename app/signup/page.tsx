@@ -65,7 +65,7 @@ export default function SignupPage() {
               className="input"
             />
           </label>
-          <label className="flex items-start gap-2 text-xs text-foreground-muted">
+          <label className="flex items-start gap-2 text-sm text-foreground-muted">
             <input
               type="checkbox"
               required
@@ -76,7 +76,7 @@ export default function SignupPage() {
             I understand Crade is a simulation-only research tool, not investment advice, and not
             connected to any broker.
           </label>
-          {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
+          {error && <p role="alert" className="text-sm text-danger">{error}</p>}
           <button type="submit" disabled={loading} className="btn-primary disabled:opacity-40">
             {loading ? "Creating account…" : "Sign up"}
           </button>

@@ -65,20 +65,19 @@ export function PortfolioDiagnostics({
               Include deep factor analysis vs. the full Nifty 50 (slower)
             </label>
           )}
-          <button
-            onClick={generate}
-            disabled={loading}
-            className="text-xs rounded-full border border-border px-3 py-1.5 w-fit hover:bg-background transition-colors disabled:opacity-40"
-          >
-            {loading
-              ? deep
-                ? "Analyzing (this can take a while)…"
-                : "Analyzing…"
-              : "Generate AI portfolio diagnostics"}
+          <button onClick={generate} disabled={loading} className="btn-secondary-sm w-fit">
+            {loading ? (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="spinner" aria-hidden="true" />
+                {deep ? "Analyzing (this can take a while)…" : "Analyzing…"}
+              </span>
+            ) : (
+              "Generate AI portfolio diagnostics"
+            )}
           </button>
         </div>
       )}
-      {error && <p role="alert" className="text-xs text-red-500">{error}</p>}
+      {error && <p role="alert" className="text-xs text-danger">{error}</p>}
       {content && (
         <div className="card p-3 flex flex-col gap-2">
           <MarkdownContent content={content} />

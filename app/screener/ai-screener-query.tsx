@@ -63,20 +63,22 @@ export function AiScreenerQuery({ rows, onResult, onClear }: AiScreenerQueryProp
           className="input flex-1"
         />
         <button type="submit" disabled={loading || rows.length === 0} className="btn-primary disabled:opacity-40">
-          {loading ? "Thinking…" : "Ask"}
+          {loading ? (
+            <span className="inline-flex items-center gap-1.5">
+              <span className="spinner" aria-hidden="true" /> Thinking…
+            </span>
+          ) : (
+            "Ask"
+          )}
         </button>
         {picks.length > 0 && (
-          <button
-            type="button"
-            onClick={clear}
-            className="text-sm text-foreground-muted hover:text-red-500 transition-colors"
-          >
+          <button type="button" onClick={clear} className="btn-secondary-sm">
             Clear
           </button>
         )}
       </form>
 
-      {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
+      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
 
       {criteria && (
         <div className="flex flex-col gap-2">

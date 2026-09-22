@@ -253,53 +253,65 @@ export function HoldingsPanel() {
         </p>
       </div>
 
-      <form onSubmit={handleAdd} className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-        <input
-          value={symbol}
-          onChange={(e) => setSymbol(e.target.value)}
-          placeholder="Symbol, e.g. RELIANCE.NS or Adani"
-          aria-label="Symbol"
-          list={SYMBOL_SUGGESTIONS_ID}
-          className="input flex-1 min-w-[10rem]"
-        />
-        <input
-          value={qty}
-          onChange={(e) => setQty(e.target.value)}
-          type="number"
-          placeholder="Quantity"
-          aria-label="Quantity"
-          className="input w-28"
-        />
-        <input
-          value={avgCost}
-          onChange={(e) => setAvgCost(e.target.value)}
-          type="number"
-          placeholder="Avg cost (₹)"
-          aria-label="Average cost"
-          className="input w-28"
-        />
-        <input
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Note (optional), e.g. via Groww"
-          aria-label="Note"
-          className="input flex-1 min-w-[10rem]"
-        />
-        <input
-          value={purchasedAt}
-          onChange={(e) => setPurchasedAt(e.target.value)}
-          type="date"
-          max={new Date().toISOString().slice(0, 10)}
-          aria-label="Purchase date (optional, for annualized return)"
+      <form onSubmit={handleAdd} className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+        <label className="flex flex-col gap-1 text-xs text-foreground-muted flex-1 min-w-[10rem]">
+          Symbol
+          <input
+            value={symbol}
+            onChange={(e) => setSymbol(e.target.value)}
+            placeholder="e.g. RELIANCE.NS or Adani"
+            list={SYMBOL_SUGGESTIONS_ID}
+            className="input"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-foreground-muted w-28">
+          Quantity
+          <input
+            value={qty}
+            onChange={(e) => setQty(e.target.value)}
+            type="number"
+            placeholder="Qty"
+            className="input"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-foreground-muted w-28">
+          Avg cost (₹)
+          <input
+            value={avgCost}
+            onChange={(e) => setAvgCost(e.target.value)}
+            type="number"
+            placeholder="Avg cost"
+            className="input"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-foreground-muted flex-1 min-w-[10rem]">
+          Note (optional)
+          <input
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="e.g. via Groww"
+            className="input"
+          />
+        </label>
+        <label
+          className="flex flex-col gap-1 text-xs text-foreground-muted"
           title="Purchase date (optional) — enables an annualized return alongside total P&L"
-          className="input"
-        />
+        >
+          Purchase date (optional)
+          <input
+            value={purchasedAt}
+            onChange={(e) => setPurchasedAt(e.target.value)}
+            type="date"
+            max={new Date().toISOString().slice(0, 10)}
+            className="input"
+          />
+        </label>
         <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-40">
           Add
         </button>
       </form>
       {error && (
-        <p role="alert" className="text-sm text-red-500">
+        <p role="alert" className="text-sm text-danger">
           {error}
         </p>
       )}
@@ -345,12 +357,12 @@ export function HoldingsPanel() {
           {bulkResult && (
             <div role="status" className="text-sm">
               {bulkResult.added > 0 && (
-                <p className="text-green-600">
+                <p className="text-success">
                   Added {bulkResult.added} holding{bulkResult.added === 1 ? "" : "s"}.
                 </p>
               )}
               {bulkResult.errors.length > 0 && (
-                <ul className="text-red-500 text-xs list-disc list-inside">
+                <ul className="text-danger text-xs list-disc list-inside">
                   {bulkResult.errors.map((msg, i) => (
                     <li key={i}>{msg}</li>
                   ))}
@@ -362,7 +374,7 @@ export function HoldingsPanel() {
       )}
 
       {loaded && holdings.length > 0 && (
-        <div className="card grid grid-cols-3 gap-4 p-4">
+        <div className="card grid grid-cols-1 sm:grid-cols-3 gap-4 p-4">
           <div>
             <div className="text-xs text-foreground-muted">Invested</div>
             <div className="font-mono text-sm font-medium">₹{totalInvested.toFixed(2)}</div>
@@ -374,7 +386,7 @@ export function HoldingsPanel() {
           <div>
             <div className="text-xs text-foreground-muted">Total P&amp;L</div>
             <div
-              className={`font-mono text-sm font-medium ${totalPnl >= 0 ? "text-green-600" : "text-red-500"}`}
+              className={`font-mono text-base font-semibold ${totalPnl >= 0 ? "text-success" : "text-danger"}`}
             >
               {totalPnl >= 0 ? "+" : ""}₹{totalPnl.toFixed(2)} ({totalPnl >= 0 ? "+" : ""}
               {totalPnlPct.toFixed(2)}%)
@@ -408,7 +420,7 @@ export function HoldingsPanel() {
             : undefined;
           return (
             <li key={h._id} className="flex flex-col gap-2 p-4">
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex flex-col">
                   <Link
                     href={`/?symbol=${encodeURIComponent(h.symbol)}#chat`}
@@ -424,16 +436,16 @@ export function HoldingsPanel() {
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className={`text-xs text-right ${pnl >= 0 ? "text-green-600" : "text-red-500"}`}>
+                  <div className={`text-sm font-semibold text-right ${pnl >= 0 ? "text-success" : "text-danger"}`}>
                     <div>
                       {pnl >= 0 ? "+" : ""}₹{pnl.toFixed(2)}
                     </div>
-                    <div>
+                    <div className="text-xs font-normal">
                       ({pnl >= 0 ? "+" : ""}
                       {pnlPct.toFixed(2)}%)
                     </div>
                     {cagr !== undefined && (
-                      <div className="text-foreground-muted" title="Annualized return since purchase date">
+                      <div className="text-xs font-normal text-foreground-muted" title="Annualized return since purchase date">
                         {cagr >= 0 ? "+" : ""}
                         {cagr.toFixed(2)}%/yr
                       </div>
@@ -441,7 +453,7 @@ export function HoldingsPanel() {
                   </div>
                   <button
                     onClick={() => openAlertForm(h)}
-                    className="text-xs text-foreground-muted hover:text-foreground transition-colors"
+                    className="p-1 text-sm text-foreground-muted hover:text-foreground transition-colors"
                     aria-label={`Create an alert for ${h.symbol}`}
                     title="Create an alert for this holding"
                   >
@@ -450,8 +462,9 @@ export function HoldingsPanel() {
                   <button
                     onClick={() => remove(h._id)}
                     disabled={removingId === h._id}
-                    className="text-xs text-foreground-muted hover:text-red-500 transition-colors disabled:opacity-40"
+                    className="p-1 text-sm text-foreground-muted hover:text-danger transition-colors disabled:opacity-40"
                     aria-label={`Remove ${h.symbol} from My Holdings`}
+                    title={`Remove ${h.symbol} from My Holdings`}
                   >
                     ✕
                   </button>
@@ -459,7 +472,7 @@ export function HoldingsPanel() {
               </div>
 
               {alertFormFor === h.symbol && (
-                <div className="flex items-center gap-2 rounded-lg bg-background p-2">
+                <div className="flex flex-wrap items-center gap-2 rounded-[7px] bg-surface-sunken p-3">
                   <select
                     value={alertConditionType}
                     onChange={(e) => setAlertConditionType(e.target.value as ConditionType)}
@@ -495,8 +508,8 @@ export function HoldingsPanel() {
                 </div>
               )}
               {alertCreatedFor === h.symbol && (
-                <p className="text-xs text-green-600">
-                  Alert created —{" "}
+                <p className="text-xs text-success">
+                  ✓ Alert created —{" "}
                   <Link href="/alerts" className="underline underline-offset-4">
                     view on the Alerts page
                   </Link>

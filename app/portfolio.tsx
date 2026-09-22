@@ -70,21 +70,25 @@ export function Portfolio({ cash, holdings, trades, error, loaded, onReset }: Po
           <button
             onClick={onReset}
             disabled={!loaded}
-            className="rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-background transition-colors disabled:opacity-40"
+            className="btn-secondary rounded-full disabled:opacity-40"
           >
             Reset
           </button>
         </div>
       </div>
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      )}
       {!loaded && (
         <p className="text-sm text-foreground-muted">Loading portfolio…</p>
       )}
 
       {loaded && (
         <>
-          <div className="card grid grid-cols-3 gap-4 p-4">
+          <div className="card grid grid-cols-1 sm:grid-cols-3 gap-4 p-4">
             <div>
               <div className="text-xs text-foreground-muted">Cash</div>
               <div className="font-mono text-sm font-medium">₹{cash.toFixed(2)}</div>
@@ -96,8 +100,8 @@ export function Portfolio({ cash, holdings, trades, error, loaded, onReset }: Po
             <div>
               <div className="text-xs text-foreground-muted">Total P&amp;L</div>
               <div
-                className={`font-mono text-sm font-medium ${
-                  totalPnl >= 0 ? "text-green-600" : "text-red-500"
+                className={`font-mono text-base font-semibold ${
+                  totalPnl >= 0 ? "text-success" : "text-danger"
                 }`}
               >
                 {totalPnl >= 0 ? "+" : ""}₹{totalPnl.toFixed(2)}
@@ -129,14 +133,14 @@ export function Portfolio({ cash, holdings, trades, error, loaded, onReset }: Po
                       </span>
                     </div>
                     <div
-                      className={`text-xs text-right ${
-                        pnl >= 0 ? "text-green-600" : "text-red-500"
+                      className={`text-sm font-semibold text-right ${
+                        pnl >= 0 ? "text-success" : "text-danger"
                       }`}
                     >
                       <div>
                         {pnl >= 0 ? "+" : ""}₹{pnl.toFixed(2)}
                       </div>
-                      <div>
+                      <div className="text-xs font-normal">
                         ({pnl >= 0 ? "+" : ""}
                         {pnlPct.toFixed(2)}%)
                       </div>
@@ -154,10 +158,10 @@ export function Portfolio({ cash, holdings, trades, error, loaded, onReset }: Po
                 <li className="p-4 text-sm text-foreground-muted">No trades yet.</li>
               )}
               {trades.map((trade) => (
-                <li key={trade.id} className="flex items-center justify-between gap-4 p-3 text-xs">
+                <li key={trade.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 p-3 text-xs">
                   <span
                     className={`font-medium ${
-                      trade.side === "buy" ? "text-green-600" : "text-red-500"
+                      trade.side === "buy" ? "text-success" : "text-danger"
                     }`}
                   >
                     {trade.side.toUpperCase()}
@@ -167,7 +171,7 @@ export function Portfolio({ cash, holdings, trades, error, loaded, onReset }: Po
                     {trade.qty} @ ₹{trade.price.toFixed(2)}
                   </span>
                   {trade.realizedPnl !== undefined && (
-                    <span className={trade.realizedPnl >= 0 ? "text-green-600" : "text-red-500"}>
+                    <span className={trade.realizedPnl >= 0 ? "text-success" : "text-danger"}>
                       {trade.realizedPnl >= 0 ? "+" : ""}₹{trade.realizedPnl.toFixed(2)}
                     </span>
                   )}

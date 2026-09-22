@@ -151,11 +151,7 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
           <button
             onClick={() => setShowIndicators((v) => !v)}
             aria-pressed={showIndicators}
-            className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
-              showIndicators
-                ? "bg-foreground text-background border-foreground"
-                : "border-border hover:bg-background"
-            }`}
+            className={`btn-secondary-sm ${showIndicators ? "is-active" : ""}`}
           >
             RSI/SMA
           </button>
@@ -219,24 +215,26 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
                     {symbol}
                   </Link>
                   {row.error && (
-                    <span role="alert" className="text-xs text-red-500">
+                    <span role="alert" className="text-xs text-danger">
                       {row.error}
                     </span>
                   )}
                   {row.quote && (
-                    <span
-                      className={`text-xs ${
-                        row.quote.change >= 0 ? "text-green-600" : "text-red-500"
-                      }`}
-                    >
-                      {row.quote.price.toFixed(2)} ({row.quote.change >= 0 ? "+" : ""}
-                      {row.quote.changePercent.toFixed(2)}%)
+                    <span className="flex items-center gap-1.5">
+                      <span
+                        className={`text-sm font-semibold ${
+                          row.quote.change >= 0 ? "text-success" : "text-danger"
+                        }`}
+                      >
+                        {row.quote.price.toFixed(2)} ({row.quote.change >= 0 ? "+" : ""}
+                        {row.quote.changePercent.toFixed(2)}%)
+                      </span>
                       {row.quote.stale && (
                         <span
-                          className="ml-1 text-yellow-600"
+                          className="badge badge-warning"
                           title="Live data unavailable — showing the last known price"
                         >
-                          (stale)
+                          Stale
                         </span>
                       )}
                     </span>
@@ -264,21 +262,28 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
                   <button
                     onClick={() => fetchQuote(symbol)}
                     disabled={row.loading}
-                    className="text-xs rounded-full border border-border px-3 py-1.5 hover:bg-background transition-colors disabled:opacity-50"
+                    className="btn-secondary-sm"
                   >
-                    {row.loading ? "Loading…" : "Refresh"}
+                    {row.loading ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="spinner" aria-hidden="true" /> Loading…
+                      </span>
+                    ) : (
+                      "Refresh"
+                    )}
                   </button>
                   <button
                     onClick={() => removeSymbol(symbol)}
-                    className="text-xs text-foreground-muted hover:text-red-500 transition-colors"
+                    className="p-1 text-sm text-foreground-muted hover:text-danger transition-colors"
                     aria-label={`Remove ${symbol}`}
+                    title={`Remove ${symbol}`}
                   >
                     ✕
                   </button>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <input
                   type="number"
                   min={1}
@@ -291,7 +296,7 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
                 <button
                   onClick={() => trade(symbol, "buy")}
                   disabled={!row.quote || row.quote.stale}
-                  className="text-xs rounded-lg bg-green-600 text-white px-3 py-1.5 font-medium hover:bg-green-700 transition-colors disabled:opacity-40"
+                  className="btn-success-sm"
                   title={!row.quote ? "Waiting for a quote" : row.quote.stale ? "Quote is stale — can't trade on it" : undefined}
                 >
                   Buy
@@ -299,7 +304,7 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
                 <button
                   onClick={() => trade(symbol, "sell")}
                   disabled={!row.quote || row.quote.stale}
-                  className="text-xs rounded-lg bg-red-600 text-white px-3 py-1.5 font-medium hover:bg-red-700 transition-colors disabled:opacity-40"
+                  className="btn-danger-sm"
                   title={!row.quote ? "Waiting for a quote" : row.quote.stale ? "Quote is stale — can't trade on it" : undefined}
                 >
                   Sell

@@ -34,7 +34,7 @@ export function MarketMovers() {
           {gainers.map((r) => (
             <div key={r.symbol} className="flex items-center justify-between text-sm">
               <span className="font-mono">{r.symbol}</span>
-              <span className="text-green-600 font-mono">
+              <span className="text-success font-mono">
                 +{r.changePercent.toFixed(2)}%
               </span>
             </div>
@@ -45,7 +45,7 @@ export function MarketMovers() {
           {losers.map((r) => (
             <div key={r.symbol} className="flex items-center justify-between text-sm">
               <span className="font-mono">{r.symbol}</span>
-              <span className="text-red-500 font-mono">{r.changePercent.toFixed(2)}%</span>
+              <span className="text-danger font-mono">{r.changePercent.toFixed(2)}%</span>
             </div>
           ))}
         </div>

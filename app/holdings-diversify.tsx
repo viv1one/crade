@@ -40,15 +40,17 @@ export function HoldingsDiversify({ hasHoldings }: { hasHoldings: boolean }) {
   return (
     <div className="w-full flex flex-col gap-2">
       {criteria === null && (
-        <button
-          onClick={suggest}
-          disabled={loading}
-          className="text-xs rounded-full border border-border px-3 py-1.5 w-fit hover:bg-background transition-colors disabled:opacity-40"
-        >
-          {loading ? "Thinking…" : "Suggest diversifiers"}
+        <button onClick={suggest} disabled={loading} className="btn-secondary-sm w-fit">
+          {loading ? (
+            <span className="inline-flex items-center gap-1.5">
+              <span className="spinner" aria-hidden="true" /> Thinking…
+            </span>
+          ) : (
+            "Suggest diversifiers"
+          )}
         </button>
       )}
-      {error && <p role="alert" className="text-xs text-red-500">{error}</p>}
+      {error && <p role="alert" className="text-xs text-danger">{error}</p>}
       {criteria !== null && (
         <div className="card p-3 flex flex-col gap-2">
           <p className="text-sm">

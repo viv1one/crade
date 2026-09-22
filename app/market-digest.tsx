@@ -30,15 +30,17 @@ export function MarketDigest() {
   return (
     <div className="w-full max-w-2xl flex flex-col gap-2">
       {!content && (
-        <button
-          onClick={generate}
-          disabled={loading}
-          className="text-xs rounded-full border border-border px-3 py-1.5 w-fit hover:bg-background transition-colors disabled:opacity-40"
-        >
-          {loading ? "Generating…" : "Generate AI market digest"}
+        <button onClick={generate} disabled={loading} className="btn-secondary-sm w-fit">
+          {loading ? (
+            <span className="inline-flex items-center gap-1.5">
+              <span className="spinner" aria-hidden="true" /> Generating…
+            </span>
+          ) : (
+            "Generate AI market digest"
+          )}
         </button>
       )}
-      {error && <p role="alert" className="text-xs text-red-500">{error}</p>}
+      {error && <p role="alert" className="text-xs text-danger">{error}</p>}
       {content && (
         <div className="card p-3 flex flex-col gap-2">
           <MarkdownContent content={content} />

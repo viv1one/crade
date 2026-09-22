@@ -35,7 +35,13 @@ export function PushSubscriptionsList({ refreshSignal }: PushSubscriptionsListPr
     }
   }
 
-  if (subs === null || subs.length === 0) return null;
+  if (subs === null) {
+    return <p className="text-xs text-foreground-muted">Loading devices…</p>;
+  }
+
+  if (subs.length === 0) {
+    return <p className="text-xs text-foreground-muted">No devices have push enabled yet.</p>;
+  }
 
   return (
     <div className="flex flex-col gap-1">
@@ -51,7 +57,7 @@ export function PushSubscriptionsList({ refreshSignal }: PushSubscriptionsListPr
             <button
               onClick={() => remove(s.id)}
               disabled={removingId === s.id}
-              className="text-foreground-muted hover:text-red-500 transition-colors disabled:opacity-40"
+              className="text-foreground-muted hover:text-danger transition-colors disabled:opacity-40"
               aria-label={`Remove push subscription for ${s.host}`}
             >
               {removingId === s.id ? "Removing…" : "Remove"}

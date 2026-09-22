@@ -25,7 +25,11 @@ export function PushSubscribeButton({ onSubscribed }: PushSubscribeButtonProps =
   }
 
   if (status === "done") {
-    return <p className="text-sm text-green-600">Push notifications enabled on this device.</p>;
+    return (
+      <p className="inline-flex items-center gap-1.5 text-sm text-success">
+        <span aria-hidden="true">✓</span> Push notifications enabled on this device.
+      </p>
+    );
   }
 
   return (
@@ -35,9 +39,15 @@ export function PushSubscribeButton({ onSubscribed }: PushSubscribeButtonProps =
         disabled={status === "loading"}
         className="btn-primary text-sm w-fit disabled:opacity-40"
       >
-        {status === "loading" ? "Enabling…" : "Enable push notifications on this device"}
+        {status === "loading" ? (
+          <span className="inline-flex items-center gap-1.5">
+            <span className="spinner" aria-hidden="true" /> Enabling…
+          </span>
+        ) : (
+          "Enable push notifications on this device"
+        )}
       </button>
-      {error && <p role="alert" className="text-xs text-red-500">{error}</p>}
+      {error && <p role="alert" className="text-xs text-danger">{error}</p>}
     </div>
   );
 }

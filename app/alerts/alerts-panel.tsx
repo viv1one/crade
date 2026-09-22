@@ -91,10 +91,12 @@ export function AlertsPanel() {
       <h1 className="text-2xl font-semibold">Alerts</h1>
 
       {!pushGranted && (
-        <p className="text-xs text-amber-600 dark:text-amber-400">
-          Push notifications aren&apos;t enabled on this device yet — enable them above, or an alert
-          firing won&apos;t actually notify you.
-        </p>
+        <div className="alert-banner alert-banner-warning">
+          <p className="text-sm text-warning">
+            Push notifications aren&apos;t enabled on this device yet — enable them above, or an
+            alert firing won&apos;t actually notify you.
+          </p>
+        </div>
       )}
 
       <form onSubmit={handleCreate} className="flex flex-col gap-2 sm:flex-row">
@@ -130,7 +132,7 @@ export function AlertsPanel() {
           Add
         </button>
       </form>
-      {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
+      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
 
       <ul className="card flex flex-col divide-y divide-border overflow-hidden">
         {!loaded && (
@@ -142,7 +144,7 @@ export function AlertsPanel() {
           </li>
         )}
         {alerts.map((alert) => (
-          <li key={alert._id} className="flex items-center justify-between gap-4 p-4">
+          <li key={alert._id} className="flex flex-wrap items-center justify-between gap-4 p-4">
             <div className="flex flex-col">
               <span className="font-mono text-sm font-medium">{alert.symbol}</span>
               <span className="text-xs text-foreground-muted">
@@ -156,26 +158,24 @@ export function AlertsPanel() {
             </div>
             <div className="flex items-center gap-2">
               <span
-                className={`text-xs rounded-full px-2 py-1 ${
+                className={`badge ${
                   alert.status === "active"
-                    ? "bg-green-600/10 text-green-600"
+                    ? "badge-success"
                     : alert.status === "triggered"
-                      ? "bg-yellow-600/10 text-yellow-600"
-                      : "bg-background text-foreground-muted"
+                      ? "badge-warning"
+                      : "badge-neutral"
                 }`}
               >
                 {alert.status}
               </span>
-              <button
-                onClick={() => toggleStatus(alert)}
-                className="text-xs rounded-full border border-border px-3 py-1.5 hover:bg-background transition-colors"
-              >
+              <button onClick={() => toggleStatus(alert)} className="btn-secondary-sm">
                 {alert.status === "active" ? "Pause" : "Activate"}
               </button>
               <button
                 onClick={() => remove(alert._id)}
-                className="text-xs text-foreground-muted hover:text-red-500 transition-colors"
+                className="p-1 text-sm text-foreground-muted hover:text-danger transition-colors"
                 aria-label={`Remove alert for ${alert.symbol}`}
+                title={`Remove alert for ${alert.symbol}`}
               >
                 ✕
               </button>

@@ -20,14 +20,16 @@ export function AccountNav() {
     router.refresh();
   }
 
-  if (!email) return null;
-
   return (
-    <div className="flex items-center gap-3 text-sm text-foreground-muted">
-      <span>{email}</span>
-      <button onClick={handleLogout} className="underline underline-offset-4 hover:no-underline">
-        Log out
-      </button>
+    <div className="flex items-center gap-3 text-sm text-foreground-muted min-h-5">
+      {email && (
+        <>
+          <span>{email}</span>
+          <button onClick={handleLogout} className="underline underline-offset-4 hover:no-underline">
+            Log out
+          </button>
+        </>
+      )}
     </div>
   );
 }

@@ -186,24 +186,22 @@ export function BacktestPanel() {
       <SymbolDatalist />
       <h1 className="text-2xl font-semibold">Backtest</h1>
 
-      <div className="flex gap-2 flex-wrap">
-        {(["single", "portfolio", "cross_sectional", "pairs", "leaderboard"] as Mode[]).map((m) => (
-          <button
-            key={m}
-            type="button"
-            onClick={() => switchMode(m)}
-            aria-pressed={mode === m}
-            className={`text-xs rounded-full border px-3 py-1.5 transition-colors ${
-              mode === m
-                ? "bg-foreground text-background border-foreground"
-                : "border-border hover:bg-background"
-            }`}
-          >
-            {MODE_LABELS[m]}
-          </button>
-        ))}
+      <div className="flex flex-col gap-2">
+        <div className="flex gap-2 flex-wrap">
+          {(["single", "portfolio", "cross_sectional", "pairs", "leaderboard"] as Mode[]).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => switchMode(m)}
+              aria-pressed={mode === m}
+              className={`btn-secondary-sm ${mode === m ? "is-active" : ""}`}
+            >
+              {MODE_LABELS[m]}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-foreground-muted">{MODE_BLURBS[mode]}</p>
       </div>
-      <p className="text-xs text-foreground-muted -mt-4">{MODE_BLURBS[mode]}</p>
 
       <form onSubmit={handleSubmit} className="card flex flex-col gap-4 p-4">
         <div className="flex gap-2">
@@ -300,17 +298,13 @@ export function BacktestPanel() {
                       type="button"
                       onClick={() => selectStrategy(s.id)}
                       aria-pressed={strategyId === s.id}
-                      className={`text-xs rounded-full border px-3 py-1.5 transition-colors ${
-                        strategyId === s.id
-                          ? "bg-foreground text-background border-foreground"
-                          : "border-border hover:bg-background"
-                      }`}
+                      className={`btn-secondary-sm ${strategyId === s.id ? "is-active" : ""}`}
                     >
                       {s.name}
                       {s.approximation && (
                         <span
                           title="Proxy: approximates data no current provider actually returns — see the note below once selected"
-                          className="ml-1.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 text-[10px] font-medium"
+                          className="badge badge-warning ml-1.5"
                         >
                           Proxy
                         </span>
@@ -322,7 +316,7 @@ export function BacktestPanel() {
             ))}
             {strategy && <p className="text-xs text-foreground-muted">{strategy.description}</p>}
             {strategy?.approximation && (
-              <p className="text-xs text-amber-600 dark:text-amber-400">{strategy.approximation}</p>
+              <p className="text-xs text-warning">{strategy.approximation}</p>
             )}
 
             {strategy && (
@@ -392,11 +386,19 @@ export function BacktestPanel() {
           disabled={running || (mode !== "pairs" && mode !== "leaderboard" && !strategy)}
           className="btn-primary self-start disabled:opacity-40"
         >
-          {running ? "Running…" : mode === "leaderboard" ? "Run Leaderboard" : "Run Backtest"}
+          {running ? (
+            <span className="inline-flex items-center gap-1.5">
+              <span className="spinner" aria-hidden="true" /> Running…
+            </span>
+          ) : mode === "leaderboard" ? (
+            "Run Leaderboard"
+          ) : (
+            "Run Backtest"
+          )}
         </button>
       </form>
 
-      {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
+      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
 
       {mode === "single" && single.current && (
         <BacktestResultView run={single.current} reviewLoading={single.reviewLoading} onReview={single.getReview} />
@@ -438,16 +440,17 @@ export function BacktestPanel() {
                 <li key={run._id}>
                   <button
                     onClick={() => single.setCurrent(run)}
-                    className="w-full flex items-center justify-between gap-4 p-3 text-xs text-left hover:bg-background transition-colors"
+                    aria-label={`${run.config.symbol}, ${STRATEGIES[run.config.strategyId].name}, ${pct(run.metrics.totalReturnPct)}, ${new Date(run.createdAt).toLocaleDateString()}`}
+                    className="w-full flex flex-wrap items-center justify-between gap-x-4 gap-y-1 p-3 text-xs text-left hover:bg-background transition-colors"
                   >
-                    <span className="font-mono">{run.config.symbol}</span>
-                    <span className="text-foreground-muted">
+                    <span aria-hidden="true" className="font-mono">{run.config.symbol}</span>
+                    <span aria-hidden="true" className="text-foreground-muted">
                       {STRATEGIES[run.config.strategyId].name}
                     </span>
-                    <span className={run.metrics.totalReturnPct >= 0 ? "text-green-600" : "text-red-500"}>
+                    <span aria-hidden="true" className={run.metrics.totalReturnPct >= 0 ? "text-success" : "text-danger"}>
                       {pct(run.metrics.totalReturnPct)}
                     </span>
-                    <span className="text-foreground-muted">
+                    <span aria-hidden="true" className="text-foreground-muted">
                       {new Date(run.createdAt).toLocaleDateString()}
                     </span>
                   </button>
@@ -469,16 +472,17 @@ export function BacktestPanel() {
                 <li key={run._id}>
                   <button
                     onClick={() => portfolio.setCurrent(run)}
-                    className="w-full flex items-center justify-between gap-4 p-3 text-xs text-left hover:bg-background transition-colors"
+                    aria-label={`${run.config.symbols.join(", ")}, ${STRATEGIES[run.config.strategyId].name}, ${pct(run.metrics.totalReturnPct)}, ${new Date(run.createdAt).toLocaleDateString()}`}
+                    className="w-full flex flex-wrap items-center justify-between gap-x-4 gap-y-1 p-3 text-xs text-left hover:bg-background transition-colors"
                   >
-                    <span className="font-mono truncate max-w-[10rem]">{run.config.symbols.join(", ")}</span>
-                    <span className="text-foreground-muted">
+                    <span aria-hidden="true" className="font-mono truncate max-w-[10rem]">{run.config.symbols.join(", ")}</span>
+                    <span aria-hidden="true" className="text-foreground-muted">
                       {STRATEGIES[run.config.strategyId].name}
                     </span>
-                    <span className={run.metrics.totalReturnPct >= 0 ? "text-green-600" : "text-red-500"}>
+                    <span aria-hidden="true" className={run.metrics.totalReturnPct >= 0 ? "text-success" : "text-danger"}>
                       {pct(run.metrics.totalReturnPct)}
                     </span>
-                    <span className="text-foreground-muted">
+                    <span aria-hidden="true" className="text-foreground-muted">
                       {new Date(run.createdAt).toLocaleDateString()}
                     </span>
                   </button>
@@ -500,15 +504,16 @@ export function BacktestPanel() {
                 <li key={run._id}>
                   <button
                     onClick={() => crossSectional.setCurrent(run)}
-                    className="w-full flex items-center justify-between gap-4 p-3 text-xs text-left hover:bg-background transition-colors"
+                    aria-label={`${STRATEGIES[run.config.strategyId]?.name ?? run.config.strategyId}, ${pct(run.metrics.totalReturnPct)}, ${new Date(run.createdAt).toLocaleDateString()}`}
+                    className="w-full flex flex-wrap items-center justify-between gap-x-4 gap-y-1 p-3 text-xs text-left hover:bg-background transition-colors"
                   >
-                    <span className="text-foreground-muted">
+                    <span aria-hidden="true" className="text-foreground-muted">
                       {STRATEGIES[run.config.strategyId]?.name ?? run.config.strategyId}
                     </span>
-                    <span className={run.metrics.totalReturnPct >= 0 ? "text-green-600" : "text-red-500"}>
+                    <span aria-hidden="true" className={run.metrics.totalReturnPct >= 0 ? "text-success" : "text-danger"}>
                       {pct(run.metrics.totalReturnPct)}
                     </span>
-                    <span className="text-foreground-muted">
+                    <span aria-hidden="true" className="text-foreground-muted">
                       {new Date(run.createdAt).toLocaleDateString()}
                     </span>
                   </button>
@@ -528,15 +533,16 @@ export function BacktestPanel() {
                 <li key={run._id}>
                   <button
                     onClick={() => pairs.setCurrent(run)}
-                    className="w-full flex items-center justify-between gap-4 p-3 text-xs text-left hover:bg-background transition-colors"
+                    aria-label={`${run.config.symbolA} / ${run.config.symbolB}, ${pct(run.metrics.totalReturnPct)}, ${new Date(run.createdAt).toLocaleDateString()}`}
+                    className="w-full flex flex-wrap items-center justify-between gap-x-4 gap-y-1 p-3 text-xs text-left hover:bg-background transition-colors"
                   >
-                    <span className="font-mono">
+                    <span aria-hidden="true" className="font-mono">
                       {run.config.symbolA} / {run.config.symbolB}
                     </span>
-                    <span className={run.metrics.totalReturnPct >= 0 ? "text-green-600" : "text-red-500"}>
+                    <span aria-hidden="true" className={run.metrics.totalReturnPct >= 0 ? "text-success" : "text-danger"}>
                       {pct(run.metrics.totalReturnPct)}
                     </span>
-                    <span className="text-foreground-muted">
+                    <span aria-hidden="true" className="text-foreground-muted">
                       {new Date(run.createdAt).toLocaleDateString()}
                     </span>
                   </button>
@@ -579,7 +585,15 @@ function AiReviewSection({
         disabled={reviewLoading}
         className="btn-secondary self-start disabled:opacity-40"
       >
-        {reviewLoading ? "Reviewing…" : aiReview ? "Refresh AI review" : "Get AI review"}
+        {reviewLoading ? (
+          <span className="inline-flex items-center gap-1.5">
+            <span className="spinner" aria-hidden="true" /> Reviewing…
+          </span>
+        ) : aiReview ? (
+          "Refresh AI review"
+        ) : (
+          "Get AI review"
+        )}
       </button>
       {aiReview && (
         <div className="card p-4">
@@ -635,7 +649,7 @@ function PortfolioResultView({
               <span className="text-foreground-muted">
                 ₹{s.startingCash.toFixed(0)} → ₹{s.finalEquity.toFixed(0)}
               </span>
-              <span className={s.totalReturnPct >= 0 ? "text-green-600" : "text-red-500"}>
+              <span className={s.totalReturnPct >= 0 ? "text-success" : "text-danger"}>
                 {pct(s.totalReturnPct)}
               </span>
               <span className="text-foreground-muted">{s.tradeCount} trades</span>
@@ -696,17 +710,17 @@ function LeaderboardResultView({ result }: { result: LeaderboardResult }) {
                   {entry.approximation && (
                     <span
                       title="Proxy: approximates data no current provider actually returns"
-                      className="ml-1.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 text-[10px] font-medium"
+                      className="badge badge-warning ml-1.5"
                     >
                       Proxy
                     </span>
                   )}
                 </td>
-                <td className={`p-3 ${entry.metrics.cagrPct >= 0 ? "text-green-600" : "text-red-500"}`}>
+                <td className={`p-3 ${entry.metrics.cagrPct >= 0 ? "text-success" : "text-danger"}`}>
                   {pct(entry.metrics.cagrPct)}
                 </td>
                 <td
-                  className={`p-3 ${entry.metrics.totalReturnPct >= 0 ? "text-green-600" : "text-red-500"}`}
+                  className={`p-3 ${entry.metrics.totalReturnPct >= 0 ? "text-success" : "text-danger"}`}
                 >
                   {pct(entry.metrics.totalReturnPct)}
                 </td>
@@ -731,7 +745,12 @@ function LeaderboardResultView({ result }: { result: LeaderboardResult }) {
 function MetricsGrid({ metrics }: { metrics: BacktestRun["metrics"] }) {
   return (
     <div className="card grid grid-cols-2 sm:grid-cols-4 gap-4 p-4">
-      <Metric label="Total return" value={pct(metrics.totalReturnPct)} positive={metrics.totalReturnPct >= 0} />
+      <Metric
+        label="Total return"
+        value={pct(metrics.totalReturnPct)}
+        positive={metrics.totalReturnPct >= 0}
+        emphasize
+      />
       <Metric
         label="vs. buy & hold"
         value={pct(metrics.totalReturnPct - metrics.buyHoldReturnPct)}
@@ -756,8 +775,8 @@ function TradeLog({ trades, showSymbol }: { trades: BacktestRun["trades"]; showS
           <li className="p-4 text-sm text-foreground-muted">No trades were made.</li>
         )}
         {trades.map((trade) => (
-          <li key={trade.id} className="flex items-center justify-between gap-4 p-3 text-xs">
-            <span className={`font-medium ${trade.side === "buy" ? "text-green-600" : "text-red-500"}`}>
+          <li key={trade.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 p-3 text-xs">
+            <span className={`font-medium ${trade.side === "buy" ? "text-success" : "text-danger"}`}>
               {trade.side.toUpperCase()}
             </span>
             {showSymbol && <span className="font-mono">{trade.symbol}</span>}
@@ -765,7 +784,7 @@ function TradeLog({ trades, showSymbol }: { trades: BacktestRun["trades"]; showS
               {trade.qty} @ ₹{trade.price.toFixed(2)}
             </span>
             {trade.realizedPnl !== undefined && (
-              <span className={trade.realizedPnl >= 0 ? "text-green-600" : "text-red-500"}>
+              <span className={trade.realizedPnl >= 0 ? "text-success" : "text-danger"}>
                 {trade.realizedPnl >= 0 ? "+" : ""}₹{trade.realizedPnl.toFixed(2)}
               </span>
             )}
@@ -779,13 +798,23 @@ function TradeLog({ trades, showSymbol }: { trades: BacktestRun["trades"]; showS
   );
 }
 
-function Metric({ label, value, positive }: { label: string; value: string; positive?: boolean }) {
+function Metric({
+  label,
+  value,
+  positive,
+  emphasize,
+}: {
+  label: string;
+  value: string;
+  positive?: boolean;
+  emphasize?: boolean;
+}) {
   return (
     <div>
       <div className="text-xs text-foreground-muted">{label}</div>
       <div
-        className={`font-mono text-sm font-medium ${
-          positive === undefined ? "" : positive ? "text-green-600" : "text-red-500"
+        className={`font-mono ${emphasize ? "text-lg font-semibold" : "text-sm font-medium"} ${
+          positive === undefined ? "" : positive ? "text-success" : "text-danger"
         }`}
       >
         {value}

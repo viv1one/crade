@@ -38,9 +38,9 @@ export function AlertsSummary() {
 
   if (triggered.length > 0) {
     return (
-      <div className="w-full max-w-2xl rounded-lg border border-yellow-600/30 bg-yellow-500/10 p-4 flex flex-col gap-2">
+      <div className="w-full max-w-2xl alert-banner alert-banner-warning">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-yellow-700 dark:text-yellow-500">
+          <span className="text-sm font-medium text-warning">
             {triggered.length} alert{triggered.length > 1 ? "s" : ""} triggered
           </span>
           <Link href="/alerts" className="text-xs underline underline-offset-4 hover:no-underline">

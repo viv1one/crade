@@ -25,6 +25,24 @@
   --accent: #4264b6;
   --accent-hover: #375397;
   --focus-ring: #517bdf;
+
+  /* Semantic status colors — consolidates the green-600/red-600/red-500/
+     amber-600/amber-700 literals that were independently hand-picked across
+     watchlist/portfolio/alerts/screener/backtest into one set, contrast-
+     checked against white the same way --accent was above (each clears
+     4.5:1 for normal text). */
+  --success: #157a3d;
+  --success-hover: #10602f;
+  --danger: #c0362c;
+  --warning: #9a5b0a;
+
+  /* One step down from --surface, for content nested *inside* a .card that
+     shouldn't read as a cutout to the page behind it (chat bubbles, inline
+     code chips) — a plain literal would need separate light/dark values,
+     but mixing a little --foreground into --surface tracks whichever theme
+     is active automatically, the same trick .input's focus ring already
+     uses below. */
+  --surface-sunken: color-mix(in srgb, var(--foreground) 5%, var(--surface));
 }
 
 @theme inline {
@@ -35,6 +53,10 @@
   --color-border: var(--border);
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-surface-sunken: var(--surface-sunken);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -51,6 +73,13 @@
        background, so it stays legible as inline logo/link text too. */
     --accent: #4264b6;
     --accent-hover: #718ac8;
+    /* Lighter than the light-mode values so each still clears contrast
+       against this near-black background, mirroring --accent's dark
+       variant reasoning above. */
+    --success: #4ade80;
+    --success-hover: #86efac;
+    --danger: #f87171;
+    --warning: #fbbf24;
   }
 }
 
@@ -157,5 +186,138 @@ a:focus-visible {
   }
   .btn-secondary:disabled {
     opacity: 0.5;
+  }
+
+  /* Compact pill buttons — the same "rounded-full border px-3 py-1.5
+     text-xs" idiom was independently hand-rolled in ~9 places (row-level
+     toggles, tab switches, inline actions) instead of using .btn-secondary
+     (sized for standalone form actions, too large inline). These give that
+     idiom one definition; -sm variants below cover the semantic actions
+     (buy/sell) that also weren't going through --success/--danger. */
+  .btn-secondary-sm {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--foreground);
+    border-radius: 9999px;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    transition: background-color 0.15s ease;
+  }
+  .btn-secondary-sm:hover:not(:disabled) {
+    background: var(--background);
+  }
+  .btn-secondary-sm.is-active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+  .btn-secondary-sm:disabled {
+    opacity: 0.5;
+  }
+
+  .btn-success-sm,
+  .btn-danger-sm {
+    border-radius: 9999px;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: white;
+    transition: background-color 0.15s ease;
+  }
+  .btn-success-sm {
+    background: var(--success);
+  }
+  .btn-success-sm:hover:not(:disabled) {
+    background: var(--success-hover);
+  }
+  .btn-danger-sm {
+    background: var(--danger);
+  }
+  .btn-danger-sm:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--danger) 85%, black);
+  }
+  .btn-success-sm:disabled,
+  .btn-danger-sm:disabled {
+    opacity: 0.5;
+  }
+
+  /* Small status label — always paired with text (never color alone), so
+     it reads the same for a colorblind viewer as for anyone else. Replaces
+     one-off pill markup for alert status, backtest's "Proxy" tag, the
+     screener's high-P/E flag, and stale-quote flags. */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border-radius: 9999px;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.2;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  .badge-success {
+    border-color: color-mix(in srgb, var(--success) 40%, transparent);
+    background: color-mix(in srgb, var(--success) 12%, transparent);
+    color: var(--success);
+  }
+  .badge-danger {
+    border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+    background: color-mix(in srgb, var(--danger) 12%, transparent);
+    color: var(--danger);
+  }
+  .badge-warning {
+    border-color: color-mix(in srgb, var(--warning) 40%, transparent);
+    background: color-mix(in srgb, var(--warning) 12%, transparent);
+    color: var(--warning);
+  }
+  .badge-neutral {
+    border-color: var(--border);
+    background: var(--background);
+    color: var(--foreground-muted);
+  }
+
+  /* Page-level warning/error banner — replaces a bare paragraph
+     (alerts-panel's push-permission warning) and a hardcoded-color div
+     (alerts-summary's triggered banner) with one bordered, padded block. */
+  .alert-banner {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    border-radius: 15px;
+    border: 1px solid;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+  }
+  .alert-banner-warning {
+    border-color: color-mix(in srgb, var(--warning) 35%, transparent);
+    background: color-mix(in srgb, var(--warning) 10%, transparent);
+  }
+  .alert-banner-danger {
+    border-color: color-mix(in srgb, var(--danger) 35%, transparent);
+    background: color-mix(in srgb, var(--danger) 10%, transparent);
+  }
+
+  /* CSS-only spinner (no new dependency) for buttons that trigger AI calls
+     running from a few seconds up to several minutes — sits next to the
+     label rather than replacing it, so there's motion to look at instead
+     of just a static "Running…" string the whole time. Uses currentColor
+     so it matches whatever text color the button/context already has. */
+  .spinner {
+    display: inline-block;
+    width: 0.85em;
+    height: 0.85em;
+    border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: -0.15em;
+  }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
 }

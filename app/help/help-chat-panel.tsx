@@ -54,18 +54,21 @@ export function HelpChatPanel() {
             className={`rounded-lg px-3 py-2 max-w-[85%] ${
               m.role === "user"
                 ? "self-end bg-foreground text-background text-sm"
-                : "self-start bg-background"
+                : "self-start bg-surface-sunken"
             }`}
           >
+            <span className="sr-only">{m.role === "user" ? "You: " : "Assistant: "}</span>
             {m.role === "assistant" ? <MarkdownContent content={m.content} /> : m.content}
           </div>
         ))}
         {loading && (
-          <div className="self-start text-sm text-foreground-muted">Thinking…</div>
+          <div className="self-start flex items-center gap-2 text-sm text-foreground-muted">
+            <span className="spinner" aria-hidden="true" /> Thinking…
+          </div>
         )}
       </div>
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
 
       <form onSubmit={send} className="flex gap-2">
         <input

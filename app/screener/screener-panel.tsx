@@ -135,11 +135,7 @@ export function ScreenerPanel() {
             role="tab"
             aria-selected={universe === u}
             onClick={() => setUniverse(u)}
-            className={`text-xs rounded-full px-3 py-1.5 border transition-colors ${
-              universe === u
-                ? "border-foreground bg-foreground text-background"
-                : "border-border hover:bg-background"
-            }`}
+            className={`btn-secondary-sm ${universe === u ? "is-active" : ""}`}
           >
             {u === "nifty50" ? "Nifty 50" : "All NSE stocks (~2,000)"}
           </button>
@@ -209,7 +205,9 @@ export function ScreenerPanel() {
         </select>
       </div>
 
-      {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
+      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+
+      <p className="text-xs text-foreground-muted sm:hidden">Scroll sideways to see all columns →</p>
 
       <div className="card overflow-x-auto max-h-[32rem] overflow-y-auto">
         <table className="w-full text-sm">
@@ -265,35 +263,35 @@ export function ScreenerPanel() {
                 <td className="p-3 text-right font-mono">₹{row.price.toFixed(2)}</td>
                 <td
                   className={`p-3 text-right font-mono ${
-                    row.changePercent >= 0 ? "text-green-600" : "text-red-500"
+                    row.changePercent >= 0 ? "text-success" : "text-danger"
                   }`}
                 >
                   {row.changePercent >= 0 ? "+" : ""}
                   {row.changePercent.toFixed(2)}%
                 </td>
-                <td
-                  className={`p-3 text-right font-mono ${
-                    row.peRatio != null && row.peRatio > HIGH_PE_THRESHOLD
-                      ? "text-amber-600 dark:text-amber-400"
-                      : ""
-                  }`}
-                  title={
-                    row.peRatio != null && row.peRatio > HIGH_PE_THRESHOLD
-                      ? "Unusually high P/E"
-                      : undefined
-                  }
-                >
-                  {row.peRatio != null ? row.peRatio.toFixed(1) : "—"}
+                <td className="p-3 text-right font-mono">
+                  <span
+                    title={
+                      row.peRatio != null && row.peRatio > HIGH_PE_THRESHOLD
+                        ? "Unusually high P/E"
+                        : undefined
+                    }
+                  >
+                    {row.peRatio != null ? row.peRatio.toFixed(1) : "—"}
+                  </span>
+                  {row.peRatio != null && row.peRatio > HIGH_PE_THRESHOLD && (
+                    <span className="badge badge-warning ml-1.5 font-sans">High</span>
+                  )}
                 </td>
                 <td className="p-3 text-right font-mono">{formatMarketCap(row.marketCap)}</td>
                 <td className="p-3 text-right">
                   {watchlist.includes(row.symbol) ? (
-                    <span className="text-xs text-green-600">✓ Added</span>
+                    <span className="text-xs text-success">✓ Added</span>
                   ) : (
                     <button
                       onClick={() => addToWatchlist(row.symbol)}
                       disabled={addingSymbol === row.symbol}
-                      className="text-xs rounded-full border border-border px-3 py-1.5 hover:bg-background transition-colors disabled:opacity-40"
+                      className="btn-secondary-sm"
                     >
                       {addingSymbol === row.symbol ? "Adding…" : "+ Watchlist"}
                     </button>

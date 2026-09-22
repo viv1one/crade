@@ -55,7 +55,7 @@ export function ShareWatchlist() {
         aria-expanded={expanded}
         className="text-xs text-foreground-muted underline underline-offset-4 hover:no-underline"
       >
-        {expanded ? "Hide sharing" : `Share this watchlist${shares.length > 0 ? ` (${shares.length})` : ""}`}
+        {expanded ? "▾ Hide sharing" : `▸ Share this watchlist${shares.length > 0 ? ` (${shares.length})` : ""}`}
       </button>
 
       {expanded && (
@@ -77,7 +77,7 @@ export function ShareWatchlist() {
               Invite
             </button>
           </form>
-          {error && <p className="text-xs text-red-500">{error}</p>}
+          {error && <p role="alert" className="text-xs text-danger">{error}</p>}
           {shares.length === 0 ? (
             <p className="text-xs text-foreground-muted">Not shared with anyone yet.</p>
           ) : (
@@ -88,7 +88,7 @@ export function ShareWatchlist() {
                   <button
                     onClick={() => revoke(s._id)}
                     aria-label={`Revoke access for ${s.invitedEmail}`}
-                    className="text-foreground-muted hover:text-red-500 transition-colors"
+                    className="text-foreground-muted hover:text-danger transition-colors"
                   >
                     Revoke
                   </button>

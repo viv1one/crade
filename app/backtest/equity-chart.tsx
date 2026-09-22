@@ -158,7 +158,13 @@ export function EquityChart({ equityCurve, startingCash }: EquityChartProps) {
       {hover && (
         <div
           className="pointer-events-none absolute top-1 rounded-md border border-border bg-surface px-2 py-1 text-xs shadow-sm"
-          style={{ left: `${(hover.x / WIDTH) * 100}%`, transform: "translateX(-50%)" }}
+          style={{
+            // Clamped so the tooltip never clips off the left/right edge of
+            // the chart on a narrow (mobile) viewport, at the cost of it
+            // drifting slightly from the exact hover point near either end.
+            left: `${Math.min(Math.max((hover.x / WIDTH) * 100, 8), 92)}%`,
+            transform: "translateX(-50%)",
+          }}
         >
           <div className="font-mono font-medium">₹{hover.equity.toFixed(2)}</div>
           <div className="text-foreground-muted">
