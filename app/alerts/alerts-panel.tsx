@@ -5,6 +5,8 @@ import { Disclaimer } from "../disclaimer";
 import { NOT_INVESTMENT_ADVICE } from "@/lib/disclaimers";
 import { SymbolDatalist, SYMBOL_SUGGESTIONS_ID } from "../symbol-datalist";
 import { CONDITION_LABELS, type ConditionType } from "@/lib/alerts/labels";
+import { nextEvaluationTime } from "@/lib/alerts/next-evaluation";
+import { useToast } from "../toast-provider";
 
 interface Alert {
   _id: string;
@@ -16,6 +18,7 @@ interface Alert {
 }
 
 export function AlertsPanel() {
+  const { showToast } = useToast();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [symbol, setSymbol] = useState("");
@@ -65,6 +68,7 @@ export function AlertsPanel() {
       setSymbol("");
       setValue("");
       load();
+      showToast(`Alert created for ${data.symbol}`, "success");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create alert");
     } finally {
@@ -80,11 +84,13 @@ export function AlertsPanel() {
       body: JSON.stringify({ status: nextStatus }),
     });
     load();
+    showToast(`${alert.symbol} alert ${nextStatus}`, "neutral");
   }
 
-  async function remove(id: string) {
+  async function remove(id: string, symbol: string) {
     await fetch(`/api/alerts/${id}`, { method: "DELETE" });
     load();
+    showToast(`Removed alert for ${symbol}`, "neutral");
   }
 
   return (
@@ -101,49 +107,76 @@ export function AlertsPanel() {
         </div>
       )}
 
-      <form onSubmit={handleCreate} className="flex flex-col gap-2 sm:flex-row">
-        <input
-          value={symbol}
-          onChange={(e) => setSymbol(e.target.value)}
-          placeholder="Symbol, e.g. RELIANCE.NS or Adani"
-          aria-label="Symbol"
-          list={SYMBOL_SUGGESTIONS_ID}
-          className="input flex-1"
-        />
-        <select
-          value={conditionType}
-          onChange={(e) => setConditionType(e.target.value as ConditionType)}
-          aria-label="Alert condition"
-          className="input"
-        >
-          {Object.entries(CONDITION_LABELS).map(([type, label]) => (
-            <option key={type} value={type}>
-              {label}
-            </option>
-          ))}
-        </select>
-        <input
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          type="number"
-          placeholder="Value"
-          aria-label="Condition value"
-          className="input w-28"
-        />
-        <select
-          value={channel}
-          onChange={(e) => setChannel(e.target.value as "push" | "email")}
-          aria-label="Delivery channel"
-          className="input"
-        >
-          <option value="push">Push</option>
-          <option value="email">Email</option>
-        </select>
-        <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-40">
-          Add
+      <form onSubmit={handleCreate} className="card p-4 flex flex-col gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="flex-1 flex flex-col gap-1.5">
+            <span className="text-xs font-semibold text-foreground-muted uppercase tracking-wide">When</span>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                value={symbol}
+                onChange={(e) => setSymbol(e.target.value)}
+                placeholder="Symbol, e.g. RELIANCE.NS or Adani"
+                aria-label="Symbol"
+                list={SYMBOL_SUGGESTIONS_ID}
+                className="input flex-1"
+              />
+              <select
+                value={conditionType}
+                onChange={(e) => setConditionType(e.target.value as ConditionType)}
+                aria-label="Alert condition"
+                className="input"
+              >
+                {Object.entries(CONDITION_LABELS).map(([type, label]) => (
+                  <option key={type} value={type}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              <input
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                type="number"
+                placeholder="Value"
+                aria-label="Condition value"
+                className="input w-28"
+              />
+            </div>
+          </div>
+
+          <span className="hidden sm:block text-foreground-muted text-lg self-center" aria-hidden="true">➔</span>
+
+          <div className="flex flex-col gap-1.5">
+            <span className="text-xs font-semibold text-foreground-muted uppercase tracking-wide">Then</span>
+            <select
+              value={channel}
+              onChange={(e) => setChannel(e.target.value as "push" | "email")}
+              aria-label="Delivery channel"
+              className="input"
+            >
+              <option value="push">Push notification</option>
+              <option value="email">Email</option>
+            </select>
+          </div>
+        </div>
+
+        <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-40 self-start">
+          Add alert
         </button>
       </form>
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+      <p className="text-xs text-foreground-muted -mt-4">
+        {/* Forced to IST rather than the viewer's browser locale — NSE/BSE
+            only ever trade in IST, so this app's whole domain is IST
+            regardless of who's looking, unlike lastTriggeredAt elsewhere
+            (a plain timestamp of a real event) where local time is the
+            right call. */}
+        Evaluated every 4 hours. Next check: {nextEvaluationTime().toLocaleString("en-IN", {
+          hour: "numeric",
+          minute: "2-digit",
+          timeZone: "Asia/Kolkata",
+        })}{" "}
+        IST.
+      </p>
 
       <ul className="card flex flex-col divide-y divide-border overflow-hidden">
         {!loaded && (
@@ -185,7 +218,7 @@ export function AlertsPanel() {
                 {alert.status === "active" ? "Pause" : "Activate"}
               </button>
               <button
-                onClick={() => remove(alert._id)}
+                onClick={() => remove(alert._id, alert.symbol)}
                 className="p-1 text-sm text-foreground-muted hover:text-danger transition-colors"
                 aria-label={`Remove alert for ${alert.symbol}`}
                 title={`Remove alert for ${alert.symbol}`}

@@ -199,11 +199,19 @@ export interface InsiderCacheEntry {
 // analysis — see lib/agents/pipeline.ts. Same ownerId-by-string-vs-ObjectId
 // split as the rest of this file: keyed by userId (ObjectId) like AiSession,
 // since a run belongs to a user's account, not a shared/owned resource.
+// `status`/`result` are filled in incrementally as the (still-synchronous)
+// POST /api/agents/run request progresses through pipeline stages — see
+// that route's `onStage` callback — so a client can poll this same doc via
+// GET /api/agents/run/[id] and show live per-stage progress instead of a
+// blank wait for the whole run. `result` starts as `{}` and gains fields
+// stage by stage; only trust it fully once `status` is `"complete"`.
 export interface AgentRun {
   _id: ObjectId;
   userId: ObjectId;
   symbol: string;
-  result: AgentPipelineResult;
+  status: "running" | "complete" | "failed";
+  result: Partial<AgentPipelineResult>;
+  error?: string;
   createdAt: Date;
 }
 

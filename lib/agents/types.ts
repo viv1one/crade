@@ -29,6 +29,17 @@ export interface DebateResult {
 // as "hold".
 export type TradeAction = "buy" | "sell" | "hold" | "review";
 
+// Shared `badge-*` class (see app/globals.css) per action, so every place
+// that renders a verdict badge (the Trading Agents history list, Watchlist
+// rows) uses the identical mapping rather than each hand-rolling its own
+// ternary and risking drift.
+export const VERDICT_BADGE_CLASS: Record<TradeAction, string> = {
+  buy: "badge-success",
+  sell: "badge-danger",
+  hold: "badge-neutral",
+  review: "badge-warning",
+};
+
 export interface TraderPlan {
   action: TradeAction;
   reasoning: string;

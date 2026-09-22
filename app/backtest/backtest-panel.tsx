@@ -11,6 +11,7 @@ import type {
 } from "@/lib/backtest/types";
 import { DEFAULT_STARTING_CASH } from "@/lib/backtest/types";
 import { EquityChart } from "./equity-chart";
+import { useBenchmarkCurve } from "./use-benchmark-curve";
 import { useBacktest, type AiReview, type BacktestRun } from "../use-backtest";
 import { usePortfolioBacktest, type PortfolioBacktestRun } from "../use-portfolio-backtest";
 import { useCrossSectionalBacktest, type CrossSectionalBacktestRun } from "../use-cross-sectional-backtest";
@@ -587,12 +588,12 @@ function AiReviewSection({
       >
         {reviewLoading ? (
           <span className="inline-flex items-center gap-1.5">
-            <span className="spinner" aria-hidden="true" /> Reviewing…
+            <span className="spinner" aria-hidden="true" /> Synthesizing…
           </span>
         ) : aiReview ? (
-          "Refresh AI review"
+          "Re-synthesize results"
         ) : (
-          "Get AI review"
+          "Synthesize results"
         )}
       </button>
       {aiReview && (
@@ -616,10 +617,11 @@ function BacktestResultView({
   reviewLoading: boolean;
   onReview: (id: string) => void;
 }) {
+  const { benchmarkCurve } = useBenchmarkCurve(run.equityCurve, run.config.startingCash);
   return (
     <div className="flex flex-col gap-4">
       <MetricsGrid metrics={run.metrics} />
-      <EquityChart equityCurve={run.equityCurve} startingCash={run.config.startingCash} />
+      <EquityChart equityCurve={run.equityCurve} startingCash={run.config.startingCash} benchmarkCurve={benchmarkCurve ?? undefined} />
       <TradeLog trades={run.trades} />
       <AiReviewSection id={run._id} aiReview={run.aiReview} reviewLoading={reviewLoading} onReview={onReview} />
     </div>
@@ -635,10 +637,11 @@ function PortfolioResultView({
   reviewLoading: boolean;
   onReview: (id: string) => void;
 }) {
+  const { benchmarkCurve } = useBenchmarkCurve(run.equityCurve, run.config.startingCash);
   return (
     <div className="flex flex-col gap-4">
       <MetricsGrid metrics={run.metrics} />
-      <EquityChart equityCurve={run.equityCurve} startingCash={run.config.startingCash} />
+      <EquityChart equityCurve={run.equityCurve} startingCash={run.config.startingCash} benchmarkCurve={benchmarkCurve ?? undefined} />
 
       <div>
         <h3 className="text-sm font-medium mb-2">Per-symbol contribution</h3>
@@ -677,10 +680,11 @@ function SimpleResultView({
   reviewLoading: boolean;
   onReview: (id: string) => void;
 }) {
+  const { benchmarkCurve } = useBenchmarkCurve(run.equityCurve, run.config.startingCash);
   return (
     <div className="flex flex-col gap-4">
       <MetricsGrid metrics={run.metrics} />
-      <EquityChart equityCurve={run.equityCurve} startingCash={run.config.startingCash} />
+      <EquityChart equityCurve={run.equityCurve} startingCash={run.config.startingCash} benchmarkCurve={benchmarkCurve ?? undefined} />
       <TradeLog trades={run.trades} showSymbol={showSymbol} />
       <AiReviewSection id={run._id} aiReview={run.aiReview} reviewLoading={reviewLoading} onReview={onReview} />
     </div>

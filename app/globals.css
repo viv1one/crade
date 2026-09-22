@@ -36,6 +36,22 @@
   --danger: #c0362c;
   --warning: #9a5b0a;
 
+  /* "AI signature" accent — marks content the AI actually synthesized
+     (chat replies, the screener's parsed-filter block, portfolio/backtest
+     AI reviews, Trading Agents' analyst reports) as distinct from plain
+     app chrome. Deliberately NOT used on the Trading Agents buy/sell/hold
+     verdict itself — that stays success/danger/neutral, since red/green
+     pattern-matching is more useful there than uniform AI branding (see
+     the plan's scope-decision note). Violet, contrast-checked against
+     white the same way --accent was above. */
+  --ai-accent: #6d28d9;
+  --ai-accent-hover: #5b21b6;
+
+  /* Warm gold, distinguishes the real-money Holdings ("Vault") page from
+     paper trading's cool --accent blue everywhere else — purely a visual
+     cue, no semantic meaning beyond "this is real, not simulated." */
+  --vault-accent: #a16207;
+
   /* One step down from --surface, for content nested *inside* a .card that
      shouldn't read as a cutout to the page behind it (chat bubbles, inline
      code chips) — a plain literal would need separate light/dark values,
@@ -57,6 +73,9 @@
   --color-danger: var(--danger);
   --color-warning: var(--warning);
   --color-surface-sunken: var(--surface-sunken);
+  --color-ai-accent: var(--ai-accent);
+  --color-ai-accent-hover: var(--ai-accent-hover);
+  --color-vault-accent: var(--vault-accent);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -80,6 +99,9 @@
     --success-hover: #86efac;
     --danger: #f87171;
     --warning: #fbbf24;
+    --ai-accent: #a78bfa;
+    --ai-accent-hover: #c4b5fd;
+    --vault-accent: #eab308;
   }
 }
 
@@ -278,6 +300,25 @@ a:focus-visible {
     background: var(--background);
     color: var(--foreground-muted);
   }
+  .badge-ai {
+    border-color: color-mix(in srgb, var(--ai-accent) 40%, transparent);
+    background: color-mix(in srgb, var(--ai-accent) 12%, transparent);
+    color: var(--ai-accent);
+  }
+
+  /* Left-border accent card for AI-synthesized content — chat replies,
+     the screener's parsed-filter block, AI review panels. A visual "this
+     is AI output" signature without needing a whole separate component;
+     wraps a .card-shaped block, so pair with .card's own classes. */
+  .ai-panel {
+    border-left: 3px solid var(--ai-accent);
+  }
+
+  /* Warm-gold heading treatment for the real-holdings ("Vault") page —
+     see --vault-accent above. */
+  .vault-heading {
+    color: var(--vault-accent);
+  }
 
   /* Page-level warning/error banner — replaces a bare paragraph
      (alerts-panel's push-permission warning) and a hardcoded-color div
@@ -319,5 +360,46 @@ a:focus-visible {
     to {
       transform: rotate(360deg);
     }
+  }
+
+  /* See app/bottom-sheet.tsx — the panel's entrance animation. */
+  .sheet-panel {
+    animation: sheet-in 0.2s ease-out;
+  }
+  @keyframes sheet-in {
+    from {
+      transform: translateY(16px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  /* "Hazard tape" styled frame for the one disclaimer in the app that's
+     genuinely the strongest warning here — the Trading Agents final
+     verdict (see lib/disclaimers.ts's AGENT_DECISION_NOT_ADVICE): it's the
+     one place in the whole app that issues a directive buy/sell/hold call,
+     so its disclaimer is deliberately the most visually alarming, not the
+     same quiet gray text every other disclaimer uses. Diagonal stripes via
+     --warning rather than literal black/yellow, so it reads as "serious
+     warning" without clashing with the rest of the design system's palette.
+     A striped background frame (not an actual border-image, which doesn't
+     reliably render repeating patterns across browsers) with padding
+     creates the frame; the inner content sits on a solid --surface panel. */
+  .hazard-frame {
+    padding: 3px;
+    border-radius: 7px;
+    background: repeating-linear-gradient(
+      45deg,
+      var(--warning) 0 8px,
+      var(--surface) 8px 16px
+    );
+  }
+  .hazard-frame > * {
+    background: var(--surface);
+    border-radius: 5px;
+    padding: 0.5rem 0.75rem;
   }
 }

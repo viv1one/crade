@@ -1,6 +1,6 @@
 "use client";
 
-import { AppNav } from "../app-nav";
+import { AppShellNav } from "../app-shell-nav";
 import { HelpChatPanel } from "./help-chat-panel";
 
 const SECTIONS = [
@@ -36,8 +36,8 @@ const SECTIONS = [
 
 export default function HelpPage() {
   return (
-    <div className="font-sans min-h-screen flex flex-col items-center gap-16 p-8 sm:p-20">
-      <AppNav />
+    <div className="font-sans min-h-screen flex flex-col items-center gap-16 p-8 pb-20 sm:p-20">
+      <AppShellNav />
 
       <main className="w-full max-w-2xl flex flex-col gap-6">
         <div>

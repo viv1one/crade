@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { AppNav } from "../app-nav";
+import { AppShellNav } from "../app-shell-nav";
 
 interface SharedWithMeRow {
   _id: string;
@@ -21,8 +21,8 @@ export default function SharedWithMePage() {
   }, []);
 
   return (
-    <div className="font-sans min-h-screen flex flex-col items-center gap-16 p-8 sm:p-20">
-      <AppNav />
+    <div className="font-sans min-h-screen flex flex-col items-center gap-16 p-8 pb-20 sm:p-20">
+      <AppShellNav />
       <main className="w-full max-w-2xl flex flex-col gap-6">
         <h1 className="text-2xl font-semibold">Shared with me</h1>
         <ul className="card flex flex-col divide-y divide-border overflow-hidden">

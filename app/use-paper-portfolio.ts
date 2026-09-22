@@ -28,18 +28,37 @@ export function usePaperPortfolio() {
       .finally(() => setLoaded(true));
   }, []);
 
-  const buy = useCallback((symbol: string, qty: number, price: number) => {
+  // Return the underlying promise (resolving to whether it succeeded)
+  // rather than firing-and-forgetting — callers that don't care can still
+  // ignore the return value (existing behavior, unchanged), but a caller
+  // that wants to show a "fetching live quote & executing…" state while
+  // the server-authoritative fill is in flight (see app/watchlist.tsx) now
+  // has something to await. app/watchlist.tsx's own post-trade toast (with
+  // a "Log it" link into the Journal, prefilled) is the source of truth for
+  // "what happens right after a trade" — this hook itself no longer tracks
+  // a lastTrade of its own.
+  const buy = useCallback(async (symbol: string, qty: number, price: number) => {
     setError(null);
-    postTrade({ action: "buy", symbol, qty, price })
-      .then(setState)
-      .catch((err) => setError(err instanceof Error ? err.message : "Trade failed"));
+    try {
+      const s = await postTrade({ action: "buy", symbol, qty, price });
+      setState(s);
+      return true;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Trade failed");
+      return false;
+    }
   }, []);
 
-  const sell = useCallback((symbol: string, qty: number, price: number) => {
+  const sell = useCallback(async (symbol: string, qty: number, price: number) => {
     setError(null);
-    postTrade({ action: "sell", symbol, qty, price })
-      .then(setState)
-      .catch((err) => setError(err instanceof Error ? err.message : "Trade failed"));
+    try {
+      const s = await postTrade({ action: "sell", symbol, qty, price });
+      setState(s);
+      return true;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Trade failed");
+      return false;
+    }
   }, []);
 
   const reset = useCallback(() => {

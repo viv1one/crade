@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import type { Quote } from "@/lib/market-data";
-import { AppNav } from "@/app/app-nav";
+import { AppShellNav } from "@/app/app-shell-nav";
 import { Disclaimer } from "@/app/disclaimer";
 import { FREE_DATA_SOURCE, NOT_INVESTMENT_ADVICE } from "@/lib/disclaimers";
 
@@ -51,15 +51,23 @@ export default function SharedWatchlistPage() {
   }, [symbols]);
 
   return (
-    <div className="font-sans min-h-screen flex flex-col items-center gap-16 p-8 sm:p-20">
-      <AppNav />
+    <div className="font-sans min-h-screen flex flex-col items-center gap-16 p-8 pb-20 sm:p-20">
+      <AppShellNav />
       <main className="w-full max-w-2xl flex flex-col gap-6">
         <h1 className="text-2xl font-semibold">
           {ownerEmail ? `${ownerEmail}'s watchlist` : "Shared watchlist"}
         </h1>
-        <p className="text-xs text-foreground-muted">Read-only — you can view but not edit this.</p>
+        {ownerEmail && (
+          <p className="text-xs text-foreground-muted">
+            Shared by <span className="font-medium">{ownerEmail}</span> via Crade — read-only, you can
+            view but not edit this.
+          </p>
+        )}
+        {!ownerEmail && (
+          <p className="text-xs text-foreground-muted">Read-only — you can view but not edit this.</p>
+        )}
 
-        {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
+        {error && <p role="alert" className="text-sm text-danger">{error}</p>}
 
         <ul className="card flex flex-col divide-y divide-border overflow-hidden">
           {symbols === null && !error && (
@@ -76,11 +84,11 @@ export default function SharedWatchlistPage() {
                 {row?.loading && (
                   <span className="text-xs text-foreground-muted">Loading…</span>
                 )}
-                {row?.error && <span className="text-xs text-red-500">{row.error}</span>}
+                {row?.error && <span className="text-xs text-danger">{row.error}</span>}
                 {row?.quote && (
                   <span
                     className={`text-sm font-mono ${
-                      row.quote.change >= 0 ? "text-green-600" : "text-red-500"
+                      row.quote.change >= 0 ? "text-success" : "text-danger"
                     }`}
                   >
                     ₹{row.quote.price.toFixed(2)} ({row.quote.change >= 0 ? "+" : ""}

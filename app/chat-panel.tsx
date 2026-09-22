@@ -27,9 +27,23 @@ export function ChatPanel({ initialSymbol }: ChatPanelProps = {}) {
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [meta, setMeta] = useState<{ provider: string; model: string } | null>(null);
+  // Citation pills for the assistant message just received — live-session
+  // only, not persisted to ai_sessions/reloaded from history (see the plan's
+  // scope decision): most useful on the response you just got, and this
+  // avoids a Mongo schema change for the older, unpinned history.
+  const [lastSources, setLastSources] = useState<{ index: number; items: { label: string; detail: string }[] } | null>(null);
+  // Index of the assistant message that came back with the server's
+  // deterministic noDataAvailable flag (see app/api/chat/route.ts) — the
+  // spec's "Failsafe UI": rendered as a distinct pre-styled gray block
+  // instead of a normal reply bubble, so "the AI has nothing" reads
+  // differently at a glance than a real answer, rather than blending in as
+  // plain prose. Same live-session-only scope as lastSources above.
+  const [noDataIndex, setNoDataIndex] = useState<number | null>(null);
 
   const loadHistory = useCallback(async (forSymbol: string) => {
     setHistoryLoaded(false);
+    setLastSources(null);
+    setNoDataIndex(null);
     try {
       const res = await fetch(`/api/chat/history?symbol=${encodeURIComponent(forSymbol)}`);
       const data = await res.json();
@@ -72,7 +86,17 @@ export function ChatPanel({ initialSymbol }: ChatPanelProps = {}) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Chat request failed");
-      setMessages((prev) => [...prev, { role: "assistant", content: data.content }]);
+      setMessages((prev) => {
+        const next = [...prev, { role: "assistant" as const, content: data.content }];
+        const index = next.length - 1;
+        if (Array.isArray(data.sources) && data.sources.length > 0) {
+          setLastSources({ index, items: data.sources });
+        } else {
+          setLastSources(null);
+        }
+        setNoDataIndex(data.noDataAvailable ? index : null);
+        return next;
+      });
       setMeta({ provider: data.provider, model: data.model });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Chat request failed");
@@ -119,16 +143,31 @@ export function ChatPanel({ initialSymbol }: ChatPanelProps = {}) {
           </p>
         )}
         {messages.map((m, i) => (
-          <div
-            key={i}
-            className={`rounded-lg px-3 py-2 max-w-[85%] ${
-              m.role === "user"
-                ? "self-end bg-foreground text-background text-sm"
-                : "self-start bg-surface-sunken"
-            }`}
-          >
-            <span className="sr-only">{m.role === "user" ? "You: " : "Assistant: "}</span>
-            {m.role === "assistant" ? <MarkdownContent content={m.content} /> : m.content}
+          <div key={i} className={`flex flex-col gap-1 max-w-[85%] ${m.role === "user" ? "self-end" : "self-start"}`}>
+            <div
+              className={`rounded-lg px-3 py-2 ${
+                m.role === "user"
+                  ? "bg-foreground text-background text-sm"
+                  : noDataIndex === i
+                    ? "bg-background border border-dashed border-border text-foreground-muted"
+                    : "bg-surface-sunken ai-panel"
+              }`}
+            >
+              <span className="sr-only">{m.role === "user" ? "You: " : "Assistant: "}</span>
+              {m.role === "assistant" && noDataIndex === i && (
+                <p className="text-xs font-semibold uppercase tracking-wide mb-1">⚠ No live data available</p>
+              )}
+              {m.role === "assistant" ? <MarkdownContent content={m.content} /> : m.content}
+            </div>
+            {m.role === "assistant" && lastSources?.index === i && (
+              <div className="flex flex-wrap gap-1.5" aria-label="Sources used for this answer">
+                {lastSources.items.map((s, j) => (
+                  <span key={j} className="badge badge-ai" title={s.detail}>
+                    Source: {s.label} {s.detail}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         ))}
         {loading && (

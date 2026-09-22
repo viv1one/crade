@@ -4,6 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { ScreenerRow } from "@/lib/screener/types";
 import { AiScreenerQuery } from "./ai-screener-query";
+import { BottomSheet } from "../bottom-sheet";
+import { TradingAgentsRun } from "../trading-agents/trading-agents-run";
+import { useToast } from "../toast-provider";
 
 const HIGH_PE_THRESHOLD = 60;
 
@@ -18,7 +21,18 @@ function formatMarketCap(value?: number): string {
 
 type Universe = "nifty50" | "all_nse";
 
-export function ScreenerPanel() {
+interface ScreenerPanelProps {
+  // Set when arriving from a triggered-alert push notification's deep link
+  // (see app/api/cron/evaluate-alerts/route.ts's formatMessage) — unlike
+  // the AI query's `highlighted` (a non-destructive visual tint over the
+  // full list), this actually FILTERS the row list down to just these
+  // symbols, matching the spec's "a filtered Screener view showing only
+  // the triggered stocks."
+  initialHighlighted?: string[];
+}
+
+export function ScreenerPanel({ initialHighlighted }: ScreenerPanelProps = {}) {
+  const { showToast } = useToast();
   const [universe, setUniverse] = useState<Universe>("nifty50");
   const [rows, setRows] = useState<ScreenerRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -31,10 +45,14 @@ export function ScreenerPanel() {
   const [maxPrice, setMaxPrice] = useState("");
   const [maxPE, setMaxPE] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("changePercent");
-  const [highlighted, setHighlighted] = useState<Set<string> | null>(null);
+  const [highlighted, setHighlighted] = useState<Set<string> | null>(
+    initialHighlighted ? new Set(initialHighlighted) : null
+  );
+  const [onlyTriggered, setOnlyTriggered] = useState(!!initialHighlighted?.length);
 
   const [watchlist, setWatchlist] = useState<string[]>([]);
   const [addingSymbol, setAddingSymbol] = useState<string | null>(null);
+  const [sheetSymbol, setSheetSymbol] = useState<string | null>(null);
 
   async function load(currentUniverse: Universe, refresh = false) {
     setLoading(true);
@@ -83,8 +101,10 @@ export function ScreenerPanel() {
       });
       if (!res.ok) throw new Error("Failed to add to watchlist");
       setWatchlist(next);
+      showToast(`Added ${symbol} to your watchlist`, "success");
     } catch {
       setError(`Failed to add ${symbol} to watchlist`);
+      showToast(`Failed to add ${symbol} to watchlist`, "danger");
     } finally {
       setAddingSymbol(null);
     }
@@ -97,11 +117,12 @@ export function ScreenerPanel() {
     const max = Number(maxPrice) || Infinity;
     const peMax = Number(maxPE) || Infinity;
     return rows
+      .filter((r) => (onlyTriggered && highlighted ? highlighted.has(r.symbol) : true))
       .filter((r) => (sector ? r.sector === sector : true))
       .filter((r) => r.price >= min && r.price <= max)
       .filter((r) => (r.peRatio == null ? true : r.peRatio <= peMax))
       .sort((a, b) => (b[sortKey] ?? -Infinity) - (a[sortKey] ?? -Infinity));
-  }, [rows, sector, minPrice, maxPrice, maxPE, sortKey]);
+  }, [rows, sector, minPrice, maxPrice, maxPE, sortKey, onlyTriggered, highlighted]);
 
   return (
     <div className="w-full max-w-4xl flex flex-col gap-6">
@@ -127,6 +148,21 @@ export function ScreenerPanel() {
           </button>
         )}
       </div>
+
+      {onlyTriggered && (
+        <div className="alert-banner alert-banner-warning flex-row items-center justify-between">
+          <p className="text-sm text-warning">
+            Showing only the {highlighted?.size ?? 0} stock{highlighted?.size === 1 ? "" : "s"} from a
+            triggered alert.
+          </p>
+          <button
+            onClick={() => setOnlyTriggered(false)}
+            className="text-xs text-foreground-muted hover:text-foreground transition-colors"
+          >
+            Clear filter
+          </button>
+        </div>
+      )}
 
       <div className="flex gap-2" role="tablist" aria-label="Screener universe">
         {(["nifty50", "all_nse"] as const).map((u) => (
@@ -285,17 +321,26 @@ export function ScreenerPanel() {
                 </td>
                 <td className="p-3 text-right font-mono">{formatMarketCap(row.marketCap)}</td>
                 <td className="p-3 text-right">
-                  {watchlist.includes(row.symbol) ? (
-                    <span className="text-xs text-success">✓ Added</span>
-                  ) : (
+                  <div className="flex items-center justify-end gap-1.5">
+                    {watchlist.includes(row.symbol) ? (
+                      <span className="text-xs text-success">✓ Added</span>
+                    ) : (
+                      <button
+                        onClick={() => addToWatchlist(row.symbol)}
+                        disabled={addingSymbol === row.symbol}
+                        className="btn-secondary-sm"
+                      >
+                        {addingSymbol === row.symbol ? "Adding…" : "+ Watchlist"}
+                      </button>
+                    )}
                     <button
-                      onClick={() => addToWatchlist(row.symbol)}
-                      disabled={addingSymbol === row.symbol}
+                      onClick={() => setSheetSymbol(row.symbol)}
                       className="btn-secondary-sm"
+                      title={`Run the Trading Agents pipeline on ${row.symbol}`}
                     >
-                      {addingSymbol === row.symbol ? "Adding…" : "+ Watchlist"}
+                      ⚡ Agents
                     </button>
-                  )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -310,6 +355,10 @@ export function ScreenerPanel() {
             : `Most recent row in this batch as of ${new Date(fetchedAt).toLocaleString()}.`}
         </p>
       )}
+
+      <BottomSheet open={sheetSymbol != null} onClose={() => setSheetSymbol(null)} title={sheetSymbol ?? undefined}>
+        {sheetSymbol && <TradingAgentsRun key={sheetSymbol} symbol={sheetSymbol} />}
+      </BottomSheet>
     </div>
   );
 }

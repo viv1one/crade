@@ -52,13 +52,23 @@ async function fetchPipelineData(symbol: string): Promise<FetchedData> {
   return { quote, bars, fundamentals, news, sentiment, insiderActivity };
 }
 
+// Called after each stage completes, with whatever's newly available —
+// lets a caller (see app/api/agents/run/route.ts) persist progress
+// incrementally so the UI can show live per-stage status instead of one
+// blank wait for the whole ~5-minute run. Optional and purely additive:
+// omitting it changes nothing about how the pipeline runs.
+export type OnStage = (partial: Partial<AgentPipelineResult>) => Promise<void> | void;
+
 // Orchestrates the full TradingAgents-style pipeline for one symbol:
 // Analyst Team (parallel) -> Researcher debate -> Trader -> Risk debate ->
 // Fund Manager decision. ~12 chat() calls total, comparable to the paper's
 // reported 11 per prediction (§5, footnote). See the approved plan for why
 // this — uniquely among Crade's AI surfaces — ends in a directive
 // buy/sell/hold call.
-export async function runTradingAgentsPipeline(symbol: string): Promise<AgentPipelineResult> {
+export async function runTradingAgentsPipeline(
+  symbol: string,
+  onStage?: OnStage
+): Promise<AgentPipelineResult> {
   const data = await fetchPipelineData(symbol);
 
   const [technical, fundamentals, news, sentiment] = await Promise.all([
@@ -68,10 +78,16 @@ export async function runTradingAgentsPipeline(symbol: string): Promise<AgentPip
     runSentimentAnalyst(symbol, data.sentiment),
   ]);
   const reports: AnalystReports = { technical, fundamentals, news, sentiment };
+  await onStage?.({ reports });
 
   const debate = await runResearchDebate(symbol, reports);
+  await onStage?.({ debate });
+
   const traderPlan = await runTrader(symbol, reports, debate);
+  await onStage?.({ traderPlan });
+
   const { debate: riskDebate, decision: finalDecision } = await runRiskDebate(symbol, reports, traderPlan);
+  await onStage?.({ riskDebate, finalDecision });
 
   return {
     symbol,

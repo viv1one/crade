@@ -47,9 +47,17 @@ export async function POST(request: Request) {
   }
 
   const marketContext = symbol ? await buildMarketContext(symbol) : null;
+  // Deterministic, not inferred from the model's prose — the spec's
+  // "failsafe" gray-block UI (chat-panel.tsx) keys off this flag rather
+  // than pattern-matching the response text for phrases like "data is
+  // unavailable," which would be fragile against wording changes and, more
+  // importantly, provider/model changes (see lib/ai/router.ts's fallback
+  // chain — a different model might phrase the same "I don't know" answer
+  // completely differently).
+  const noDataAvailable = !!symbol && !marketContext;
   let systemContent = SYSTEM_PROMPT;
   if (marketContext) {
-    systemContent += `\n\n${marketContext}`;
+    systemContent += `\n\n${marketContext.text}`;
   } else if (symbol) {
     // buildMarketContext returned null: the data source failed outright for
     // this symbol (observed: NSE/Yahoo both erroring). Say so explicitly and
@@ -86,7 +94,7 @@ export async function POST(request: Request) {
       { upsert: true }
     );
 
-    return NextResponse.json(result);
+    return NextResponse.json({ ...result, sources: marketContext?.sources ?? [], noDataAvailable });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Chat request failed" },

@@ -58,7 +58,10 @@ export function Portfolio({ cash, holdings, trades, error, loaded, onReset }: Po
   return (
     <div className="w-full max-w-2xl flex flex-col gap-6">
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-2xl font-semibold">Paper Portfolio</h2>
+        {/* Same cool-blue accent as Watchlist — the two are the "Paper
+            Trading" half of the spec's Cool Blue / Warm Gold split, the
+            other half being Holdings' --vault-accent gold. */}
+        <h2 className="text-2xl font-semibold text-accent border-l-[3px] border-accent pl-3">Paper Portfolio</h2>
         <div className="flex items-center gap-2">
           <button
             onClick={refreshPrices}

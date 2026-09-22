@@ -6,6 +6,12 @@ import type { EquityPoint } from "@/lib/backtest/types";
 interface EquityChartProps {
   equityCurve: EquityPoint[];
   startingCash: number;
+  // Nifty 50 buy-and-hold equivalent over the same period, normalized to
+  // the same startingCash — see use-benchmark-curve.ts. Optional: when
+  // absent (e.g. still loading, or the index fetch failed) the chart falls
+  // back to its original single-series rendering unchanged.
+  benchmarkCurve?: EquityPoint[];
+  benchmarkLabel?: string;
 }
 
 const WIDTH = 640;
@@ -26,19 +32,22 @@ function niceTicks(min: number, max: number, count = 4): number[] {
   return ticks;
 }
 
-// Single-series equity curve: a 2px line, a light area wash, hairline
-// recessive gridlines, and a hover crosshair + tooltip. One series needs no
-// legend — the panel heading already names what's plotted.
-export function EquityChart({ equityCurve, startingCash }: EquityChartProps) {
+// Equity curve: a 2px line, a light area wash, hairline recessive
+// gridlines, and a hover crosshair + tooltip. A single series needs no
+// legend (the panel heading already names what's plotted) — one is added
+// automatically once a benchmarkCurve is present, since at that point
+// "which line is which" isn't otherwise obvious.
+export function EquityChart({ equityCurve, startingCash, benchmarkCurve, benchmarkLabel }: EquityChartProps) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const innerH = HEIGHT - PAD_TOP - PAD_BOTTOM;
   const innerW = WIDTH - PAD_LEFT - PAD_RIGHT;
 
-  const { points, minY, maxY, linePath, areaPath } = useMemo(() => {
+  const { points, benchmarkPoints, minY, maxY, linePath, areaPath, benchmarkLinePath } = useMemo(() => {
     const values = equityCurve.map((p) => p.equity);
-    const minY = Math.min(startingCash, ...values);
-    const maxY = Math.max(startingCash, ...values);
+    const benchmarkValues = benchmarkCurve?.map((p) => p.equity) ?? [];
+    const minY = Math.min(startingCash, ...values, ...(benchmarkValues.length ? benchmarkValues : [Infinity]));
+    const maxY = Math.max(startingCash, ...values, ...(benchmarkValues.length ? benchmarkValues : [-Infinity]));
     const spanY = maxY - minY || 1;
     const n = equityCurve.length;
 
@@ -48,16 +57,28 @@ export function EquityChart({ equityCurve, startingCash }: EquityChartProps) {
       ...p,
     }));
 
+    // Aligned index-for-index with `points` — use-benchmark-curve.ts builds
+    // the benchmark series to match equityCurve's own length/timestamps, so
+    // the same x-scale applies without a separate time axis.
+    const benchmarkPoints = (benchmarkCurve ?? []).map((p, i) => ({
+      x: PAD_LEFT + (n <= 1 ? 0 : (i / (n - 1)) * innerW),
+      y: PAD_TOP + innerH - ((p.equity - minY) / spanY) * innerH,
+      ...p,
+    }));
+
     const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
+    const benchmarkLinePath = benchmarkPoints
+      .map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(2)},${p.y.toFixed(2)}`)
+      .join(" ");
     const baseline = PAD_TOP + innerH;
     const areaPath =
       points.length > 0
         ? `${linePath} L${points[points.length - 1].x.toFixed(2)},${baseline} L${points[0].x.toFixed(2)},${baseline} Z`
         : "";
 
-    return { points, minY, maxY, linePath, areaPath };
+    return { points, benchmarkPoints, minY, maxY, linePath, areaPath, benchmarkLinePath };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [equityCurve, startingCash]);
+  }, [equityCurve, startingCash, benchmarkCurve]);
 
   if (points.length === 0) {
     return <p className="text-sm text-foreground-muted">No data to chart.</p>;
@@ -93,8 +114,21 @@ export function EquityChart({ equityCurve, startingCash }: EquityChartProps) {
     setHoverIndex(nearest);
   }
 
+  const hoverBenchmark = hoverIndex !== null ? benchmarkPoints[hoverIndex] : null;
+
   return (
     <div className="relative w-full text-foreground">
+      {benchmarkPoints.length > 0 && (
+        <div className="flex items-center gap-4 text-xs text-foreground-muted mb-1">
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-3 h-0.5 bg-foreground" aria-hidden="true" /> Strategy
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-3 h-0.5 border-t-2 border-dashed border-foreground-muted" aria-hidden="true" />
+            {benchmarkLabel ?? "Nifty 50 (buy & hold)"}
+          </span>
+        </div>
+      )}
       <svg
         ref={svgRef}
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
@@ -137,6 +171,17 @@ export function EquityChart({ equityCurve, startingCash }: EquityChartProps) {
         />
 
         <path d={areaPath} fill="currentColor" opacity={0.08} />
+        {benchmarkLinePath && (
+          <path
+            d={benchmarkLinePath}
+            fill="none"
+            stroke="var(--color-foreground-muted)"
+            strokeWidth={1.5}
+            strokeDasharray="4,3"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+        )}
         <path d={linePath} fill="none" stroke="currentColor" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
 
         {hover && (
@@ -167,6 +212,11 @@ export function EquityChart({ equityCurve, startingCash }: EquityChartProps) {
           }}
         >
           <div className="font-mono font-medium">₹{hover.equity.toFixed(2)}</div>
+          {hoverBenchmark && (
+            <div className="font-mono text-foreground-muted">
+              {benchmarkLabel ?? "Nifty 50"}: ₹{hoverBenchmark.equity.toFixed(2)}
+            </div>
+          )}
           <div className="text-foreground-muted">
             {new Date(hover.time * 1000).toLocaleDateString()}
           </div>

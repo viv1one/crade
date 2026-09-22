@@ -1,25 +1,16 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { vi } from "vitest";
-import type { AgentPipelineResult } from "@/lib/agents/types";
 
 const mockRequireUserOrResponse = vi.fn();
 vi.mock("@/lib/auth/api", () => ({
   requireUserOrResponse: () => mockRequireUserOrResponse(),
 }));
 
-// The pipeline itself (~12 chained AI calls) is exercised by
-// lib/agents/*.test.ts and manual live runs — this route's own tests only
-// need to verify auth/validation/persistence around it, so it's mocked
-// entirely rather than re-testing the AI calls here.
-const mockRunPipeline = vi.fn();
-vi.mock("@/lib/agents/pipeline", () => ({
-  runTradingAgentsPipeline: (symbol: string) => mockRunPipeline(symbol),
-}));
-
 interface Doc {
   _id: { toString(): string };
   userId: { toString(): string };
   symbol: string;
+  status: "running" | "complete" | "failed";
   result: unknown;
   createdAt: Date;
 }
@@ -32,12 +23,12 @@ function matchesUser(doc: Doc, userId: unknown) {
 vi.mock("@/lib/db/collections", () => ({
   getCollections: async () => ({
     agentRuns: {
-      find: (filter: { userId: unknown }) => ({
+      find: (filter: { userId: unknown; status?: string }) => ({
         sort: () => ({
           limit: () => ({
             toArray: async () =>
               store
-                .filter((d) => matchesUser(d, filter.userId))
+                .filter((d) => matchesUser(d, filter.userId) && (!filter.status || d.status === filter.status))
                 .slice()
                 .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
           }),
@@ -60,17 +51,16 @@ function postReq(body: unknown) {
   });
 }
 
-const FAKE_RESULT = {
-  symbol: "TCS.NS",
-  finalDecision: { action: "hold", confidence: "low", rationale: "thin data" },
-} as unknown as AgentPipelineResult;
-
-describe("app/api/agents/run routes", () => {
+// This route only creates the run doc and hands back its id — see
+// [id]/route.test.ts for the actual pipeline-execution (POST) and
+// polling (GET) behavior, which is deliberately a separate endpoint (the
+// client needs the id before the ~5-minute execute call resolves, to start
+// polling right away — see app/api/agents/run/route.ts's own comment).
+describe("app/api/agents/run (create)", () => {
   beforeEach(() => {
     store = [];
     mockRequireUserOrResponse.mockReset();
     mockRequireUserOrResponse.mockResolvedValue(USER);
-    mockRunPipeline.mockReset();
   });
 
   it("GET returns 401 when not authenticated", async () => {
@@ -87,38 +77,36 @@ describe("app/api/agents/run routes", () => {
     expect(await res.json()).toEqual([]);
   });
 
-  it("POST rejects a missing symbol without ever calling the pipeline", async () => {
+  it("POST rejects a missing symbol without creating a run", async () => {
     const { POST } = await import("./route");
     const res = await POST(postReq({}));
     expect(res.status).toBe(400);
-    expect(mockRunPipeline).not.toHaveBeenCalled();
+    expect(store).toHaveLength(0);
   });
 
-  it("POST runs the pipeline, persists the run, and a follow-up GET sees it", async () => {
-    mockRunPipeline.mockResolvedValue(FAKE_RESULT);
-    const { GET, POST } = await import("./route");
-
+  it("POST creates a running run and returns its id immediately, without executing the pipeline", async () => {
+    const { POST } = await import("./route");
     const res = await POST(postReq({ symbol: "tcs.ns" }));
     expect(res.status).toBe(200);
-    expect(mockRunPipeline).toHaveBeenCalledWith("TCS.NS");
-    expect(await res.json()).toEqual(FAKE_RESULT);
+    const body = await res.json();
+    expect(body.symbol).toBe("TCS.NS");
+    expect(typeof body.runId).toBe("string");
 
-    const getRes = await GET();
-    const list = await getRes.json();
-    expect(list).toHaveLength(1);
-    expect(list[0].symbol).toBe("TCS.NS");
-    expect(list[0].result).toEqual(FAKE_RESULT);
+    expect(store).toHaveLength(1);
+    expect(store[0].status).toBe("running");
+    expect(store[0].result).toEqual({});
   });
 
-  it("POST returns 502 (not a thrown exception) when the pipeline fails, and doesn't persist anything", async () => {
-    mockRunPipeline.mockRejectedValue(new Error("every AI provider failed"));
-    const { GET, POST } = await import("./route");
-
-    const res = await POST(postReq({ symbol: "TCS.NS" }));
-    expect(res.status).toBe(502);
-    expect((await res.json()).error).toContain("every AI provider failed");
-
-    const getRes = await GET();
-    expect(await getRes.json()).toEqual([]);
+  it("GET (history list) only ever shows complete runs, never running ones", async () => {
+    store.push({
+      _id: { toString: () => "r1" },
+      userId: { toString: () => USER.id },
+      symbol: "TCS.NS",
+      status: "running",
+      result: {},
+      createdAt: new Date(),
+    });
+    const { GET } = await import("./route");
+    expect(await (await GET()).json()).toEqual([]);
   });
 });

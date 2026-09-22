@@ -9,8 +9,12 @@ import { parseBulkHoldings } from "@/lib/holdings-bulk-parse";
 import { NIFTY_50 } from "@/lib/screener/universe";
 import { SymbolDatalist, SYMBOL_SUGGESTIONS_ID } from "../symbol-datalist";
 import { PortfolioDiagnostics } from "../portfolio-diagnostics";
+import { SectorPieChart } from "./sector-pie-chart";
+import { RiskExposureChart } from "./risk-exposure-chart";
 import { HoldingsDiversify } from "../holdings-diversify";
 import { CONDITION_LABELS, type ConditionType } from "@/lib/alerts/labels";
+import { useSwipeAction } from "../use-swipe-action";
+import { useToast } from "../toast-provider";
 
 interface RealHolding {
   _id: string;
@@ -21,7 +25,175 @@ interface RealHolding {
   purchasedAt?: string;
 }
 
+interface HoldingRowProps {
+  h: RealHolding;
+  price: number;
+  removingId: string | null;
+  alertFormFor: string | null;
+  alertConditionType: ConditionType;
+  alertValue: string;
+  alertSubmitting: boolean;
+  alertCreatedFor: string | null;
+  onOpenAlertForm: (h: RealHolding) => void;
+  onRemove: (id: string) => void;
+  onAlertConditionTypeChange: (t: ConditionType) => void;
+  onAlertValueChange: (v: string) => void;
+  onCreateQuickAlert: (symbol: string) => void;
+  onCancelAlertForm: () => void;
+}
+
+// Extracted so useSwipeAction (a hook) can be called once per row — hooks
+// can't be called inside the parent's .map() callback. Swipe left opens
+// the same quick-alert form the 🔔 button already does (progressive
+// enhancement, same reasoning as app/watchlist.tsx's swipe rows — the tap
+// button stays as the verified fallback). Swipe right is a no-op here
+// (there's no equally obvious second action the way Watchlist has Buy AND
+// Sell) rather than reusing it for something unrelated.
+function HoldingRow({
+  h,
+  price,
+  removingId,
+  alertFormFor,
+  alertConditionType,
+  alertValue,
+  alertSubmitting,
+  alertCreatedFor,
+  onOpenAlertForm,
+  onRemove,
+  onAlertConditionTypeChange,
+  onAlertValueChange,
+  onCreateQuickAlert,
+  onCancelAlertForm,
+}: HoldingRowProps) {
+  const pnl = (price - h.avgCost) * h.qty;
+  const pnlPct = ((price - h.avgCost) / h.avgCost) * 100;
+  const invested = h.qty * h.avgCost;
+  const currentValue = h.qty * price;
+  const cagr = h.purchasedAt ? annualizedReturnPct(invested, currentValue, new Date(h.purchasedAt)) : undefined;
+
+  const swipe = useSwipeAction({ onSwipeLeft: () => onOpenAlertForm(h) });
+  const revealOpacity = Math.min(Math.abs(Math.min(swipe.translateX, 0)) / 80, 1);
+
+  return (
+    <li className="relative overflow-hidden">
+      <div
+        className="absolute inset-0 flex items-center justify-end px-4 text-sm font-semibold text-background bg-vault-accent"
+        style={{ opacity: revealOpacity }}
+        aria-hidden="true"
+      >
+        🔔 Create alert
+      </div>
+      <div
+        className="relative bg-surface flex flex-col gap-2 p-4 touch-pan-y"
+        style={{
+          transform: `translateX(${Math.min(swipe.translateX, 0)}px)`,
+          transition: swipe.dragging ? "none" : "transform 0.2s ease",
+        }}
+        onPointerDown={swipe.handlers.onPointerDown}
+        onPointerMove={swipe.handlers.onPointerMove}
+        onPointerUp={swipe.handlers.onPointerUp}
+        onPointerCancel={swipe.handlers.onPointerCancel}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-col">
+            <Link
+              href={`/?symbol=${encodeURIComponent(h.symbol)}#chat`}
+              className="font-mono text-sm font-medium underline-offset-4 hover:underline"
+              title={`Research ${h.symbol} in AI Chat`}
+            >
+              {h.symbol}
+            </Link>
+            <span className="text-xs text-foreground-muted">
+              {h.qty} @ avg ₹{h.avgCost.toFixed(2)}
+              {h.purchasedAt ? ` · bought ${new Date(h.purchasedAt).toLocaleDateString()}` : ""}
+              {h.note ? ` — ${h.note}` : ""}
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className={`text-sm font-semibold text-right ${pnl >= 0 ? "text-success" : "text-danger"}`}>
+              <div>
+                {pnl >= 0 ? "+" : ""}₹{pnl.toFixed(2)}
+              </div>
+              <div className="text-xs font-normal">
+                ({pnl >= 0 ? "+" : ""}
+                {pnlPct.toFixed(2)}%)
+              </div>
+              {cagr !== undefined && (
+                <div className="text-xs font-normal text-foreground-muted" title="Annualized return since purchase date">
+                  {cagr >= 0 ? "+" : ""}
+                  {cagr.toFixed(2)}%/yr
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => onOpenAlertForm(h)}
+              className="p-1 text-sm text-foreground-muted hover:text-foreground transition-colors"
+              aria-label={`Create an alert for ${h.symbol}`}
+              title="Create an alert for this holding (or swipe left)"
+            >
+              🔔
+            </button>
+            <button
+              onClick={() => onRemove(h._id)}
+              disabled={removingId === h._id}
+              className="p-1 text-sm text-foreground-muted hover:text-danger transition-colors disabled:opacity-40"
+              aria-label={`Remove ${h.symbol} from My Holdings`}
+              title={`Remove ${h.symbol} from My Holdings`}
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        {alertFormFor === h.symbol && (
+          <div className="flex flex-wrap items-center gap-2 rounded-[7px] bg-surface-sunken p-3">
+            <select
+              value={alertConditionType}
+              onChange={(e) => onAlertConditionTypeChange(e.target.value as ConditionType)}
+              aria-label="Alert condition"
+              className="input text-xs"
+            >
+              {Object.entries(CONDITION_LABELS).map(([type, label]) => (
+                <option key={type} value={type}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <input
+              value={alertValue}
+              onChange={(e) => onAlertValueChange(e.target.value)}
+              type="number"
+              aria-label="Condition value"
+              className="input w-24 text-xs"
+            />
+            <button
+              onClick={() => onCreateQuickAlert(h.symbol)}
+              disabled={alertSubmitting}
+              className="btn-primary text-xs disabled:opacity-40"
+            >
+              {alertSubmitting ? "Creating…" : "Create"}
+            </button>
+            <button onClick={onCancelAlertForm} className="text-xs text-foreground-muted hover:text-foreground transition-colors">
+              Cancel
+            </button>
+          </div>
+        )}
+        {alertCreatedFor === h.symbol && (
+          <p className="text-xs text-success">
+            ✓ Alert created —{" "}
+            <Link href="/alerts" className="underline underline-offset-4">
+              view on the Alerts page
+            </Link>
+            .
+          </p>
+        )}
+      </div>
+    </li>
+  );
+}
+
 export function HoldingsPanel() {
+  const { showToast } = useToast();
   const [holdings, setHoldings] = useState<RealHolding[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [prices, setPrices] = useState<Record<string, number>>({});
@@ -88,6 +260,29 @@ export function HoldingsPanel() {
   useEffect(() => {
     refreshPrices();
   }, [refreshPrices]);
+
+  // Sector allocation (and concentration) is computed for free — see that
+  // route's own comment on why it's a separate, non-AI endpoint from the
+  // "Generate AI portfolio diagnostics" button below. Re-fetched whenever
+  // the holding list itself changes (add/remove), same dependency as
+  // refreshPrices above.
+  const [sectorData, setSectorData] = useState<{
+    sectorAllocations: { sector: string; allocationPct: number }[];
+    topHoldingPct: number;
+    top3ConcentrationPct: number;
+    riskExposure: { symbol: string; allocationPct: number; volatilityPct: number }[];
+  } | null>(null);
+  useEffect(() => {
+    if (holdings.length === 0) {
+      setSectorData(null);
+      return;
+    }
+    fetch("/api/holdings/sector-allocation")
+      .then((res) => res.json())
+      .then(setSectorData)
+      .catch(() => setSectorData(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [holdings.map((h) => h.symbol).join(",")]);
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -230,6 +425,9 @@ export function HoldingsPanel() {
       if (res.ok) {
         setAlertFormFor(null);
         setAlertCreatedFor(symbol);
+        showToast(`Alert created for ${symbol}`, "success");
+      } else {
+        showToast(`Failed to create alert for ${symbol}`, "danger");
       }
     } finally {
       setAlertSubmitting(false);
@@ -244,8 +442,8 @@ export function HoldingsPanel() {
   return (
     <div className="w-full max-w-2xl flex flex-col gap-6">
       <SymbolDatalist />
-      <div>
-        <h1 className="text-2xl font-semibold">My Holdings</h1>
+      <div className="border-l-[3px] border-vault-accent pl-3">
+        <h1 className="text-2xl font-semibold vault-heading">My Holdings — Vault</h1>
         <p className="text-sm text-foreground-muted mt-1">
           Investments you already own, bought elsewhere (e.g. via your broker) — tracked here for
           research only. Separate from the simulated Paper Portfolio on the home page: no fake cash,
@@ -395,6 +593,24 @@ export function HoldingsPanel() {
         </div>
       )}
 
+      {sectorData && sectorData.sectorAllocations.length > 0 && (
+        <div className="card p-4 flex flex-col gap-2">
+          <h3 className="text-sm font-semibold">Sector allocation</h3>
+          <SectorPieChart
+            sectorAllocations={sectorData.sectorAllocations}
+            topHoldingPct={sectorData.topHoldingPct}
+            top3ConcentrationPct={sectorData.top3ConcentrationPct}
+          />
+        </div>
+      )}
+
+      {sectorData && sectorData.riskExposure.length > 0 && (
+        <div className="card p-4 flex flex-col gap-2">
+          <h3 className="text-sm font-semibold">Risk exposure</h3>
+          <RiskExposureChart entries={sectorData.riskExposure} />
+        </div>
+      )}
+
       <PortfolioDiagnostics
         endpoint="/api/holdings/diagnostics"
         hasHoldings={holdings.length > 0}
@@ -409,116 +625,25 @@ export function HoldingsPanel() {
             No holdings yet — add one above. Try: RELIANCE.NS, 10 shares @ ₹1300.
           </li>
         )}
-        {holdings.map((h) => {
-          const price = prices[h.symbol] ?? h.avgCost;
-          const pnl = (price - h.avgCost) * h.qty;
-          const pnlPct = ((price - h.avgCost) / h.avgCost) * 100;
-          const invested = h.qty * h.avgCost;
-          const currentValue = h.qty * price;
-          const cagr = h.purchasedAt
-            ? annualizedReturnPct(invested, currentValue, new Date(h.purchasedAt))
-            : undefined;
-          return (
-            <li key={h._id} className="flex flex-col gap-2 p-4">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="flex flex-col">
-                  <Link
-                    href={`/?symbol=${encodeURIComponent(h.symbol)}#chat`}
-                    className="font-mono text-sm font-medium underline-offset-4 hover:underline"
-                    title={`Research ${h.symbol} in AI Chat`}
-                  >
-                    {h.symbol}
-                  </Link>
-                  <span className="text-xs text-foreground-muted">
-                    {h.qty} @ avg ₹{h.avgCost.toFixed(2)}
-                    {h.purchasedAt ? ` · bought ${new Date(h.purchasedAt).toLocaleDateString()}` : ""}
-                    {h.note ? ` — ${h.note}` : ""}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className={`text-sm font-semibold text-right ${pnl >= 0 ? "text-success" : "text-danger"}`}>
-                    <div>
-                      {pnl >= 0 ? "+" : ""}₹{pnl.toFixed(2)}
-                    </div>
-                    <div className="text-xs font-normal">
-                      ({pnl >= 0 ? "+" : ""}
-                      {pnlPct.toFixed(2)}%)
-                    </div>
-                    {cagr !== undefined && (
-                      <div className="text-xs font-normal text-foreground-muted" title="Annualized return since purchase date">
-                        {cagr >= 0 ? "+" : ""}
-                        {cagr.toFixed(2)}%/yr
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => openAlertForm(h)}
-                    className="p-1 text-sm text-foreground-muted hover:text-foreground transition-colors"
-                    aria-label={`Create an alert for ${h.symbol}`}
-                    title="Create an alert for this holding"
-                  >
-                    🔔
-                  </button>
-                  <button
-                    onClick={() => remove(h._id)}
-                    disabled={removingId === h._id}
-                    className="p-1 text-sm text-foreground-muted hover:text-danger transition-colors disabled:opacity-40"
-                    aria-label={`Remove ${h.symbol} from My Holdings`}
-                    title={`Remove ${h.symbol} from My Holdings`}
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-
-              {alertFormFor === h.symbol && (
-                <div className="flex flex-wrap items-center gap-2 rounded-[7px] bg-surface-sunken p-3">
-                  <select
-                    value={alertConditionType}
-                    onChange={(e) => setAlertConditionType(e.target.value as ConditionType)}
-                    aria-label="Alert condition"
-                    className="input text-xs"
-                  >
-                    {Object.entries(CONDITION_LABELS).map(([type, label]) => (
-                      <option key={type} value={type}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    value={alertValue}
-                    onChange={(e) => setAlertValue(e.target.value)}
-                    type="number"
-                    aria-label="Condition value"
-                    className="input w-24 text-xs"
-                  />
-                  <button
-                    onClick={() => createQuickAlert(h.symbol)}
-                    disabled={alertSubmitting}
-                    className="btn-primary text-xs disabled:opacity-40"
-                  >
-                    {alertSubmitting ? "Creating…" : "Create"}
-                  </button>
-                  <button
-                    onClick={() => setAlertFormFor(null)}
-                    className="text-xs text-foreground-muted hover:text-foreground transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              )}
-              {alertCreatedFor === h.symbol && (
-                <p className="text-xs text-success">
-                  ✓ Alert created —{" "}
-                  <Link href="/alerts" className="underline underline-offset-4">
-                    view on the Alerts page
-                  </Link>
-                  .
-                </p>
-              )}
-            </li>
-          );
-        })}
+        {holdings.map((h) => (
+          <HoldingRow
+            key={h._id}
+            h={h}
+            price={prices[h.symbol] ?? h.avgCost}
+            removingId={removingId}
+            alertFormFor={alertFormFor}
+            alertConditionType={alertConditionType}
+            alertValue={alertValue}
+            alertSubmitting={alertSubmitting}
+            alertCreatedFor={alertCreatedFor}
+            onOpenAlertForm={openAlertForm}
+            onRemove={remove}
+            onAlertConditionTypeChange={setAlertConditionType}
+            onAlertValueChange={setAlertValue}
+            onCreateQuickAlert={createQuickAlert}
+            onCancelAlertForm={() => setAlertFormFor(null)}
+          />
+        ))}
       </ul>
 
       <Disclaimer>

@@ -9,6 +9,11 @@ interface Pick {
   reason: string;
 }
 
+interface Filter {
+  label: string;
+  value: string;
+}
+
 interface AiScreenerQueryProps {
   rows: ScreenerRow[];
   onResult: (symbols: string[]) => void;
@@ -20,6 +25,7 @@ export function AiScreenerQuery({ rows, onResult, onClear }: AiScreenerQueryProp
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [criteria, setCriteria] = useState<string | null>(null);
+  const [filters, setFilters] = useState<Filter[]>([]);
   const [picks, setPicks] = useState<Pick[]>([]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -36,6 +42,7 @@ export function AiScreenerQuery({ rows, onResult, onClear }: AiScreenerQueryProp
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "AI query failed");
       setCriteria(data.criteria);
+      setFilters(Array.isArray(data.filters) ? data.filters : []);
       setPicks(data.picks);
       onResult(data.picks.map((p: Pick) => p.symbol));
     } catch (err) {
@@ -47,6 +54,7 @@ export function AiScreenerQuery({ rows, onResult, onClear }: AiScreenerQueryProp
 
   function clear() {
     setCriteria(null);
+    setFilters([]);
     setPicks([]);
     setQuestion("");
     onClear();
@@ -82,6 +90,15 @@ export function AiScreenerQuery({ rows, onResult, onClear }: AiScreenerQueryProp
 
       {criteria && (
         <div className="flex flex-col gap-2">
+          {filters.length > 0 && (
+            <div className="flex flex-wrap gap-1.5" aria-label="Parsed filters">
+              {filters.map((f, i) => (
+                <span key={i} className="badge badge-ai">
+                  {f.label}: {f.value}
+                </span>
+              ))}
+            </div>
+          )}
           <p className="text-sm">
             <span className="font-medium">Criteria used:</span> {criteria}
           </p>

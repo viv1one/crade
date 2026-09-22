@@ -19,13 +19,22 @@ const SYSTEM_PROMPT =
   "terms of the actual numbers. If the request needs information not in the table (e.g. news, " +
   "earnings forecasts), say so plainly instead of guessing. " +
   "Respond with ONLY valid JSON, no other text, in this exact shape: " +
-  '{"criteria": "short description of the criteria you used", "picks": [{"symbol": "EXACT.NS", ' +
-  '"reason": "why this one, citing the actual numbers"}]}. Include at most 5 picks unless the user ' +
-  "asked for a specific different number.";
+  '{"criteria": "short description of the criteria you used", "filters": [{"label": "short field ' +
+  'name, e.g. Universe or RSI or P/E", "value": "short value, e.g. NIFTY 50 or < 30 or under 25"}], ' +
+  '"picks": [{"symbol": "EXACT.NS", "reason": "why this one, citing the actual numbers"}]}. ' +
+  "filters should break the criteria into 1-4 short label/value pairs a UI can render as separate " +
+  "tags (e.g. one filter per condition you actually applied) — filters is a structured version of " +
+  "criteria, not additional information. Include at most 5 picks unless the user asked for a " +
+  "specific different number.";
 
 interface AiPick {
   symbol: string;
   reason: string;
+}
+
+interface AiFilter {
+  label: string;
+  value: string;
 }
 
 export async function POST(request: Request) {
@@ -52,7 +61,7 @@ export async function POST(request: Request) {
       { task: "chat" }
     );
 
-    let parsed: { criteria: string; picks: AiPick[] };
+    let parsed: { criteria: string; filters?: AiFilter[]; picks: AiPick[] };
     try {
       const jsonMatch = result.content.match(/\{[\s\S]*\}/);
       parsed = JSON.parse(jsonMatch ? jsonMatch[0] : result.content);
@@ -69,8 +78,13 @@ export async function POST(request: Request) {
         typeof p?.symbol === "string" && validSymbols.has(p.symbol) && typeof p?.reason === "string"
     );
 
+    const filters = (Array.isArray(parsed.filters) ? parsed.filters : []).filter(
+      (f): f is AiFilter => typeof f?.label === "string" && typeof f?.value === "string"
+    );
+
     return NextResponse.json({
       criteria: typeof parsed.criteria === "string" ? parsed.criteria : "",
+      filters,
       picks,
       provider: result.provider,
       model: result.model,

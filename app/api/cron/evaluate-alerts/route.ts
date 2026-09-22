@@ -48,22 +48,35 @@ function isTriggered(alert: Alert, data: SymbolData): boolean {
   }
 }
 
-function formatMessage(alert: Alert, data: SymbolData): { title: string; body: string } {
+interface AlertMessage {
+  title: string;
+  body: string;
+  url: string;
+}
+
+// `url` deep-links to a Screener view filtered down to just this triggered
+// stock (see app/screener/screener-panel.tsx's `initialHighlighted` /
+// `?highlighted=` handling) rather than the service worker's default of
+// opening the bare home page on notification tap — lib/push/send.ts's
+// sendPushNotification already accepted an optional `url` in its payload
+// type, it just was never populated by this caller.
+function formatMessage(alert: Alert, data: SymbolData): AlertMessage {
   const { condition } = alert;
   const title = `${alert.symbol} alert triggered`;
+  const url = `/screener?highlighted=${encodeURIComponent(alert.symbol)}`;
   switch (condition.type) {
     case "price_above":
-      return { title, body: `Price ₹${data.quote.price.toFixed(2)} is above ₹${condition.value}` };
+      return { title, body: `Price ₹${data.quote.price.toFixed(2)} is above ₹${condition.value}`, url };
     case "price_below":
-      return { title, body: `Price ₹${data.quote.price.toFixed(2)} is below ₹${condition.value}` };
+      return { title, body: `Price ₹${data.quote.price.toFixed(2)} is below ₹${condition.value}`, url };
     case "rsi_below":
-      return { title, body: `RSI(14) dropped below ${condition.value}` };
+      return { title, body: `RSI(14) dropped below ${condition.value}`, url };
     case "volume_spike":
-      return { title, body: `Volume is ≥${condition.value}× the 20-day average` };
+      return { title, body: `Volume is ≥${condition.value}× the 20-day average`, url };
   }
 }
 
-async function notifyUserByEmail(userId: ObjectId, message: { title: string; body: string }) {
+async function notifyUserByEmail(userId: ObjectId, message: AlertMessage) {
   const { users } = await getCollections();
   const user = await users.findOne({ _id: userId });
   if (!user) return;
@@ -76,7 +89,7 @@ async function notifyUserByEmail(userId: ObjectId, message: { title: string; bod
   }
 }
 
-async function notifyUser(userId: ObjectId, message: { title: string; body: string }) {
+async function notifyUser(userId: ObjectId, message: AlertMessage) {
   const { pushSubscriptions } = await getCollections();
   const subs = await pushSubscriptions.find({ userId }).toArray();
   await Promise.all(

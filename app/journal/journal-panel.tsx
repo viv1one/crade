@@ -5,6 +5,9 @@ import { MarkdownContent } from "../markdown-content";
 import { Disclaimer } from "../disclaimer";
 import { JOURNAL_REVIEW_NOT_ADVICE, NOT_INVESTMENT_ADVICE } from "@/lib/disclaimers";
 import { SymbolDatalist, SYMBOL_SUGGESTIONS_ID } from "../symbol-datalist";
+import { JournalReviewChart } from "./journal-review-chart";
+import { VERDICT_BADGE_CLASS, type AgentPipelineResult } from "@/lib/agents/types";
+import { useToast } from "../toast-provider";
 
 interface JournalEntry {
   _id: string;
@@ -82,14 +85,82 @@ function JournalReview() {
   );
 }
 
-export function JournalPanel() {
+interface JournalPrefill {
+  symbol?: string;
+  action?: string;
+  price?: string;
+}
+
+interface AgentRunSummary {
+  result: AgentPipelineResult;
+  createdAt: string;
+}
+
+// Frozen data snapshot shown alongside the reasoning editor when arriving
+// here from a just-placed trade (?symbol=&action=&price=) — "what did the
+// data actually look like right when you traded," not live-updating, so it
+// reflects the moment being journaled rather than drifting while typing.
+function TradeSnapshot({ symbol }: { symbol: string }) {
+  const [quote, setQuote] = useState<{ price: number; changePercent: number } | null>(null);
+  const [verdict, setVerdict] = useState<AgentRunSummary | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/quote/${encodeURIComponent(symbol)}`)
+      .then((res) => res.json())
+      .then((data) => setQuote({ price: data.price, changePercent: data.changePercent }))
+      .catch(() => {});
+    fetch("/api/agents/run")
+      .then((res) => res.json())
+      .then((data: AgentRunSummary[]) => {
+        const match = Array.isArray(data) ? data.find((r) => r.result?.symbol === symbol) : undefined;
+        if (match) setVerdict(match);
+      })
+      .catch(() => {});
+  }, [symbol]);
+
+  return (
+    <div className="card p-3 flex flex-col gap-1.5 text-xs">
+      <p className="font-semibold text-foreground-muted uppercase tracking-wide">Snapshot at trade time</p>
+      <p className="font-mono text-sm">{symbol}</p>
+      {quote ? (
+        <p className={quote.changePercent >= 0 ? "text-success" : "text-danger"}>
+          ₹{quote.price.toFixed(2)} ({quote.changePercent >= 0 ? "+" : ""}
+          {quote.changePercent.toFixed(2)}%)
+        </p>
+      ) : (
+        <p className="text-foreground-muted">Loading price…</p>
+      )}
+      {verdict && (
+        <p>
+          Trading Agents:{" "}
+          <span className={`badge ${VERDICT_BADGE_CLASS[verdict.result.finalDecision.action]}`}>
+            {verdict.result.finalDecision.action.toUpperCase()}
+          </span>{" "}
+          <span className="text-foreground-muted">
+            ({new Date(verdict.createdAt).toLocaleDateString()})
+          </span>
+        </p>
+      )}
+    </div>
+  );
+}
+
+const VALID_PREFILL_ACTIONS = new Set<JournalEntry["action"]>(["buy", "sell", "watch"]);
+
+export function JournalPanel({ prefill }: { prefill?: JournalPrefill } = {}) {
+  const { showToast } = useToast();
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [chartOpenFor, setChartOpenFor] = useState<string | null>(null);
 
-  const [symbol, setSymbol] = useState("");
-  const [action, setAction] = useState<JournalEntry["action"]>("buy");
+  const [symbol, setSymbol] = useState(prefill?.symbol ?? "");
+  const [action, setAction] = useState<JournalEntry["action"]>(
+    prefill?.action && VALID_PREFILL_ACTIONS.has(prefill.action as JournalEntry["action"])
+      ? (prefill.action as JournalEntry["action"])
+      : "buy"
+  );
   const [reasoning, setReasoning] = useState("");
-  const [price, setPrice] = useState("");
+  const [price, setPrice] = useState(prefill?.price ?? "");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -146,6 +217,7 @@ export function JournalPanel() {
       setReasoning("");
       setPrice("");
       load();
+      showToast(`Journal entry logged for ${normalizedSymbol}`, "success");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add entry");
     } finally {
@@ -194,52 +266,59 @@ export function JournalPanel() {
         </p>
       </div>
 
-      <form onSubmit={handleAdd} className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
-        <label className="flex flex-col gap-1 text-xs text-foreground-muted w-40">
-          Symbol
-          <input
-            value={symbol}
-            onChange={(e) => setSymbol(e.target.value)}
-            placeholder="e.g. RELIANCE.NS or Adani"
-            list={SYMBOL_SUGGESTIONS_ID}
-            className="input"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-foreground-muted w-28">
-          Action
-          <select
-            value={action}
-            onChange={(e) => setAction(e.target.value as JournalEntry["action"])}
-            className="input"
-          >
-            <option value="buy">Buy</option>
-            <option value="sell">Sell</option>
-            <option value="watch">Watch</option>
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-foreground-muted flex-1 min-w-[14rem]">
-          Reasoning
-          <input
-            value={reasoning}
-            onChange={(e) => setReasoning(e.target.value)}
-            placeholder="Why are you making this call?"
-            className="input"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-foreground-muted w-28">
-          Price (optional)
-          <input
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            type="number"
-            placeholder="₹"
-            className="input"
-          />
-        </label>
-        <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-40">
-          Add
-        </button>
-      </form>
+      <div className={prefill?.symbol ? "grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-start" : undefined}>
+        <form onSubmit={handleAdd} className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+          <label className="flex flex-col gap-1 text-xs text-foreground-muted w-40">
+            Symbol
+            <input
+              value={symbol}
+              onChange={(e) => setSymbol(e.target.value)}
+              placeholder="e.g. RELIANCE.NS or Adani"
+              list={SYMBOL_SUGGESTIONS_ID}
+              className="input"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-foreground-muted w-28">
+            Action
+            <select
+              value={action}
+              onChange={(e) => setAction(e.target.value as JournalEntry["action"])}
+              className="input"
+            >
+              <option value="buy">Buy</option>
+              <option value="sell">Sell</option>
+              <option value="watch">Watch</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-foreground-muted flex-1 min-w-[14rem]">
+            Reasoning
+            <input
+              value={reasoning}
+              onChange={(e) => setReasoning(e.target.value)}
+              placeholder="Why are you making this call?"
+              className="input"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-foreground-muted w-28">
+            Price (optional)
+            <input
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              type="number"
+              placeholder="₹"
+              className="input"
+            />
+          </label>
+          <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-40">
+            Add
+          </button>
+        </form>
+        {prefill?.symbol && (
+          <div className="sm:w-56">
+            <TradeSnapshot symbol={prefill.symbol} />
+          </div>
+        )}
+      </div>
       {error && (
         <p role="alert" className="text-sm text-danger">
           {error}
@@ -277,6 +356,12 @@ export function JournalPanel() {
                 </span>
               </div>
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setChartOpenFor(chartOpenFor === entry._id ? null : entry._id)}
+                  className="btn-secondary-sm"
+                >
+                  {chartOpenFor === entry._id ? "Hide chart" : "View outcome chart"}
+                </button>
                 {!entry.outcome && (
                   <button
                     onClick={() => {
@@ -322,6 +407,12 @@ export function JournalPanel() {
                 >
                   Cancel
                 </button>
+              </div>
+            )}
+
+            {chartOpenFor === entry._id && (
+              <div className="rounded-[7px] bg-surface-sunken p-3">
+                <JournalReviewChart symbol={entry.symbol} entryAt={entry.createdAt} entryPrice={entry.price} />
               </div>
             )}
           </li>
