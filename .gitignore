@@ -33,6 +33,10 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 *credentials*.env
+# ...except the template itself — it holds var *names* and comments, never
+# real values, and every env var this project needs (see Commands in
+# CLAUDE.md) only exists in git via this file.
+!.env.example
 
 # vercel
 .vercel
