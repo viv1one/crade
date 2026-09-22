@@ -36,6 +36,8 @@ silently, and the chat panel surfaces that error in the UI. Push notifications n
 `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` (a real `mailto:`/`https:` URI — no angle brackets, `web-push`
 rejects those) plus `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (same value as `VAPID_PUBLIC_KEY`, browser-exposed).
 The alert cron endpoint needs `CRON_SECRET` if you want it to reject unauthenticated callers (see below).
+Email alerts need `RESEND_API_KEY` (optionally `RESEND_FROM_EMAIL`) — without one, alerts created with
+the email channel just fail to send per-alert rather than breaking anything else (see `lib/email/`).
 Optional, dev-only: `pip install -r requirements.txt` (a local `python3` with `jugaad-data` on its
 `PATH`) enables the `jugaad-data` market-data provider — see `lib/market-data/` below. Nothing else in
 the app needs Python; skip this and everything still works off the existing free HTTP providers.
@@ -228,7 +230,14 @@ touching call sites.
     `lib/backtest/indicators.ts`'s `rsi()` over 3 months of daily bars; `volume_spike` as today's volume
     vs. the 20-day average), and on trigger sets `status: "triggered"` + `lastTriggeredAt` and pushes to
     every subscription for that user (pruning subscriptions that come back 404/410 — expired/unregistered
-    endpoints). Gated by `CRON_SECRET` (`Authorization: Bearer <secret>`) when that env var is set.
+    endpoints). The other channel — `lib/email/send.ts`'s `sendEmailNotification`, a thin wrapper
+    around the `resend` SDK configured from `RESEND_API_KEY`/`RESEND_FROM_EMAIL` (defaults to Resend's
+    own sandbox sender, no domain verification needed) — is tried for `channel: "email"` alerts,
+    looking up the recipient via `users.findOne` (there's no separate email-subscriptions collection,
+    unlike push). Wrapped in its own try/catch (`notifyUserByEmail`) so a bounce or unset API key
+    degrades that one alert's delivery rather than 500ing the whole evaluation run. Chosen at
+    alert-creation time via `alerts-panel.tsx`'s channel select, defaulting to push. Gated by
+    `CRON_SECRET` (`Authorization: Bearer <secret>`) when that env var is set.
     Scheduled via `.github/workflows/evaluate-alerts.yml` (GitHub Actions, `*/5 * * * *`) rather than
     Vercel's own `crons` in `vercel.json` — Vercel Hobby-tier projects reject any cron schedule more
     frequent than once/day, and this endpoint needs 5-minute granularity to be useful, so a GitHub
@@ -343,6 +352,23 @@ add/edit/remove flow:
   creating an alert doesn't require a separate trip to `/alerts` and retyping the symbol.
   `ConditionType`/`CONDITION_LABELS` moved to `lib/alerts/labels.ts` since this UI and
   `app/alerts/alerts-panel.tsx` both need the identical map.
+
+### `app/journal/` — a personal trade journal, `docs/plan.md`'s V2 "shadow strategy" idea
+
+Not a trade log (see `lib/paper-trading/`/`app/holdings/` for actual positions) — this is a place to
+write down *why* before acting (or before deciding not to), then close the loop later. `JournalEntry`
+(`lib/db/collections.ts`, `journal_entries`, `userId`-scoped like `RealHolding`) is
+`{ symbol, action: "buy" | "sell" | "watch", reasoning, price?, outcome?, outcomeAt?, createdAt }`.
+`app/api/journal/route.ts` (list/create) + `app/api/journal/[id]/route.ts` mirror
+`app/api/holdings/`'s exact CRUD shape; the `PATCH` only ever sets `outcome`/`outcomeAt` — the
+original symbol/action/reasoning are left as a record of what was actually thought at the time, not
+editable after the fact. `app/api/journal/review/route.ts` is on-demand (a button, like
+`MarketDigest`/`PortfolioDiagnostics`, not auto-run) and reuses the same anti-prediction contract as
+`ai-query`/`holdings/diversify`: it describes patterns across the user's own entries (recurring
+reasoning themes, whether stated theses tended to match recorded outcomes) and is explicitly told
+never to predict returns or invent an entry not in the data given — new `"journal_review"` `ChatTask`
+(`lib/ai/types.ts`/`router.ts`, same cost-tolerant chain as `portfolio_review`) and
+`JOURNAL_REVIEW_NOT_ADVICE` disclaimer.
 
 ### Sharing (`shares` collection) — read-only peer invites, not a team/org model
 
@@ -537,6 +563,77 @@ kind, pairs trading, deliberately isn't a `StrategyDef` at all (see below) since
 - **`docs/strategy-library-log.md`** (created once the first Phase 1 strategy lands) tracks what's
   been implemented from the loop file's queue vs. skipped, and why.
 
+### `lib/agents/` + `lib/insider/` + `lib/sentiment/` + `app/trading-agents/` — multi-agent research pipeline
+
+Modeled on TauricResearch's TradingAgents paper/repo (§4.3's quick/deep-thinking model split, the
+Analyst Team → Researcher debate → Trader → Risk Management debate → Fund Manager role structure),
+adapted onto Crade's already-integrated data sources rather than a new provider stack. **This is the
+one AI surface in the entire app that deliberately ends in a directive buy/sell/hold call** — every
+other surface (chat, screener AI-query, portfolio diagnostics, digest) is explicitly barred from doing
+that; `lib/disclaimers.ts`'s `AGENT_DECISION_NOT_ADVICE` is correspondingly stronger and is shown
+directly under the decision itself, not just once at the page bottom.
+
+- **`lib/agents/pipeline.ts`** (`runTradingAgentsPipeline`) orchestrates the whole run for one symbol:
+  `fetchPipelineData` fetches quote + 3mo bars (the one hard dependency), then fundamentals, news,
+  Reddit sentiment, and insider activity in parallel, each independently `.catch()`-degraded to
+  `null`/empty rather than failing the whole run over one fragile source — same discipline as
+  `lib/ai/context.ts`'s `buildMarketContext`. Then: 4 analysts in parallel → one research debate → one
+  trader plan → one risk debate ending in the final decision. ~12 `chat()` calls total (the paper
+  reports ~11 per prediction, §5 footnote) — live-tested end-to-end against real free-tier NIM capacity
+  at 4m43s, which is why `app/api/agents/run/route.ts` sets `export const maxDuration = 300` (Vercel's
+  own ceiling outside Enterprise) rather than the default.
+- **`lib/agents/analysts.ts`** — 4 analysts (Technical, Fundamentals, News, Sentiment), each one
+  `chat()` call on task `"agent_report"` (fast tier first in `lib/ai/router.ts`) that only narrates
+  data the caller already fetched — same anti-fabrication instruction proven in `buildMarketContext`
+  ("only describe the data given, say so plainly if a section has none, never invent"). Fundamentals
+  analyst prompt includes insider activity inline when available (recent NSE PIT disclosures, or an
+  explicit "not available"/"none found" line otherwise).
+- **`lib/agents/research-debate.ts`** (bull → bear → facilitator, all `"agent_reasoning"` task — deep
+  tier first) and **`lib/agents/risk-debate.ts`** (risky/safe/neutral → Fund Manager final call, same
+  task) are both single-round, not the paper's configurable n-round debate (deliberate v1
+  simplification). Both prompts explicitly tell the model that debate disagreement alone is not a
+  reason to default to hold — it must weigh which side the underlying data actually supports.
+- **`lib/agents/parse-decision.ts`** — two ideas borrowed directly from TauricResearch's own
+  `rating.py`/`schemas.py`: `extractAction` (labelled `"action: X"` line first, then a single
+  unambiguous standalone action word, else `null` — never a guess) and `coerceOptionalPrice` (salvages
+  a plain number from `"₹1,234.50"`-style strings, drops percentages/`"N/A"` rather than guessing a
+  wrong absolute price). `TradeAction`'s `"review"` state (not a 4th real action) is what the
+  Trader/Fund Manager decisions fall back to when their JSON can't be parsed and `extractAction` also
+  comes up empty — deliberately **not** a silent "hold", since that would make a parsing failure
+  indistinguishable from a genuine considered Hold. The research debate's facilitator has its own
+  softer convention instead (defaults to `"bull"` but prefixes the summary with a visible
+  `[couldn't be parsed]` note) since that output only feeds forward as context, not a persisted final
+  call. The UI (`trading-agents-panel.tsx`) treats `"review"` as non-tradeable, same as `"hold"`, with
+  its own distinct amber badge/notice so it never reads as a real Hold call.
+- **`lib/insider/`** — `getInsiderActivity(symbol)` (6h cache, `insider_cache`, same TTL reasoning as
+  `withFundamentalsCache`) wraps `nse-insider.ts`'s `fetchInsiderActivity`, which scrapes NSE's PIT
+  (Prohibition of Insider Trading) disclosure endpoint — the Indian equivalent of the paper's US
+  SEDI-style filings. **Explicitly not yet verified live** (unlike `nse-free.ts`'s quote/historical
+  endpoints) — reverse-engineered from public documentation only; throws on failure, and
+  `lib/agents/pipeline.ts` degrades that to `null` rather than failing the run.
+- **`lib/sentiment/`** — `getSentiment(symbol)` (30min cache, `sentiment_cache`, same cadence as
+  `lib/news/`) wraps `reddit.ts`'s `fetchRedditPosts` (Reddit's public search JSON, no OAuth, restricted
+  to `r/IndianStreetBets+IndiaInvestments+IndianStockMarket` to keep a bare-ticker query relevant) and
+  `score.ts`'s `scoreSentiment` — a small deterministic finance-slang lexicon scorer, **not** another
+  LLM call, kept pure/I/O-free and unit-tested (`score.test.ts`) the same way
+  `lib/portfolio/diagnostics.ts` is. Deliberately crude (word-count based, no negation handling) — it's
+  meant to give the Sentiment Analyst a rough read to narrate, not a precise sentiment model; a
+  `confidence` field (low/medium/high, based on post *count*, not sentiment direction) is threaded
+  through so the analyst states plainly when a read is thin rather than projecting false certainty.
+- **`agentRuns`** (`lib/db/collections.ts`'s `AgentRun`, `userId`-scoped, one doc per run — not
+  upserted) is written by `app/api/agents/run/route.ts`'s `POST` and read back by its `GET` (added
+  after the fact — for a while runs were persisted but never shown again, unlike every other AI feature
+  in this app), rendered as a "Past analyses" list in `trading-agents-panel.tsx` matching
+  `backtest-panel.tsx`'s past-runs pattern; clicking a row just calls `setResult` on that run's stored
+  `result`, no refetch.
+- **UI** (`app/trading-agents/trading-agents-panel.tsx`): the verdict renders as a full card (not a
+  small badge) using `ACTION_STYLES`/`ACTION_LABELS`, includes a "Paper-trade this buy/sell" shortcut
+  reusing `usePaperPortfolio` (fills at the live quote, not a stale price from the analysis — same
+  discipline as every other Buy/Sell in the app) and a "Create alert if price drops below ₹X" shortcut
+  reusing the existing `POST /api/alerts` when the trader's plan states a stop-loss. Analyst
+  reports/debates render in collapsible `<details>` sections. A run takes up to ~5 minutes, so the page
+  explicitly tells the user to leave the tab open rather than showing a bare spinner with no context.
+
 ### App structure
 
 `app/page.tsx` is a client component (`"use client"`) that owns the single `usePaperPortfolio()` hook
@@ -568,9 +665,15 @@ model to reason about freshness at all and just gating the data before it gets t
 
 ### What's not built yet
 
-Per the roadmap in `docs/plan.md` §8: technical indicator/screening logic on the watchlist itself
-(exists for backtesting, not surfaced live), email as an alert channel (`Alert.channel: "email"` is
-accepted by the API but nothing sends it — only `"push"` is wired), and multi-device push (a user can
-subscribe multiple browsers/devices; nothing yet lets them view/revoke individual subscriptions). The
-`lib/` interfaces exist specifically so that work can build on stable seams rather than needing this
-document rewritten each time a data source or AI provider changes.
+Every item `docs/plan.md` §8's V1/V2 roadmap once listed here as missing is now built: technical
+indicators are live on the watchlist itself (`watchlist.tsx`'s RSI/SMA toggle, not just backtesting),
+multi-device push has a real view/revoke UI (`push-subscriptions-list.tsx`, on `/alerts`), email is a
+real alert channel (`lib/email/send.ts`, see `lib/push/`), and the "shadow strategy" trade journal
+idea is built (`app/journal/`). (Two of those three had quietly shipped without this section being
+updated — a reminder to actually check the code before trusting this list, not just trust prose left
+over from an earlier pass.)
+
+The one deliberately-deferred item is real broker execution (`docs/plan.md`'s V3) — gated behind
+SEBI's algo-trading framework (mandatory since April 1, 2026, see §7 and the top of this file), not a
+capability gap. The `lib/` interfaces exist specifically so that work can build on stable seams
+rather than needing this document rewritten each time a data source or AI provider changes.

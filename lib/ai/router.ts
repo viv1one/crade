@@ -66,6 +66,7 @@ const chainByTask: Record<ChatTask, string[]> = {
   chat: ["anthropic", "openai", "nim", "nim-large"],
   backtest_review: ["nim", "anthropic", "openai", "nim-large"],
   portfolio_review: ["nim", "anthropic", "openai", "nim-large"],
+  journal_review: ["nim", "anthropic", "openai", "nim-large"],
   // Mirrors the paper's §4.3 split: quick-thinking models narrate fetched
   // data (agent_report), deep-thinking models handle debate/decisions
   // (agent_reasoning) — see lib/agents/.

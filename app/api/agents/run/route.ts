@@ -19,6 +19,22 @@ import { runTradingAgentsPipeline } from "@/lib/agents/pipeline";
 // synchronously wherever the platform allows the full duration.
 export const maxDuration = 300;
 
+// Runs are persisted on every POST below but were never read back until
+// this — mirrors app/api/backtest's history endpoints (full docs returned,
+// UI sets its current result straight from a picked one).
+export async function GET() {
+  const user = await requireUserOrResponse();
+  if (user instanceof NextResponse) return user;
+
+  const { agentRuns } = await getCollections();
+  const list = await agentRuns
+    .find({ userId: new ObjectId(user.id) })
+    .sort({ createdAt: -1 })
+    .limit(20)
+    .toArray();
+  return NextResponse.json(list);
+}
+
 export async function POST(request: Request) {
   const user = await requireUserOrResponse();
   if (user instanceof NextResponse) return user;

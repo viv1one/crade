@@ -107,6 +107,26 @@ export interface RealHolding {
   createdAt: Date;
 }
 
+// A "shadow strategy" trade journal (docs/plan.md's V2 idea): the user logs
+// their own reasoning for a real (or considered) trade, then can come back
+// later and record what actually happened. Deliberately separate from
+// RealHolding/Trade — this is about *why*, not position accounting, and a
+// "watch" entry doesn't correspond to any holding at all. userId-scoped,
+// same as RealHolding — a personal journal has no sharing semantics.
+export interface JournalEntry {
+  _id: ObjectId;
+  userId: ObjectId;
+  symbol: string;
+  action: "buy" | "sell" | "watch";
+  reasoning: string;
+  price?: number;
+  // Filled in later, once there's something to report — see
+  // app/api/journal/[id]/route.ts's PATCH.
+  outcome?: string;
+  outcomeAt?: Date;
+  createdAt: Date;
+}
+
 export interface Candle {
   time: number;
   open: number;
@@ -277,6 +297,7 @@ export async function getCollections() {
     paperPortfolios: db.collection<PaperPortfolio>("paper_portfolios"),
     alerts: db.collection<Alert>("alerts"),
     realHoldings: db.collection<RealHolding>("real_holdings"),
+    journalEntries: db.collection<JournalEntry>("journal_entries"),
     priceCache: db.collection<PriceCache>("price_cache"),
     screenerSnapshots: db.collection<ScreenerSnapshot>("screener_snapshots"),
     lastKnownQuotes: db.collection<LastKnownQuote>("last_known_quotes"),

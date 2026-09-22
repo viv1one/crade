@@ -9,6 +9,7 @@ const NAV_LINKS = [
   { href: "/alerts", label: "Alerts" },
   { href: "/screener", label: "Screener" },
   { href: "/shared", label: "Shared with me" },
+  { href: "/journal", label: "Journal" },
   { href: "/backtest", label: "Backtest a strategy →" },
   { href: "/trading-agents", label: "Trading Agents" },
   { href: "/help", label: "Help" },

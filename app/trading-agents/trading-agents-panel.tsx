@@ -1,12 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MarkdownContent } from "../markdown-content";
 import { Disclaimer } from "../disclaimer";
 import { AGENT_DECISION_NOT_ADVICE, NOT_INVESTMENT_ADVICE, PAPER_TRADING_ONLY } from "@/lib/disclaimers";
 import { SymbolDatalist, SYMBOL_SUGGESTIONS_ID } from "../symbol-datalist";
 import { usePaperPortfolio } from "../use-paper-portfolio";
 import type { AgentPipelineResult } from "@/lib/agents/types";
+
+interface AgentRunSummary {
+  _id: string;
+  symbol: string;
+  result: AgentPipelineResult;
+  createdAt: string;
+}
 
 const ACTION_STYLES: Record<string, string> = {
   buy: "border-success/40 bg-success/10 text-success",
@@ -44,6 +51,18 @@ export function TradingAgentsPanel() {
   const [alertCreated, setAlertCreated] = useState(false);
   const { buy, sell } = usePaperPortfolio();
 
+  const [history, setHistory] = useState<AgentRunSummary[]>([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+
+  function loadHistory() {
+    fetch("/api/agents/run")
+      .then((res) => res.json())
+      .then((data) => setHistory(Array.isArray(data) ? data : []))
+      .finally(() => setHistoryLoaded(true));
+  }
+
+  useEffect(loadHistory, []);
+
   async function run(e: React.FormEvent) {
     e.preventDefault();
     const sym = symbol.trim().toUpperCase();
@@ -62,6 +81,7 @@ export function TradingAgentsPanel() {
       if (!res.ok) throw new Error(data.error ?? "Analysis failed");
       setResult(data);
       setAlertCreated(false);
+      loadHistory();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Analysis failed");
     } finally {
@@ -130,7 +150,7 @@ export function TradingAgentsPanel() {
         </button>
       </form>
 
-      {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
+      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
 
       {result && (
         <div className="flex flex-col gap-3">
@@ -141,7 +161,7 @@ export function TradingAgentsPanel() {
             </div>
             <MarkdownContent content={result.finalDecision.rationale} />
             {result.finalDecision.action === "review" && (
-              <p className="text-xs text-amber-700 dark:text-amber-400">
+              <p className="text-xs text-warning">
                 The model&apos;s response couldn&apos;t be read as a clear buy/sell/hold call — this is not a
                 real decision the pipeline reached, just a parsing failure. Read the rationale above and the
                 stage reports below directly, or re-run the analysis.
@@ -245,6 +265,45 @@ export function TradingAgentsPanel() {
           </p>
         </div>
       )}
+
+      <div>
+        <h3 className="text-sm font-medium mb-2">Past analyses</h3>
+        <ul className="card flex flex-col divide-y divide-border max-h-64 overflow-y-auto">
+          {!historyLoaded && (
+            <li className="p-4 text-sm text-foreground-muted">Loading history…</li>
+          )}
+          {historyLoaded && history.length === 0 && (
+            <li className="p-4 text-sm text-foreground-muted">No analyses run yet.</li>
+          )}
+          {history.map((run) => (
+            <li key={run._id}>
+              <button
+                onClick={() => {
+                  setResult(run.result);
+                  setError(null);
+                  setTraded(false);
+                  setAlertCreated(false);
+                }}
+                aria-label={`${run.symbol}, ${ACTION_LABELS[run.result.finalDecision.action]}, ${new Date(run.createdAt).toLocaleDateString()}`}
+                className="w-full flex flex-wrap items-center justify-between gap-x-4 gap-y-1 p-3 text-xs text-left hover:bg-background transition-colors"
+              >
+                <span aria-hidden="true" className="font-mono">{run.symbol}</span>
+                <span aria-hidden="true" className={`badge ${
+                  run.result.finalDecision.action === "buy" ? "badge-success"
+                  : run.result.finalDecision.action === "sell" ? "badge-danger"
+                  : run.result.finalDecision.action === "review" ? "badge-warning"
+                  : "badge-neutral"
+                }`}>
+                  {ACTION_LABELS[run.result.finalDecision.action]}
+                </span>
+                <span aria-hidden="true" className="text-foreground-muted">
+                  {new Date(run.createdAt).toLocaleDateString()}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
 
       <Disclaimer>{NOT_INVESTMENT_ADVICE}</Disclaimer>
       <Disclaimer>{PAPER_TRADING_ONLY}</Disclaimer>

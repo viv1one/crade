@@ -4,6 +4,7 @@ import { marketData } from "@/lib/market-data";
 import { getCollections } from "@/lib/db/collections";
 import { rsi } from "@/lib/backtest/indicators";
 import { sendPushNotification } from "@/lib/push/send";
+import { sendEmailNotification } from "@/lib/email/send";
 import type { Alert, PushSubscriptionDoc } from "@/lib/db/collections";
 import type { HistoricalBar, Quote } from "@/lib/market-data";
 
@@ -62,6 +63,19 @@ function formatMessage(alert: Alert, data: SymbolData): { title: string; body: s
   }
 }
 
+async function notifyUserByEmail(userId: ObjectId, message: { title: string; body: string }) {
+  const { users } = await getCollections();
+  const user = await users.findOne({ _id: userId });
+  if (!user) return;
+  try {
+    await sendEmailNotification(user.email, message);
+  } catch {
+    // A bounce/misconfigured RESEND_API_KEY/etc. shouldn't break evaluation
+    // of the rest of this run's alerts — same isolation notifyUser already
+    // gives each push subscription below.
+  }
+}
+
 async function notifyUser(userId: ObjectId, message: { title: string; body: string }) {
   const { pushSubscriptions } = await getCollections();
   const subs = await pushSubscriptions.find({ userId }).toArray();
@@ -114,6 +128,8 @@ export async function GET(request: Request) {
       );
       if (alert.channel === "push") {
         await notifyUser(alert.userId, formatMessage(alert, data));
+      } else if (alert.channel === "email") {
+        await notifyUserByEmail(alert.userId, formatMessage(alert, data));
       }
     }
   }

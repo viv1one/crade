@@ -21,6 +21,7 @@ export function AlertsPanel() {
   const [symbol, setSymbol] = useState("");
   const [conditionType, setConditionType] = useState<ConditionType>("price_above");
   const [value, setValue] = useState("");
+  const [channel, setChannel] = useState<"push" | "email">("push");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [pushGranted, setPushGranted] = useState(true);
@@ -56,6 +57,7 @@ export function AlertsPanel() {
         body: JSON.stringify({
           symbol: symbol.trim().toUpperCase(),
           condition: { type: conditionType, value: numericValue },
+          channel,
         }),
       });
       const data = await res.json();
@@ -128,6 +130,15 @@ export function AlertsPanel() {
           aria-label="Condition value"
           className="input w-28"
         />
+        <select
+          value={channel}
+          onChange={(e) => setChannel(e.target.value as "push" | "email")}
+          aria-label="Delivery channel"
+          className="input"
+        >
+          <option value="push">Push</option>
+          <option value="email">Email</option>
+        </select>
         <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-40">
           Add
         </button>
@@ -149,6 +160,8 @@ export function AlertsPanel() {
               <span className="font-mono text-sm font-medium">{alert.symbol}</span>
               <span className="text-xs text-foreground-muted">
                 {CONDITION_LABELS[alert.condition.type]} {alert.condition.value}
+                {" · "}
+                <span className="badge badge-neutral">{alert.channel}</span>
               </span>
               {alert.lastTriggeredAt && (
                 <span className="text-xs text-foreground-muted">
@@ -185,9 +198,9 @@ export function AlertsPanel() {
       </ul>
 
       <Disclaimer>
-        Alerts are checked periodically in the background and delivered as a push notification.
-        Push requires notification permission — see the browser prompt on first visit.{" "}
-        {NOT_INVESTMENT_ADVICE}
+        Alerts are checked periodically in the background and delivered as a push notification or
+        an email, depending on the channel chosen when the alert was created. Push requires
+        notification permission — see the browser prompt on first visit. {NOT_INVESTMENT_ADVICE}
       </Disclaimer>
     </div>
   );

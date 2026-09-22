@@ -28,3 +28,6 @@ export const DIAGNOSTICS_NOT_PREDICTIVE =
 // bottom of the page.
 export const AGENT_DECISION_NOT_ADVICE =
   "AI-generated simulated analysis for personal research only — not SEBI-registered investment advice, and Crade has no broker connection. Nothing here is a recommendation to trade real money.";
+
+export const JOURNAL_REVIEW_NOT_ADVICE =
+  "Describes patterns across your own past journal entries only — not a forecast of future returns, not a claim any past reasoning will keep working, and not investment advice.";
