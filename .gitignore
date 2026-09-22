@@ -37,6 +37,14 @@ yarn-error.log*
 # vercel
 .vercel
 
+# nektos/act (local GitHub Actions testing) — secrets file (per act's own
+# recommended convention) and local-only flattened workflow mirrors (a real
+# act 0.2.89 parsing bug means the actual .github/workflows/ files can't be
+# run through act as-is — see scripts/test-workflows-locally.sh). See
+# CLAUDE.md.
+.secrets
+.act/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

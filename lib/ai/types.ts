@@ -11,7 +11,11 @@ export type ChatTask =
   | "chat"
   | "digest"
   | "backtest_review"
-  | "portfolio_review";
+  | "portfolio_review"
+  // lib/agents/ — quick, per-analyst data-to-text narration (fast tier first)
+  | "agent_report"
+  // lib/agents/ — debate/trader/risk/fund-manager synthesis (paid tier first)
+  | "agent_reasoning";
 
 export interface ChatOptions {
   task: ChatTask;

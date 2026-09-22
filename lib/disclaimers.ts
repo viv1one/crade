@@ -20,3 +20,11 @@ export const BACKTESTED_NOT_PREDICTIVE =
 
 export const DIAGNOSTICS_NOT_PREDICTIVE =
   "Concentration, sector, and factor reads on your current holdings only — not a forecast of future returns or profit, and not investment advice.";
+
+// Unlike every other AI surface in this app, the Trading Agents pipeline
+// deliberately ends in a directive buy/sell/hold call (see lib/agents/) —
+// this disclaimer is stronger and more explicit than the others on purpose,
+// and is shown directly under the decision itself, not just once at the
+// bottom of the page.
+export const AGENT_DECISION_NOT_ADVICE =
+  "AI-generated simulated analysis for personal research only — not SEBI-registered investment advice, and Crade has no broker connection. Nothing here is a recommendation to trade real money.";

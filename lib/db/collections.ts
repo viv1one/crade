@@ -13,6 +13,9 @@ import type {
 } from "../backtest/types";
 import type { ScreenerRow } from "../screener/types";
 import type { NewsItem } from "../news/types";
+import type { SentimentSnapshot } from "../sentiment/types";
+import type { InsiderTransaction } from "../insider/types";
+import type { AgentPipelineResult } from "../agents/types";
 
 export interface User {
   _id: ObjectId;
@@ -158,6 +161,32 @@ export interface NewsCacheEntry {
   fetchedAt: Date;
 }
 
+export interface SentimentCacheEntry {
+  _id: ObjectId;
+  query: string;
+  snapshot: SentimentSnapshot;
+  fetchedAt: Date;
+}
+
+export interface InsiderCacheEntry {
+  _id: ObjectId;
+  symbol: string;
+  transactions: InsiderTransaction[];
+  fetchedAt: Date;
+}
+
+// One doc per pipeline run (not upserted) so a user can look back at a past
+// analysis — see lib/agents/pipeline.ts. Same ownerId-by-string-vs-ObjectId
+// split as the rest of this file: keyed by userId (ObjectId) like AiSession,
+// since a run belongs to a user's account, not a shared/owned resource.
+export interface AgentRun {
+  _id: ObjectId;
+  userId: ObjectId;
+  symbol: string;
+  result: AgentPipelineResult;
+  createdAt: Date;
+}
+
 export interface AiSession {
   _id: ObjectId;
   userId: ObjectId;
@@ -253,6 +282,9 @@ export async function getCollections() {
     lastKnownQuotes: db.collection<LastKnownQuote>("last_known_quotes"),
     newsCache: db.collection<NewsCacheEntry>("news_cache"),
     fundamentalsCache: db.collection<FundamentalsCacheEntry>("fundamentals_cache"),
+    sentimentCache: db.collection<SentimentCacheEntry>("sentiment_cache"),
+    insiderCache: db.collection<InsiderCacheEntry>("insider_cache"),
+    agentRuns: db.collection<AgentRun>("agent_runs"),
     backtests: db.collection<Backtest>("backtests"),
     portfolioBacktests: db.collection<PortfolioBacktest>("portfolio_backtests"),
     crossSectionalBacktests: db.collection<CrossSectionalBacktest>("cross_sectional_backtests"),

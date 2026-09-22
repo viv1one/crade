@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "generate:nse-universe": "node scripts/generate-nse-universe.mjs",
-    "seed:screener-local": "node scripts/seed-screener-locally.mjs"
+    "seed:screener-local": "node scripts/seed-screener-locally.mjs",
+    "test:workflow": "bash scripts/test-workflows-locally.sh"
   },
   "dependencies": {
     "mongodb": "^7.5.0",

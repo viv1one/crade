@@ -10,6 +10,7 @@ const NAV_LINKS = [
   { href: "/screener", label: "Screener" },
   { href: "/shared", label: "Shared with me" },
   { href: "/backtest", label: "Backtest a strategy →" },
+  { href: "/trading-agents", label: "Trading Agents" },
   { href: "/help", label: "Help" },
 ];
 
