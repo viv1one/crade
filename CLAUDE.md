@@ -262,6 +262,28 @@ touching call sites.
     the pure function, and persists the result. This avoids two concurrent trades racing on
     client-computed state. `app/use-paper-portfolio.ts` is a thin client hook around this API — no
     business logic lives there anymore.
+  - **`equityCurve`** (`PaperPortfolio.equityCurve`, optional — `lib/backtest/types.ts`'s `EquityPoint`
+    shape, reused as-is) gives the Portfolio page a real performance chart via the *same*
+    `EquityChart`/`useBenchmarkCurve` components `app/backtest/` already built, with zero changes to
+    either — deliberately kept out of `PortfolioState`/`store.ts` itself (those stay pure/I-O-free;
+    computing a point needs live quotes for every currently-held symbol, not just the one traded, which
+    only the route can do). Two independent sources feed the same array, both idempotent-safe to run
+    any number of times:
+    - **Per-trade** (in `app/api/portfolio/route.ts`'s POST): after every buy/sell, `markToMarket()`
+      fetches a live quote for each held symbol (degrading to `avgCost` on a failed fetch, same rule
+      `app/portfolio.tsx`'s own client-side display already follows) and appends one point. A brand-new
+      user's very first GET is pre-seeded with a single starting point (equity = starting cash) so their
+      first trade already produces a real 2-point line, not a single dot.
+    - **Daily mark-to-market** (`app/api/cron/snapshot-portfolios/route.ts`, `CRON_SECRET`-gated same as
+      `evaluate-alerts`, scheduled via `.github/workflows/snapshot-portfolios.yml` at 10:15 UTC / 15:45
+      IST on trading days, reusing the same `CRON_SECRET`/`CRADE_DEPLOYMENT_URL` secrets — no new ones
+      needed): fills in the gaps between trades so a buy-and-hold portfolio still shows real day-to-day
+      drift instead of a flat line. Batches quote fetches by symbol across *every* user's portfolio in
+      one pass (same discipline `evaluate-alerts` already uses), skips cash-only portfolios (nothing to
+      mark), and is idempotent per **IST calendar day** — a portfolio whose last point (from a trade or
+      an earlier run) is already dated today gets skipped, so a manual re-run or a retried schedule tick
+      never double-snapshots. This means the curve is deliberately *not* a smooth line: it moves at
+      trade time and once more per trading day, not continuously.
   - `app/api/watchlist/route.ts` / `app/use-watchlist.ts` follow the same shape for the symbol list
     (full-array GET/POST, keyed by the same `ownerId`).
   - `app/watchlist.tsx` auto-fetches each symbol's quote the first time it appears (initial load or

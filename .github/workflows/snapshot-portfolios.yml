@@ -1,0 +1,22 @@
+name: Snapshot paper portfolios
+
+on:
+  schedule:
+    # 10:15 UTC = 15:45 IST, ~15 min after NSE's 15:30 IST close — once per
+    # trading day (Mon-Fri) is enough for a personal practice app; weekends
+    # are skipped since NSE isn't open and quotes wouldn't have moved.
+    # The route itself is also idempotent per IST calendar day (see its own
+    # comment), so a manual re-run or a retried schedule tick never
+    # double-snapshots.
+    - cron: "15 10 * * 1-5"
+  workflow_dispatch: {}
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call snapshot-portfolios endpoint
+        run: |
+          curl -sf -X GET \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.CRADE_DEPLOYMENT_URL }}/api/cron/snapshot-portfolios"

@@ -69,6 +69,14 @@ export interface PaperPortfolio {
   cash: number;
   holdings: Record<string, Holding>;
   trades: Trade[];
+  // One point appended after every buy/sell (see app/api/portfolio/route.ts)
+  // — total value (cash + holdings marked to the live quote at that
+  // instant), not a continuous daily curve. A portfolio that goes untraded
+  // for a while just has no new points in that stretch, same tradeoff
+  // lib/backtest/'s own EquityPoint shape is built around. Optional so
+  // existing docs from before this field existed don't need a migration —
+  // the route lazily seeds it on first read.
+  equityCurve?: EquityPoint[];
   updatedAt: Date;
 }
 

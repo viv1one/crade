@@ -3,18 +3,22 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Trade, Holding } from "@/lib/paper-trading/types";
 import { STARTING_CASH } from "@/lib/paper-trading/types";
+import type { EquityPoint } from "@/lib/backtest/types";
 import { PortfolioDiagnostics } from "./portfolio-diagnostics";
+import { EquityChart } from "./backtest/equity-chart";
+import { useBenchmarkCurve } from "./backtest/use-benchmark-curve";
 
 interface PortfolioProps {
   cash: number;
   holdings: Record<string, Holding>;
   trades: Trade[];
+  equityCurve: EquityPoint[];
   error: string | null;
   loaded: boolean;
   onReset: () => void;
 }
 
-export function Portfolio({ cash, holdings, trades, error, loaded, onReset }: PortfolioProps) {
+export function Portfolio({ cash, holdings, trades, equityCurve, error, loaded, onReset }: PortfolioProps) {
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
   const symbols = Object.keys(holdings);
@@ -54,6 +58,7 @@ export function Portfolio({ cash, holdings, trades, error, loaded, onReset }: Po
   }, 0);
   const totalValue = cash + holdingsValue;
   const totalPnl = totalValue - STARTING_CASH;
+  const { benchmarkCurve } = useBenchmarkCurve(equityCurve, STARTING_CASH);
 
   return (
     <div className="w-full max-w-2xl flex flex-col gap-6">
@@ -111,6 +116,17 @@ export function Portfolio({ cash, holdings, trades, error, loaded, onReset }: Po
               </div>
             </div>
           </div>
+
+          {equityCurve.length > 1 && (
+            <div className="card p-4 flex flex-col gap-2">
+              <h3 className="text-sm font-medium">Performance</h3>
+              <p className="text-xs text-foreground-muted -mt-1">
+                One point per trade, marked to the live quote at that moment — not a continuous
+                daily curve, so it only moves when you actually buy or sell.
+              </p>
+              <EquityChart equityCurve={equityCurve} startingCash={STARTING_CASH} benchmarkCurve={benchmarkCurve ?? undefined} />
+            </div>
+          )}
 
           <PortfolioDiagnostics endpoint="/api/portfolio/diagnostics" hasHoldings={symbols.length > 0} />
 

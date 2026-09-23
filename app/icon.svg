@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Crade">
+  <title>Crade</title>
+  <!--
+    Crade app mark. A "C" arc (the name) whose open right side is closed by a
+    single candlestick (the domain) — reads as a solid C silhouette at favicon
+    size, resolves into market iconography at app-icon size.
+
+    Colors are the app's own dark-theme tokens (see app/globals.css), not new
+    brand colors: #5b84e6 sits in the accent / accent-hover family but is
+    lifted enough to hold contrast on the charcoal field, and #e8edf5 matches
+    the foreground token. Deliberately flat (no gradient, gloss or 3D) per
+    the product's "institutional terminal, not retail gamification" framing.
+
+    The mark is scaled to 0.92 about the center so its bounding box stays
+    inside the maskable-icon safe zone (the centre 80% circle, r=204.8 of
+    512): at this scale the mark's furthest corner sits at r≈193, so Android
+    adaptive-icon cropping can't clip it.
+  -->
+  <rect width="512" height="512" rx="114" fill="#10151f"/>
+  <g transform="translate(256 256) scale(1.1) translate(-256 -256)">
+    <path d="M 309.68 159.34 A 118 118 0 1 0 309.68 352.66"
+          fill="none" stroke="#5b84e6" stroke-width="56" stroke-linecap="round"/>
+    <line x1="387" y1="120" x2="387" y2="392"
+          stroke="#e8edf5" stroke-width="16" stroke-linecap="round"/>
+    <rect x="359" y="186" width="56" height="140" rx="10" fill="#e8edf5"/>
+  </g>
+</svg>

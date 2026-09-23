@@ -3,8 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { createEmptyPortfolio } from "@/lib/paper-trading/store";
 import type { PortfolioState } from "@/lib/paper-trading/types";
+import type { EquityPoint } from "@/lib/backtest/types";
 
-async function postTrade(body: Record<string, unknown>): Promise<PortfolioState> {
+type PortfolioStateWithCurve = PortfolioState & { equityCurve: EquityPoint[] };
+
+async function postTrade(body: Record<string, unknown>): Promise<PortfolioStateWithCurve> {
   const res = await fetch("/api/portfolio", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -16,14 +19,14 @@ async function postTrade(body: Record<string, unknown>): Promise<PortfolioState>
 }
 
 export function usePaperPortfolio() {
-  const [state, setState] = useState<PortfolioState>(createEmptyPortfolio());
+  const [state, setState] = useState<PortfolioStateWithCurve>({ ...createEmptyPortfolio(), equityCurve: [] });
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     fetch("/api/portfolio")
       .then((res) => res.json())
-      .then((data: PortfolioState) => setState(data))
+      .then((data: PortfolioStateWithCurve) => setState(data))
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load portfolio"))
       .finally(() => setLoaded(true));
   }, []);

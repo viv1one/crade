@@ -38,6 +38,7 @@ function HomeContent() {
           cash={portfolio.cash}
           holdings={portfolio.holdings}
           trades={portfolio.trades}
+          equityCurve={portfolio.equityCurve}
           error={portfolio.error}
           loaded={portfolio.loaded}
           onReset={portfolio.reset}

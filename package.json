@@ -13,6 +13,7 @@
     "test": "vitest run",
     "generate:nse-universe": "node scripts/generate-nse-universe.mjs",
     "seed:screener-local": "node scripts/seed-screener-locally.mjs",
+    "generate:icons": "node scripts/generate-icons.mjs",
     "test:workflow": "bash scripts/test-workflows-locally.sh"
   },
   "dependencies": {

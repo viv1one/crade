@@ -19,6 +19,10 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|manifest.json|sw.js|login|signup).*)",
+    // offline.html must stay excluded: sw.js's install handler fetches and
+    // caches it directly (see public/sw.js), and if that fetch got
+    // redirected to /login instead, the service worker would silently
+    // cache the *login page* under the offline-fallback cache key.
+    "/((?!api|_next/static|_next/image|favicon.ico|manifest.json|sw.js|offline.html|login|signup).*)",
   ],
 };
