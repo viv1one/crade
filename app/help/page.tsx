@@ -89,7 +89,7 @@ const SECTIONS: Section[] = [
       "Bull vs. Bear debate — two more agents argue the strongest case for and against the stock using only the analyst reports, shown side by side with the stronger-supported case highlighted.",
       "Trader's plan — proposes an initial Buy/Sell/Hold with a suggested entry price and stop-loss.",
       "Risk debate & Fund Manager decision — three more agents (Risky/Safe/Neutral) react to the trader's plan, and a final \"Fund Manager\" call turns all of it into one verdict with a confidence level (low/medium/high) and a written reason.",
-      "You can watch a live checklist tick off each stage as it finishes — a full run is ~12 chained AI calls and takes up to 5 minutes, but it now runs in the background, so you can navigate away and come back.",
+      "You can watch a live checklist tick off each stage as it finishes — a full run is ~12 chained AI calls and takes up to 5 minutes, but it runs in the background and is designed to survive slow or interrupted servers: it saves its progress as it goes and picks up where it left off. Keep the page open while it runs — the open page is what keeps it moving. If it genuinely stops making progress (the AI provider or hosting is having trouble) you'll get a message asking you to try again in a few minutes.",
       "A Buy/Sell verdict can be turned straight into a paper trade, or into a stop-loss price alert, with one click.",
       "Every run is saved under \"Past analyses\" so you can reopen it later without re-running it — a verdict older than 2 days is marked stale.",
       "You can also launch this on any stock straight from the Screener's ⚡ Agents button, or a stale/fresh badge on a Watchlist row — it opens in a popup rather than leaving the page you're on.",

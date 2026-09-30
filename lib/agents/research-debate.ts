@@ -1,4 +1,4 @@
-import { chat } from "../ai";
+import { checkpointedChat, type Checkpoints } from "./checkpoint";
 import type { AnalystReports, DebateResult } from "./types";
 
 function reportsText(symbol: string, reports: AnalystReports): string {
@@ -16,10 +16,16 @@ function reportsText(symbol: string, reports: AnalystReports): string {
 // n rounds (deliberate v1 simplification, see the approved plan). Task
 // "agent_reasoning" (deep-thinking tier first, mirrors the paper's §4.3
 // split for reasoning-heavy work).
-export async function runResearchDebate(symbol: string, reports: AnalystReports): Promise<DebateResult> {
+export async function runResearchDebate(
+  symbol: string,
+  reports: AnalystReports,
+  checkpoints?: Checkpoints
+): Promise<DebateResult> {
   const context = reportsText(symbol, reports);
 
-  const bull = await chat(
+  const bull = await checkpointedChat(
+    checkpoints,
+    "debate_bull",
     [
       {
         role: "system",
@@ -33,7 +39,9 @@ export async function runResearchDebate(symbol: string, reports: AnalystReports)
     { task: "agent_reasoning" }
   );
 
-  const bear = await chat(
+  const bear = await checkpointedChat(
+    checkpoints,
+    "debate_bear",
     [
       {
         role: "system",
@@ -48,7 +56,9 @@ export async function runResearchDebate(symbol: string, reports: AnalystReports)
     { task: "agent_reasoning" }
   );
 
-  const facilitator = await chat(
+  const facilitator = await checkpointedChat(
+    checkpoints,
+    "debate_facilitator",
     [
       {
         role: "system",

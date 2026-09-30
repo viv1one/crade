@@ -603,8 +603,20 @@ directly under the decision itself, not just once at the page bottom.
   `lib/ai/context.ts`'s `buildMarketContext`. Then: 4 analysts in parallel → one research debate → one
   trader plan → one risk debate ending in the final decision. ~12 `chat()` calls total (the paper
   reports ~11 per prediction, §5 footnote) — live-tested end-to-end against real free-tier NIM capacity
-  at 4m43s, which is why `app/api/agents/run/route.ts` sets `export const maxDuration = 300` (Vercel's
-  own ceiling outside Enterprise) rather than the default.
+  at 4m43s. **A run is resumable across server invocations** (`app/api/agents/run/[id]/route.ts`,
+  `lib/agents/checkpoint.ts`), because hosts that cap function duration below that killed runs
+  mid-debate and left them stuck "running" forever (observed in production: analysts ✓, then nothing).
+  Each POST *claims* the run atomically (`heartbeatAt` staleness = the previous invocation died),
+  heartbeats every 5s, and works for at most `AGENTS_STEP_BUDGET_SECONDS` (default 20) — after each save
+  it ends cleanly with `202` and an epoch heartbeat so the run reads as `stalled` immediately. Progress is
+  saved at two granularities: whole stages in `result` (analysts → debate → trader → risk; the pipeline
+  skips any stage already present, and skips the data fetch entirely once `reports` exist) and, for the
+  two multi-call stages, every individual AI call in `checkpoints` via `checkpointedChat`, so a
+  debate cut off after the bull case redoes only the calls after it. GET reports `stalled` / `idleMs`
+  (computed server-side, no client/server clock comparison); the polling client re-POSTs whenever
+  `stalled`, so a deliberate hand-off and a killed function recover the same way. Backstops:
+  `MAX_INVOCATIONS` (40) server-side, and a 4-minute no-progress / 20-minute absolute cap client-side.
+  `maxDuration = 300` is kept as the ceiling where the plan honors it, but nothing depends on it.
 - **`lib/agents/analysts.ts`** — 4 analysts (Technical, Fundamentals, News, Sentiment), each one
   `chat()` call on task `"agent_report"` (fast tier first in `lib/ai/router.ts`) that only narrates
   data the caller already fetched — same anti-fabrication instruction proven in `buildMarketContext`
@@ -655,7 +667,9 @@ directly under the decision itself, not just once at the page bottom.
   discipline as every other Buy/Sell in the app) and a "Create alert if price drops below ₹X" shortcut
   reusing the existing `POST /api/alerts` when the trader's plan states a stop-loss. Analyst
   reports/debates render in collapsible `<details>` sections. A run takes up to ~5 minutes, so the page
-  explicitly tells the user to leave the tab open rather than showing a bare spinner with no context.
+  explicitly tells the user to leave the tab open rather than showing a bare spinner with no context
+  (the tab is what re-triggers the next server invocation; if it is closed the run pauses and resumes
+  when the page is reopened on it or run again).
 
 ### App structure
 

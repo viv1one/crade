@@ -221,6 +221,15 @@ export interface AgentRun {
   result: Partial<AgentPipelineResult>;
   error?: string;
   createdAt: Date;
+  // Resumable execution (see app/api/agents/run/[id]/route.ts): finished AI
+  // calls keyed by step, a liveness heartbeat written while an invocation is
+  // working (stale => that invocation died and another may claim the run),
+  // when something last actually advanced, and how many invocations it has
+  // taken so a run that can never finish is eventually failed.
+  checkpoints?: Record<string, { content: string; provider: string; model: string }>;
+  heartbeatAt?: Date;
+  lastProgressAt?: Date;
+  invocations?: number;
 }
 
 export interface AiSession {

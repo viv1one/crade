@@ -1,4 +1,4 @@
-import { chat } from "../ai";
+import { checkpointedChat, type Checkpoints } from "./checkpoint";
 import { extractAction } from "./parse-decision";
 import type { AnalystReports, FinalDecision, RiskDebateResult, TraderPlan } from "./types";
 
@@ -14,8 +14,16 @@ function planText(symbol: string, reports: AnalystReports, plan: TraderPlan): st
   ].join("\n");
 }
 
-async function riskVoice(role: string, instruction: string, context: string): Promise<string> {
-  const result = await chat(
+async function riskVoice(
+  checkpoints: Checkpoints | undefined,
+  key: string,
+  role: string,
+  instruction: string,
+  context: string
+): Promise<string> {
+  const result = await checkpointedChat(
+    checkpoints,
+    key,
     [{ role: "system", content: `You are the ${role} on the Risk Management team. ${instruction}` }, { role: "user", content: context }],
     { task: "agent_reasoning" }
   );
@@ -31,30 +39,39 @@ async function riskVoice(role: string, instruction: string, context: string): Pr
 export async function runRiskDebate(
   symbol: string,
   reports: AnalystReports,
-  plan: TraderPlan
+  plan: TraderPlan,
+  checkpoints?: Checkpoints
 ): Promise<{ debate: RiskDebateResult; decision: FinalDecision }> {
   const context = planText(symbol, reports, plan);
 
   const risky = await riskVoice(
+    checkpoints,
+    "risk_risky",
     "Risky Analyst",
     "Argue for leaning into the trader's plan (or going further) if the data supports upside, even " +
       "with elevated risk. Ground this only in the data given.",
     context
   );
   const safe = await riskVoice(
+    checkpoints,
+    "risk_safe",
     "Safe Analyst",
     "Argue for caution — highlight what could go wrong with the trader's plan and where the data " +
       "supports waiting or a smaller position. Ground this only in the data given.",
     context
   );
   const neutral = await riskVoice(
+    checkpoints,
+    "risk_neutral",
     "Neutral Analyst",
     "Weigh the Risky and Safe perspectives (given below alongside the original data) and describe a " +
       "balanced middle path.",
     `${context}\n\nRisky Analyst:\n${risky}\n\nSafe Analyst:\n${safe}`
   );
 
-  const fundManager = await chat(
+  const fundManager = await checkpointedChat(
+    checkpoints,
+    "risk_fm",
     [
       {
         role: "system",

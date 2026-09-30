@@ -45,16 +45,17 @@ const STAGES: { key: keyof AgentPipelineResult; label: string }[] = [
 ];
 
 const POLL_INTERVAL_MS = 3000;
-// The pipeline has been measured at ~4m43s against real NIM capacity, and
-// the execution route's own maxDuration caps at 300s — but on Vercel that
-// cap is only honored on Pro+; Hobby kills the function well before then.
-// If the platform kills the run mid-flight, the execution route's own
-// try/catch never runs (the whole process is terminated, not a JS
-// exception), so the run doc can be left stuck at status "running" forever
-// with nothing to ever flip it to "failed". This is the client-side
-// backstop for that: give up waiting a bit past the longest known-good
-// duration rather than polling forever.
-const RUN_TIMEOUT_MS = 6 * 60 * 1000;
+// A run is resumable across server invocations (see
+// app/api/agents/run/[id]/route.ts): each invocation works for a short
+// budget, and this poll loop re-triggers the run whenever GET reports it
+// `stalled` — whether the previous invocation handed off on purpose or was
+// killed by the host. So a long run is no longer "stuck" just because it is
+// long. Two backstops remain for a run that genuinely can't finish:
+// - IDLE_TIMEOUT_MS: nothing has advanced (no stage or AI call saved) for
+//   this long, even with continuations being triggered.
+// - RUN_TIMEOUT_MS: an absolute cap.
+const IDLE_TIMEOUT_MS = 4 * 60 * 1000;
+const RUN_TIMEOUT_MS = 20 * 60 * 1000;
 
 interface TradingAgentsRunProps {
   symbol: string;
@@ -91,6 +92,9 @@ export function TradingAgentsRun({ symbol, onComplete, initialResult }: TradingA
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const settledRef = useRef(false);
   const startedAtRef = useRef(0);
+  // True while a poll request is in flight, so a slow response can never be
+  // overtaken by a newer one and then overwrite it with staler data.
+  const pollingRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -103,6 +107,13 @@ export function TradingAgentsRun({ symbol, onComplete, initialResult }: TradingA
       clearInterval(pollRef.current);
       pollRef.current = null;
     }
+  }
+
+  // Starts (or resumes) server-side execution. The response is deliberately
+  // ignored — the poll loop reading the run doc is the source of truth — and
+  // a network failure or a platform error page here is not a run failure.
+  function continueRun(runId: string) {
+    fetch(`/api/agents/run/${runId}`, { method: "POST" }).catch(() => {});
   }
 
   async function run() {
@@ -124,21 +135,30 @@ export function TradingAgentsRun({ symbol, onComplete, initialResult }: TradingA
       const runId = created.runId;
 
       pollRef.current = setInterval(async () => {
-        if (settledRef.current) return;
+        if (settledRef.current || pollingRef.current) return;
         if (Date.now() - startedAtRef.current > RUN_TIMEOUT_MS) {
           settledRef.current = true;
           stopPolling();
           setStatus("failed");
           setError(
-            "This is taking longer than expected and may have hit a hosting time limit. " +
-              "Check the \"Past analyses\" list in a minute — the run may still complete in the background."
+            "This analysis is taking far longer than expected. Check the \"Past analyses\" list in a " +
+              "minute — it may still complete — or run it again."
           );
           return;
         }
+        pollingRef.current = true;
         try {
           const res = await fetch(`/api/agents/run/${runId}`);
           if (!res.ok) return;
-          const doc = await safeJson<{ status: string; result?: AgentPipelineResult; error?: string }>(res);
+          const doc = await safeJson<{
+            status: string;
+            result?: AgentPipelineResult;
+            error?: string;
+            stalled?: boolean;
+            idleMs?: number;
+          }>(res);
+          // The run may have settled while this request was in flight.
+          if (settledRef.current) return;
           setPartial(doc.result ?? {});
           if (doc.status === "complete" && !settledRef.current) {
             settledRef.current = true;
@@ -150,26 +170,31 @@ export function TradingAgentsRun({ symbol, onComplete, initialResult }: TradingA
             stopPolling();
             setStatus("failed");
             setError(doc.error ?? "Analysis failed");
+          } else if (doc.status === "running" && !settledRef.current) {
+            if ((doc.idleMs ?? 0) > IDLE_TIMEOUT_MS) {
+              settledRef.current = true;
+              stopPolling();
+              setStatus("failed");
+              setError(
+                "The analysis stopped making progress (the AI provider or hosting may be having trouble). " +
+                  "Please try again in a few minutes."
+              );
+            } else if (doc.stalled) {
+              // No live invocation is working on this run (it handed off, or
+              // was cut off by the host) — start the next one. The server
+              // claim is atomic, so a duplicate request here is harmless.
+              continueRun(runId);
+            }
           }
         } catch {
           // Transient poll failure (bad JSON, network hiccup) — try again
           // on the next tick rather than surfacing a one-off glitch.
+        } finally {
+          pollingRef.current = false;
         }
       }, POLL_INTERVAL_MS);
 
-      // Kicks off execution but deliberately doesn't let this call's own
-      // response settle UI state — the poll loop above (reading the run
-      // doc directly) is the sole source of truth for status. This request
-      // can take minutes, and the hosting platform may kill it before any
-      // response comes back at all (see app/api/agents/run/[id]/route.ts's
-      // comment on serverless timeout limits); when that happens this
-      // promise would otherwise resolve with a non-JSON error page and crash
-      // the UI on `.json()`, even though the run itself may still complete
-      // server-side moments later.
-      fetch(`/api/agents/run/${runId}`, { method: "POST" }).catch(() => {
-        // Network-level failure only — the poll loop keeps checking the
-        // run doc regardless of what happens to this specific request.
-      });
+      continueRun(runId);
     } catch (err) {
       settledRef.current = true;
       stopPolling();
@@ -206,7 +231,9 @@ export function TradingAgentsRun({ symbol, onComplete, initialResult }: TradingA
     }).then(() => setAlertCreated(true));
   }
 
-  const result = status === "complete" ? (partial as AgentPipelineResult) : null;
+  // Only render the verdict card from a result that actually has one — never
+  // from a partial that merely arrived while status flipped to complete.
+  const result = status === "complete" && partial.finalDecision ? (partial as AgentPipelineResult) : null;
 
   return (
     <div className="flex flex-col gap-3">
