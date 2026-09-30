@@ -686,6 +686,19 @@ indication anything was off, which is the same category of problem as the market
 fabrication issues elsewhere in this file — the fix here isn't a prompt change, it's not asking the
 model to reason about freshness at all and just gating the data before it gets there).
 
+### Onboarding & UX primitives
+
+- `app/welcome-card.tsx` — dismissible first-run guide on the home page (4 steps: watchlist → Chat → Alerts →
+  Backtest); dismissed flag is `localStorage` (`crade_welcome_dismissed`), so it's per-browser by design.
+- `app/page-intro.tsx` — one-line "what is this page for" with a Research / Practice / Track badge; the nav
+  (`app-shell-nav.tsx`) carries the same wording as a `desc` on every destination.
+- `app/progress-note.tsx` — spinner + elapsed seconds + stage text that changes as a wait grows; use it (not a
+  bare spinner) for any action that can take more than a couple of seconds.
+- `app/watchlist.tsx` shows the *reason* Buy/Sell is disabled as visible text (stale quote, no quote, bad qty) —
+  tooltips don't exist on touch. Empty watchlist offers one-tap NIFTY 50 suggestions.
+- `globals.css` has a `@media (pointer: coarse)` block raising buttons/inputs to ~44px and 16px input text
+  (prevents iOS focus-zoom); `layout.tsx` sets `viewportFit: "cover"` so the bottom nav clears the home indicator.
+
 ### What's not built yet
 
 Every item `docs/plan.md` §8's V1/V2 roadmap once listed here as missing is now built: technical

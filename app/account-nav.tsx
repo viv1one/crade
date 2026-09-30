@@ -21,11 +21,11 @@ export function AccountNav() {
   }
 
   return (
-    <div className="flex items-center gap-3 text-sm text-foreground-muted min-h-5">
+    <div className="flex min-w-0 items-center gap-3 text-sm text-foreground-muted min-h-5">
       {email && (
         <>
-          <span>{email}</span>
-          <button onClick={handleLogout} className="underline underline-offset-4 hover:no-underline">
+          <span className="truncate">{email}</span>
+          <button onClick={handleLogout} className="shrink-0 whitespace-nowrap underline underline-offset-4 hover:no-underline touch-target">
             Log out
           </button>
         </>

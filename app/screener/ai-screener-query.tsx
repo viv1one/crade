@@ -85,6 +85,9 @@ export function AiScreenerQuery({ rows, onResult, onClear }: AiScreenerQueryProp
           </button>
         )}
       </form>
+      {rows.length === 0 && !loading && (
+        <p className="text-xs text-foreground-muted">Ask is available once stock data has loaded.</p>
+      )}
 
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}
 

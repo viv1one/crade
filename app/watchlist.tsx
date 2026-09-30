@@ -13,6 +13,8 @@ import { VERDICT_BADGE_CLASS, type AgentPipelineResult } from "@/lib/agents/type
 import { isVerdictStale } from "@/lib/agents/verdict-staleness";
 import { useSwipeAction } from "./use-swipe-action";
 import { useToast } from "./toast-provider";
+import { PageIntro } from "./page-intro";
+import { NIFTY_50 } from "@/lib/screener/universe";
 
 interface AgentRunSummary {
   symbol: string;
@@ -29,10 +31,12 @@ const VERDICT_LABEL: Record<string, string> = {
 
 function friendlyFetchError(raw: string): string {
   if (/request failed|providers failed|status \d{3}|fetch/i.test(raw)) {
-    return "Couldn't fetch a quote — check the symbol is correct.";
+    return "Couldn't fetch a quote — the data source may be busy. Retry, or check the symbol.";
   }
   return raw;
 }
+
+const SUGGESTED = NIFTY_50.slice(0, 8);
 
 interface RowUiState {
   quote?: Quote;
@@ -97,9 +101,26 @@ function WatchlistRow({
   onTrade,
 }: WatchlistRowProps) {
   const canTrade = !!row.quote && !row.quote.stale && !executing;
+  const qty = Math.floor(Number(row.qtyInput));
+  const qtyValid = Number.isFinite(qty) && qty > 0;
+  // Say WHY Buy/Sell is disabled in visible text (a title tooltip never
+  // shows on touch), in priority order.
+  const disabledReason = executing
+    ? null
+    : row.loading && !row.quote
+      ? "Fetching a quote…"
+      : row.error && !row.quote
+        ? "No quote available — tap Refresh to retry."
+        : !row.quote
+          ? "Waiting for a quote…"
+          : row.quote.stale
+            ? "Live price unavailable — trading is paused until it's back (tap Refresh)."
+            : !qtyValid
+              ? "Enter a quantity of 1 or more."
+              : null;
   const swipe = useSwipeAction({
-    onSwipeRight: () => canTrade && onTrade(symbol, "buy"),
-    onSwipeLeft: () => canTrade && onTrade(symbol, "sell"),
+    onSwipeRight: () => canTrade && qtyValid && onTrade(symbol, "buy"),
+    onSwipeLeft: () => canTrade && qtyValid && onTrade(symbol, "sell"),
   });
   const revealOpacity = Math.min(Math.abs(swipe.translateX) / 80, 1);
 
@@ -204,7 +225,7 @@ function WatchlistRow({
             <button onClick={() => onFetchQuote(symbol)} disabled={row.loading} className="btn-secondary-sm">
               {row.loading ? (
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="spinner" aria-hidden="true" /> Loading…
+                  <span className="spinner" aria-hidden="true" /> Fetching…
                 </span>
               ) : (
                 "Refresh"
@@ -212,7 +233,7 @@ function WatchlistRow({
             </button>
             <button
               onClick={() => onRemove(symbol)}
-              className="p-1 text-sm text-foreground-muted hover:text-danger transition-colors"
+              className="touch-target text-sm text-foreground-muted hover:text-danger transition-colors"
               aria-label={`Remove ${symbol}`}
               title={`Remove ${symbol}`}
             >
@@ -240,23 +261,27 @@ function WatchlistRow({
             <>
               <button
                 onClick={() => onTrade(symbol, "buy")}
-                disabled={!canTrade}
+                disabled={!canTrade || !qtyValid}
                 className="btn-success-sm"
-                title={!row.quote ? "Waiting for a quote" : row.quote.stale ? "Quote is stale — can't trade on it" : undefined}
               >
                 Buy
               </button>
               <button
                 onClick={() => onTrade(symbol, "sell")}
-                disabled={!canTrade}
+                disabled={!canTrade || !qtyValid}
                 className="btn-danger-sm"
-                title={!row.quote ? "Waiting for a quote" : row.quote.stale ? "Quote is stale — can't trade on it" : undefined}
               >
                 Sell
               </button>
             </>
           )}
         </div>
+        {disabledReason && (
+          <p className="text-xs text-foreground-muted -mt-1">{disabledReason}</p>
+        )}
+        {!disabledReason && !executing && (
+          <p className="text-[0.7rem] text-foreground-muted -mt-1 sm:hidden">Tip: swipe right to buy, left to sell.</p>
+        )}
       </div>
     </li>
   );
@@ -404,13 +429,13 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
   }
 
   return (
-    <div className="w-full max-w-2xl flex flex-col gap-6">
+    <div id="watchlist" className="w-full max-w-2xl flex flex-col gap-6 scroll-mt-8">
       <div className="flex items-center justify-between gap-4">
         {/* Cool-blue accent, the counterpart to Holdings' --vault-accent gold
             treatment — distinguishes simulated Paper Trading from the
             real-money Vault, reusing the app's existing --accent blue
             rather than a new token (it already reads as "cool blue"). */}
-        <h1 className="text-2xl font-semibold text-accent border-l-[3px] border-accent pl-3">Watchlist</h1>
+        <h1 className="text-2xl font-semibold text-accent border-l-[3px] border-accent pl-3 shrink-0">Watchlist</h1>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowIndicators((v) => !v)}
@@ -422,18 +447,22 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
           <button
             onClick={refreshAll}
             disabled={!loaded}
-            className="btn-secondary rounded-full disabled:opacity-40"
+            className="btn-secondary rounded-full whitespace-nowrap disabled:opacity-40"
           >
             Refresh all
           </button>
         </div>
       </div>
 
+      <PageIntro kind="practice">
+        Follow stocks and practice buying and selling with ₹1,00,000 of fake cash. Nothing here places a real order.
+      </PageIntro>
+
       <form onSubmit={handleAddSymbol} className="flex gap-2">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Add symbol, e.g. RELIANCE.NS or Adani"
+          placeholder="Add symbol, e.g. ITC.NS"
           aria-label="Add a stock symbol"
           list={SYMBOL_SUGGESTIONS_ID}
           className="input flex-1"
@@ -461,8 +490,26 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
           <li className="p-4 text-sm text-foreground-muted">Loading watchlist…</li>
         )}
         {loaded && symbols.length === 0 && (
-          <li className="p-4 text-sm text-foreground-muted">
-            No symbols yet — add one above.
+          <li className="p-4 flex flex-col gap-3">
+            <span className="text-sm text-foreground-muted">
+              Your watchlist is empty. Add your first stock above, or tap a popular one:
+            </span>
+            <span className="flex flex-wrap gap-2">
+              {SUGGESTED.filter((s) => !symbols.includes(s.symbol)).map((s) => (
+                <button
+                  key={s.symbol}
+                  type="button"
+                  onClick={() => {
+                    addSymbol(s.symbol);
+                    showToast(`Added ${s.symbol} to your watchlist`, "success");
+                  }}
+                  className="btn-secondary-sm"
+                  title={s.name}
+                >
+                  + {s.symbol.replace(".NS", "")}
+                </button>
+              ))}
+            </span>
           </li>
         )}
         {symbols.map((symbol) => (

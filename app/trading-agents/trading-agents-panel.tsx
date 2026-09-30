@@ -74,6 +74,9 @@ export function TradingAgentsPanel({ initialSymbol }: TradingAgentsPanelProps = 
           {activeSymbol ? "Run again" : "Set symbol"}
         </button>
       </form>
+      {!symbolInput.trim() && (
+        <p className="text-xs text-foreground-muted -mt-2">Enter a symbol above to enable the button.</p>
+      )}
 
       {activeSymbol && (
         <TradingAgentsRun

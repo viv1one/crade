@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { RegisterServiceWorker } from "./register-sw";
@@ -18,6 +18,12 @@ export const metadata: Metadata = {
   title: "Crade",
   description: "Research and alerts for Indian equities",
   manifest: "/manifest.json",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover", // lets the bottom nav respect the iOS home-indicator inset
 };
 
 export default function RootLayout({

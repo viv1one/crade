@@ -1,5 +1,6 @@
 "use client";
 
+import { ProgressNote } from "./progress-note";
 import { useState } from "react";
 import { MarkdownContent } from "./markdown-content";
 import { Disclaimer } from "./disclaimer";
@@ -39,6 +40,15 @@ export function MarketDigest() {
             "Generate AI market digest"
           )}
         </button>
+      )}
+      {loading && (
+        <ProgressNote
+          stages={[
+            { afterSeconds: 0, text: "Reading today's screener data…" },
+            { afterSeconds: 5, text: "Writing the digest…" },
+            { afterSeconds: 20, text: "Still working — the AI provider is slow right now." },
+          ]}
+        />
       )}
       {error && <p role="alert" className="text-xs text-danger">{error}</p>}
       {content && (

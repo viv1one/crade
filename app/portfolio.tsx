@@ -85,6 +85,15 @@ export function Portfolio({ cash, holdings, trades, equityCurve, error, loaded, 
         </div>
       </div>
 
+      <details className="card p-4 text-sm" open={loaded && trades.length === 0}>
+        <summary className="cursor-pointer font-medium">What is paper trading?</summary>
+        <p className="mt-2 text-xs text-foreground-muted">
+          You start with ₹1,00,000 of fake cash. Buy and sell from your watchlist and each trade fills instantly at
+          the latest quote — no real money, no broker, no orders. It&apos;s a safe way to test your instincts and see
+          how a position would have played out. To invest for real, use your own broker (e.g. Groww).
+        </p>
+      </details>
+
       {error && (
         <p role="alert" className="text-sm text-danger">
           {error}
@@ -135,7 +144,7 @@ export function Portfolio({ cash, holdings, trades, equityCurve, error, loaded, 
             <ul className="card flex flex-col divide-y divide-border overflow-hidden">
               {symbols.length === 0 && (
                 <li className="p-4 text-sm text-foreground-muted">
-                  No open positions — buy something from the watchlist above.
+                  No open positions yet. Tap Buy on a stock in your watchlist above to place your first simulated trade.
                 </li>
               )}
               {symbols.map((symbol) => {

@@ -1,5 +1,6 @@
 "use client";
 
+import { ProgressNote } from "./progress-note";
 import { useState } from "react";
 import { Disclaimer } from "./disclaimer";
 
@@ -49,6 +50,15 @@ export function HoldingsDiversify({ hasHoldings }: { hasHoldings: boolean }) {
             "Suggest diversifiers"
           )}
         </button>
+      )}
+      {loading && (
+        <ProgressNote
+          stages={[
+            { afterSeconds: 0, text: "Checking your sector exposure…" },
+            { afterSeconds: 5, text: "Matching gaps against the screener…" },
+            { afterSeconds: 20, text: "Still working — the AI provider is slow right now." },
+          ]}
+        />
       )}
       {error && <p role="alert" className="text-xs text-danger">{error}</p>}
       {criteria !== null && (

@@ -1,5 +1,7 @@
 "use client";
 
+import { PageIntro } from "../page-intro";
+import { ProgressNote } from "../progress-note";
 import { useEffect, useState } from "react";
 import { STRATEGIES } from "@/lib/backtest/strategies";
 import type {
@@ -186,6 +188,7 @@ export function BacktestPanel() {
     <div className="w-full max-w-2xl flex flex-col gap-6">
       <SymbolDatalist />
       <h1 className="text-2xl font-semibold">Backtest</h1>
+      <PageIntro kind="research">Replay a trading rule over past prices to see how it would have done. Past results don&apos;t predict future returns.</PageIntro>
 
       <div className="flex flex-col gap-2">
         <div className="flex gap-2 flex-wrap">
@@ -205,7 +208,7 @@ export function BacktestPanel() {
       </div>
 
       <form onSubmit={handleSubmit} className="card flex flex-col gap-4 p-4">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {mode === "single" && (
             <input
               value={symbol}
@@ -213,7 +216,7 @@ export function BacktestPanel() {
               placeholder="Symbol, e.g. RELIANCE.NS or Adani"
               aria-label="Symbol"
               list={SYMBOL_SUGGESTIONS_ID}
-              className="flex-1 input"
+              className="flex-1 input min-w-40"
             />
           )}
           {mode === "portfolio" && (
@@ -397,6 +400,24 @@ export function BacktestPanel() {
             "Run Backtest"
           )}
         </button>
+        {!running && mode !== "pairs" && mode !== "leaderboard" && !strategy && (
+          <p className="text-xs text-foreground-muted -mt-2">Pick a strategy above to enable Run Backtest.</p>
+        )}
+        {running && (
+          <ProgressNote
+            stages={[
+              { afterSeconds: 0, text: "Fetching historical prices…" },
+              { afterSeconds: 5, text: "Simulating trades day by day…" },
+              {
+                afterSeconds: 20,
+                text:
+                  mode === "leaderboard" || mode === "cross_sectional"
+                    ? "Still running — this tests many stocks/strategies, so up to a minute is normal."
+                    : "Still running — the free data source can be slow.",
+              },
+            ]}
+          />
+        )}
       </form>
 
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}

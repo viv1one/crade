@@ -12,6 +12,7 @@ import { MarketMovers } from "./market-movers";
 import { MarketDigest } from "./market-digest";
 import { ShareWatchlist } from "./share-watchlist";
 import { SymbolDatalist } from "./symbol-datalist";
+import { WelcomeCard } from "./welcome-card";
 
 function HomeContent() {
   const portfolio = usePaperPortfolio();
@@ -23,6 +24,7 @@ function HomeContent() {
       <SymbolDatalist />
       <AppShellNav />
       <main className="contents">
+        <WelcomeCard />
         <div className="w-full max-w-2xl flex flex-col gap-6">
           <AlertsSummary />
           <MarketMovers />

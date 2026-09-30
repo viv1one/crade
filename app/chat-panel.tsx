@@ -1,5 +1,7 @@
 "use client";
 
+import { PageIntro } from "./page-intro";
+import { ProgressNote } from "./progress-note";
 import { useCallback, useEffect, useState } from "react";
 import type { ChatMessage, ChatTask } from "@/lib/ai";
 import { MarkdownContent } from "./markdown-content";
@@ -108,16 +110,17 @@ export function ChatPanel({ initialSymbol }: ChatPanelProps = {}) {
   return (
     <div id="chat" className="w-full max-w-2xl flex flex-col gap-4 scroll-mt-8">
       <h2 className="text-2xl font-semibold">AI Chat</h2>
+      <PageIntro kind="research">Ask why a stock moved or get a summary. Answers use its real price data and headlines — not advice.</PageIntro>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <input
           value={symbol}
           onChange={(e) => setSymbol(e.target.value)}
           onBlur={(e) => loadHistory(e.target.value.trim().toUpperCase())}
-          placeholder="Symbol (optional), e.g. RELIANCE.NS or Adani"
+          placeholder="Symbol (optional), e.g. TCS.NS"
           aria-label="Symbol to ground chat in (optional)"
           list={SYMBOL_SUGGESTIONS_ID}
-          className="input flex-1"
+          className="input flex-1 min-w-48"
         />
         <select
           value={task}
@@ -171,8 +174,15 @@ export function ChatPanel({ initialSymbol }: ChatPanelProps = {}) {
           </div>
         ))}
         {loading && (
-          <div className="self-start flex items-center gap-2 text-sm text-foreground-muted">
-            <span className="spinner" aria-hidden="true" /> Thinking…
+          <div className="self-start">
+            <ProgressNote
+              stages={[
+                { afterSeconds: 0, text: "Fetching price data and headlines…" },
+                { afterSeconds: 4, text: "Thinking…" },
+                { afterSeconds: 15, text: "Still working — the AI provider is slow right now." },
+                { afterSeconds: 40, text: "Taking unusually long. If this fails, try again in a moment." },
+              ]}
+            />
           </div>
         )}
       </div>

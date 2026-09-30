@@ -1,5 +1,7 @@
 "use client";
 
+import { PageIntro } from "../page-intro";
+import { ProgressNote } from "../progress-note";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { ScreenerRow } from "@/lib/screener/types";
@@ -148,6 +150,16 @@ export function ScreenerPanel({ initialHighlighted }: ScreenerPanelProps = {}) {
           </button>
         )}
       </div>
+      <PageIntro kind="research">Filter stocks by sector, price and P/E, or ask in plain English. Data may be a few minutes old.</PageIntro>
+      {loading && (
+        <ProgressNote
+          stages={[
+            { afterSeconds: 0, text: "Loading stock data…" },
+            { afterSeconds: 6, text: "Still fetching — a full refresh queries ~50 stocks one by one." },
+            { afterSeconds: 20, text: "Taking longer than usual — the free data source may be slow. Cached data will show if it fails." },
+          ]}
+        />
+      )}
 
       {onlyTriggered && (
         <div className="alert-banner alert-banner-warning flex-row items-center justify-between">

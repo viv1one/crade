@@ -1,5 +1,6 @@
 "use client";
 
+import { ProgressNote } from "./progress-note";
 import { useState } from "react";
 import { MarkdownContent } from "./markdown-content";
 import { Disclaimer } from "./disclaimer";
@@ -75,6 +76,20 @@ export function PortfolioDiagnostics({
               "Generate AI portfolio diagnostics"
             )}
           </button>
+          {loading && (
+            <ProgressNote
+              stages={[
+                { afterSeconds: 0, text: "Fetching prices and fundamentals for your holdings…" },
+                { afterSeconds: 6, text: "Writing the review…" },
+                {
+                  afterSeconds: 20,
+                  text: deep
+                    ? "Deep analysis compares against all 50 Nifty stocks — up to a minute or two is normal."
+                    : "Still working — the data source or AI provider is slow right now.",
+                },
+              ]}
+            />
+          )}
         </div>
       )}
       {error && <p role="alert" className="text-xs text-danger">{error}</p>}

@@ -552,6 +552,9 @@ export function HoldingsPanel() {
           >
             {bulkSubmitting ? "Adding…" : "Add all"}
           </button>
+          {!bulkSubmitting && !bulkText.trim() && (
+            <p className="text-xs text-foreground-muted -mt-2">Paste at least one holding above to enable Add all.</p>
+          )}
           {bulkResult && (
             <div role="status" className="text-sm">
               {bulkResult.added > 0 && (

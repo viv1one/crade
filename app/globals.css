@@ -402,4 +402,31 @@ a:focus-visible {
     border-radius: 5px;
     padding: 0.5rem 0.75rem;
   }
+
+  /* Touch ergonomics: on coarse pointers (phones/tablets) bring every
+     tappable control up to the ~44px minimum, and keep inputs at 16px so
+     iOS Safari doesn't zoom the page on focus. Desktop sizing is untouched. */
+  .touch-target {
+    padding: 0.25rem 0.5rem;
+  }
+  @media (pointer: coarse) {
+    .btn-primary,
+    .btn-secondary,
+    .btn-secondary-sm,
+    .btn-success-sm,
+    .btn-danger-sm,
+    .touch-target {
+      min-height: 2.75rem;
+      min-width: 2.75rem;
+    }
+    .btn-secondary-sm,
+    .btn-success-sm,
+    .btn-danger-sm {
+      padding-inline: 1rem;
+    }
+    .input {
+      min-height: 2.75rem;
+      font-size: 1rem;
+    }
+  }
 }

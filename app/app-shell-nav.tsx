@@ -15,12 +15,14 @@ import { AccountNav } from "./account-nav";
 interface SubLink {
   href: string;
   label: string;
+  desc: string; // one-line "what's this for", shown under the label
 }
 
 interface NavGroup {
   key: string;
   icon: string;
   label: string;
+  desc?: string; // tooltip/aria hint for direct destinations
   href?: string; // direct destination — Watchlist, Vault
   links?: SubLink[]; // grouped destinations — Discovery, AI Desk, Menu
 }
@@ -34,14 +36,14 @@ interface NavGroup {
 // page; giving it its own route would be a real route change, out of scope
 // here.
 const NAV_GROUPS: NavGroup[] = [
-  { key: "watchlist", icon: "📈", label: "Watchlist", href: "/" },
+  { key: "watchlist", icon: "📈", label: "Watchlist", href: "/", desc: "Practice: track stocks and paper-trade with fake money" },
   {
     key: "discovery",
     icon: "🔍",
     label: "Discovery",
     links: [
-      { href: "/screener", label: "Screener" },
-      { href: "/backtest", label: "Backtest a strategy" },
+      { href: "/screener", label: "Screener", desc: "Research: filter Nifty 50 / all NSE stocks by sector, price, P/E" },
+      { href: "/backtest", label: "Backtest a strategy", desc: "Research: see how a rule would have performed on past prices" },
     ],
   },
   {
@@ -49,20 +51,20 @@ const NAV_GROUPS: NavGroup[] = [
     icon: "🤖",
     label: "AI Desk",
     links: [
-      { href: "/#chat", label: "Chat" },
-      { href: "/trading-agents", label: "Trading Agents" },
+      { href: "/#chat", label: "Chat", desc: "Research: ask why a stock moved or get a quick summary" },
+      { href: "/trading-agents", label: "Trading Agents", desc: "Research: a multi-AI team debates one stock (takes ~5 min)" },
     ],
   },
-  { key: "vault", icon: "🏦", label: "Vault", href: "/holdings" },
+  { key: "vault", icon: "🏦", label: "Vault", href: "/holdings", desc: "Track: record what you really own (bought elsewhere) and review it" },
   {
     key: "menu",
     icon: "☰",
     label: "Menu",
     links: [
-      { href: "/journal", label: "Journal" },
-      { href: "/alerts", label: "Alerts" },
-      { href: "/shared", label: "Shared with me" },
-      { href: "/help", label: "Help" },
+      { href: "/journal", label: "Journal", desc: "Track: write down why you made a call, then review how it went" },
+      { href: "/alerts", label: "Alerts", desc: "Get notified on price, RSI or volume moves" },
+      { href: "/shared", label: "Shared with me", desc: "Watchlists other people have shared with you" },
+      { href: "/help", label: "Help", desc: "How every feature works, plus an assistant" },
     ],
   },
 ];
@@ -85,8 +87,8 @@ export function AppShellNav() {
   return (
     <>
       {/* Mobile: slim brand strip (bottom bar below has no room for it) */}
-      <div className="sm:hidden w-full max-w-4xl card flex items-center justify-between px-4 py-2">
-        <Link href="/" className="text-lg font-semibold text-accent">
+      <div className="sm:hidden w-full max-w-4xl card flex items-center justify-between gap-3 px-4 py-2">
+        <Link href="/" className="text-lg font-semibold text-accent shrink-0">
           Crade
         </Link>
         <AccountNav />
@@ -108,6 +110,7 @@ export function AppShellNav() {
                 <Link
                   key={group.key}
                   href={group.href}
+                  title={group.desc}
                   className={`text-sm font-medium transition-colors ${
                     isGroupActive(group, pathname) ? "text-foreground" : "text-foreground-muted hover:text-foreground"
                   }`}
@@ -130,10 +133,16 @@ export function AppShellNav() {
           </div>
         </div>
         {expandedGroup?.links && (
-          <div className="flex flex-wrap gap-2 pt-1 border-t border-border">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-2 pt-2 border-t border-border">
             {expandedGroup.links.map((l) => (
-              <Link key={l.href} href={l.href} className="btn-secondary-sm" onClick={() => setExpanded(null)}>
-                {l.label}
+              <Link
+                key={l.href}
+                href={l.href}
+                className="flex flex-col rounded-md p-2 hover:bg-background"
+                onClick={() => setExpanded(null)}
+              >
+                <span className="text-sm font-medium">{l.label}</span>
+                <span className="text-xs text-foreground-muted">{l.desc}</span>
               </Link>
             ))}
           </div>
@@ -144,21 +153,28 @@ export function AppShellNav() {
           above it when a grouped tab is tapped. */}
       <div className="sm:hidden fixed bottom-0 inset-x-0 z-40 flex flex-col">
         {expandedGroup?.links && (
-          <div className="card rounded-b-none border-b-0 flex flex-wrap gap-2 px-3 py-2">
+          <div className="card rounded-b-none border-b-0 flex flex-col divide-y divide-border">
             {expandedGroup.links.map((l) => (
-              <Link key={l.href} href={l.href} className="btn-secondary-sm" onClick={() => setExpanded(null)}>
-                {l.label}
+              <Link
+                key={l.href}
+                href={l.href}
+                className="flex flex-col px-4 py-3 min-h-11"
+                onClick={() => setExpanded(null)}
+              >
+                <span className="text-sm font-medium">{l.label}</span>
+                <span className="text-xs text-foreground-muted">{l.desc}</span>
               </Link>
             ))}
           </div>
         )}
-        <div className="card rounded-none border-x-0 border-b-0 grid grid-cols-5">
+        <div className="card rounded-none border-x-0 border-b-0 grid grid-cols-5 pb-[env(safe-area-inset-bottom)]">
           {NAV_GROUPS.map((group) =>
             group.href ? (
               <Link
                 key={group.key}
                 href={group.href}
-                className={`flex flex-col items-center gap-0.5 py-2 text-[0.65rem] font-medium ${
+                title={group.desc}
+                className={`flex flex-col items-center justify-center gap-0.5 py-2 min-h-14 text-[0.65rem] font-medium ${
                   isGroupActive(group, pathname) ? "text-accent" : "text-foreground-muted"
                 }`}
               >
@@ -170,7 +186,7 @@ export function AppShellNav() {
                 key={group.key}
                 onClick={() => toggle(group.key)}
                 aria-expanded={expanded === group.key}
-                className={`flex flex-col items-center gap-0.5 py-2 text-[0.65rem] font-medium ${
+                className={`flex flex-col items-center justify-center gap-0.5 py-2 min-h-14 text-[0.65rem] font-medium ${
                   isGroupActive(group, pathname) || expanded === group.key ? "text-accent" : "text-foreground-muted"
                 }`}
               >
