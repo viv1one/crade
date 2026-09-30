@@ -8,6 +8,7 @@ import { SymbolDatalist, SYMBOL_SUGGESTIONS_ID } from "../symbol-datalist";
 import { CONDITION_LABELS, type ConditionType } from "@/lib/alerts/labels";
 import { nextEvaluationTime } from "@/lib/alerts/next-evaluation";
 import { useToast } from "../toast-provider";
+import { safeJson } from "../fetch-json";
 
 interface Alert {
   _id: string;
@@ -38,8 +39,9 @@ export function AlertsPanel() {
 
   function load() {
     fetch("/api/alerts")
-      .then((res) => res.json())
+      .then((res) => safeJson<Parameters<typeof setAlerts>[0]>(res))
       .then(setAlerts)
+      .catch(() => {})
       .finally(() => setLoaded(true));
   }
 
@@ -64,8 +66,7 @@ export function AlertsPanel() {
           channel,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to create alert");
+      const data = await safeJson<{ symbol: string }>(res);
       setSymbol("");
       setValue("");
       load();

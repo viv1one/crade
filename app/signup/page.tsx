@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { safeJson } from "../fetch-json";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -22,8 +23,7 @@ export default function SignupPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, consented }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Sign up failed");
+      await safeJson(res);
       router.push("/");
       router.refresh();
     } catch (err) {

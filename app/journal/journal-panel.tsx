@@ -8,6 +8,7 @@ import { SymbolDatalist, SYMBOL_SUGGESTIONS_ID } from "../symbol-datalist";
 import { JournalReviewChart } from "./journal-review-chart";
 import { VERDICT_BADGE_CLASS, type AgentPipelineResult } from "@/lib/agents/types";
 import { useToast } from "../toast-provider";
+import { safeJson } from "../fetch-json";
 
 interface JournalEntry {
   _id: string;
@@ -37,8 +38,7 @@ function JournalReview() {
     setError(null);
     try {
       const res = await fetch("/api/journal/review", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to generate review");
+      const data = await safeJson<{ content: string; fetchedAt: string }>(res);
       setContent(data.content);
       setFetchedAt(data.fetchedAt);
     } catch (err) {
@@ -106,12 +106,12 @@ function TradeSnapshot({ symbol }: { symbol: string }) {
 
   useEffect(() => {
     fetch(`/api/quote/${encodeURIComponent(symbol)}`)
-      .then((res) => res.json())
+      .then((res) => safeJson<{ price: number; changePercent: number }>(res))
       .then((data) => setQuote({ price: data.price, changePercent: data.changePercent }))
       .catch(() => {});
     fetch("/api/agents/run")
-      .then((res) => res.json())
-      .then((data: AgentRunSummary[]) => {
+      .then((res) => safeJson<AgentRunSummary[]>(res))
+      .then((data) => {
         const match = Array.isArray(data) ? data.find((r) => r.result?.symbol === symbol) : undefined;
         if (match) setVerdict(match);
       })
@@ -172,8 +172,9 @@ export function JournalPanel({ prefill }: { prefill?: JournalPrefill } = {}) {
 
   function load() {
     fetch("/api/journal")
-      .then((res) => res.json())
+      .then((res) => safeJson<Parameters<typeof setEntries>[0]>(res))
       .then(setEntries)
+      .catch(() => {})
       .finally(() => setLoaded(true));
   }
 
@@ -211,8 +212,7 @@ export function JournalPanel({ prefill }: { prefill?: JournalPrefill } = {}) {
           ...(numericPrice !== undefined ? { price: numericPrice } : {}),
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to add entry");
+      await safeJson(res);
       setSymbol("");
       setReasoning("");
       setPrice("");

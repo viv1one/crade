@@ -10,6 +10,7 @@ import { MarkdownContent } from "./markdown-content";
 import { Disclaimer } from "./disclaimer";
 import { NOT_INVESTMENT_ADVICE } from "@/lib/disclaimers";
 import { SYMBOL_SUGGESTIONS_ID } from "./symbol-datalist";
+import { safeJson } from "./fetch-json";
 
 const TASK_OPTIONS: { value: ChatTask; label: string }[] = [
   { value: "chat", label: "Chat" },
@@ -51,7 +52,7 @@ export function ChatPanel({ initialSymbol }: ChatPanelProps = {}) {
     setNoDataIndex(null);
     try {
       const res = await fetch(`/api/chat/history?symbol=${encodeURIComponent(forSymbol)}`);
-      const data = await res.json();
+      const data = await safeJson<{ messages?: ChatMessage[] }>(res);
       setMessages(Array.isArray(data.messages) ? data.messages : []);
     } catch {
       setMessages([]);

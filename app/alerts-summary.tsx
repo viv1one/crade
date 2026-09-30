@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { safeJson } from "./fetch-json";
 
 interface AlertRow {
   _id: string;
@@ -22,7 +23,7 @@ export function AlertsSummary() {
 
   useEffect(() => {
     fetch("/api/alerts")
-      .then((res) => res.json())
+      .then((res) => safeJson(res))
       .then((data) => setAlerts(Array.isArray(data) ? data : []))
       .catch(() => setAlerts([]));
   }, []);

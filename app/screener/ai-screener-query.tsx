@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { ScreenerRow } from "@/lib/screener/types";
 import { Disclaimer } from "../disclaimer";
+import { safeJson } from "../fetch-json";
 
 interface Pick {
   symbol: string;
@@ -39,8 +40,7 @@ export function AiScreenerQuery({ rows, onResult, onClear }: AiScreenerQueryProp
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question, rows }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "AI query failed");
+      const data = await safeJson<{ criteria: string; filters?: typeof filters; picks: Pick[] }>(res);
       setCriteria(data.criteria);
       setFilters(Array.isArray(data.filters) ? data.filters : []);
       setPicks(data.picks);
@@ -66,7 +66,7 @@ export function AiScreenerQuery({ rows, onResult, onClear }: AiScreenerQueryProp
         <input
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          placeholder="e.g. 5 stocks with positive momentum and a reasonable P/E"
+          placeholder="e.g. positive momentum, low P/E"
           aria-label="Ask the AI to filter stocks"
           className="input flex-1"
         />

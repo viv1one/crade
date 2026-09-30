@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { ChatMessage } from "@/lib/ai";
 import { MarkdownContent } from "../markdown-content";
+import { safeJson } from "../fetch-json";
 
 export function HelpChatPanel() {
   const [input, setInput] = useState("");
@@ -27,8 +28,7 @@ export function HelpChatPanel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: nextMessages }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Chat request failed");
+      const data = await safeJson<{ content: string }>(res);
       setMessages((prev) => [...prev, { role: "assistant", content: data.content }]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Chat request failed");

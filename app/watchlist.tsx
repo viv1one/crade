@@ -15,6 +15,7 @@ import { useSwipeAction } from "./use-swipe-action";
 import { useToast } from "./toast-provider";
 import { PageIntro } from "./page-intro";
 import { NIFTY_50 } from "@/lib/screener/universe";
+import { safeJson } from "./fetch-json";
 
 interface AgentRunSummary {
   symbol: string;
@@ -305,8 +306,8 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
   // mount rather than re-fetched per row.
   useEffect(() => {
     fetch("/api/agents/run")
-      .then((res) => res.json())
-      .then((data: AgentRunSummary[]) => {
+      .then((res) => safeJson<AgentRunSummary[]>(res))
+      .then((data) => {
         if (!Array.isArray(data)) return;
         const bySymbol: Record<string, AgentRunSummary> = {};
         for (const run of data) {
@@ -334,8 +335,7 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
     patchRow(symbol, { loading: true, error: undefined });
     try {
       const res = await fetch(`/api/quote/${encodeURIComponent(symbol)}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to fetch quote");
+      const data = await safeJson<Quote>(res);
       patchRow(symbol, { quote: data, loading: false });
     } catch (err) {
       const raw = err instanceof Error ? err.message : "Failed to fetch quote";
@@ -350,8 +350,7 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
     setIndicatorState((prev) => ({ ...prev, [symbol]: { loading: true } }));
     try {
       const res = await fetch(`/api/history/${encodeURIComponent(symbol)}?interval=1d&range=6mo`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to fetch history");
+      const data = await safeJson<{ bars: HistoricalBar[] }>(res);
       setIndicatorState((prev) => ({ ...prev, [symbol]: { loading: false, ...computeIndicators(data.bars) } }));
     } catch {
       setIndicatorState((prev) => ({ ...prev, [symbol]: { loading: false, error: "Unavailable" } }));

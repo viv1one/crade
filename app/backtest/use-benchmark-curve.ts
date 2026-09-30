@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { EquityPoint } from "@/lib/backtest/types";
+import { safeJson } from "../fetch-json";
 
 // Confirmed live (2026-09-22) that ^NSEI (Yahoo's Nifty 50 index ticker)
 // resolves through the existing market-data provider chain for both quote
@@ -28,8 +29,8 @@ export function useBenchmarkCurve(equityCurve: EquityPoint[], startingCash: numb
     }
     setLoading(true);
     fetch(`/api/history/${encodeURIComponent(NIFTY_INDEX_SYMBOL)}?interval=1d&range=2y`)
-      .then((res) => res.json())
-      .then((data: { bars?: { time: number; close: number }[] }) => {
+      .then((res) => safeJson<{ bars?: { time: number; close: number }[] }>(res))
+      .then((data) => {
         const bars = data.bars ?? [];
         if (bars.length === 0) {
           setBenchmarkCurve(null);

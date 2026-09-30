@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { safeJson } from "./fetch-json";
 
 export function AccountNav() {
   const router = useRouter();
@@ -9,8 +10,8 @@ export function AccountNav() {
 
   useEffect(() => {
     fetch("/api/auth/me")
-      .then((res) => res.json())
-      .then((data: { user: { email: string } | null }) => setEmail(data.user?.email ?? null))
+      .then((res) => safeJson<{ user: { email: string } | null }>(res))
+      .then((data) => setEmail(data.user?.email ?? null))
       .catch(() => {});
   }, []);
 

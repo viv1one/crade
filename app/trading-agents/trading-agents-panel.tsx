@@ -6,6 +6,7 @@ import { NOT_INVESTMENT_ADVICE } from "@/lib/disclaimers";
 import { SymbolDatalist, SYMBOL_SUGGESTIONS_ID } from "../symbol-datalist";
 import { VERDICT_BADGE_CLASS, type AgentPipelineResult } from "@/lib/agents/types";
 import { TradingAgentsRun, ACTION_LABELS } from "./trading-agents-run";
+import { safeJson } from "../fetch-json";
 
 interface AgentRunSummary {
   _id: string;
@@ -35,8 +36,9 @@ export function TradingAgentsPanel({ initialSymbol }: TradingAgentsPanelProps = 
 
   function loadHistory() {
     fetch("/api/agents/run")
-      .then((res) => res.json())
+      .then((res) => safeJson(res))
       .then((data) => setHistory(Array.isArray(data) ? data : []))
+      .catch(() => {})
       .finally(() => setHistoryLoaded(true));
   }
 

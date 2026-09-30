@@ -11,6 +11,7 @@ import type {
 } from "@/lib/backtest/types";
 import type { Trade } from "@/lib/paper-trading/types";
 import type { AiReview } from "./use-backtest";
+import { safeJson } from "./fetch-json";
 
 export interface CrossSectionalBacktestRun {
   _id: string;
@@ -42,7 +43,7 @@ export function useCrossSectionalBacktest() {
 
   const loadHistory = useCallback(() => {
     fetch("/api/backtest/cross-sectional")
-      .then((res) => res.json())
+      .then((res) => safeJson<CrossSectionalBacktestRun[]>(res))
       .then((data: CrossSectionalBacktestRun[]) => setHistory(data))
       .catch(() => {})
       .finally(() => setHistoryLoaded(true));
@@ -82,8 +83,7 @@ export function useCrossSectionalBacktest() {
     setError(null);
     try {
       const res = await fetch(`/api/backtest/cross-sectional/${id}/review`, { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "AI review failed");
+      const data = await safeJson<AiReview>(res);
       const patch = (run: CrossSectionalBacktestRun) => (run._id === id ? { ...run, aiReview: data } : run);
       setCurrent((prev) => (prev ? patch(prev) : prev));
       setHistory((prev) => prev.map(patch));

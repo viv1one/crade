@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { safeJson } from "./fetch-json";
 
 interface ShareRow {
   _id: string;
@@ -16,8 +17,9 @@ export function ShareWatchlist() {
 
   function load() {
     fetch("/api/shares")
-      .then((res) => res.json())
-      .then((data) => setShares(Array.isArray(data) ? data : []));
+      .then((res) => safeJson(res))
+      .then((data) => setShares(Array.isArray(data) ? data : []))
+      .catch(() => setShares([]));
   }
 
   useEffect(load, []);
@@ -32,8 +34,7 @@ export function ShareWatchlist() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ invitedEmail: email, resourceType: "watchlist" }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to share");
+      await safeJson(res);
       setEmail("");
       load();
     } catch (err) {

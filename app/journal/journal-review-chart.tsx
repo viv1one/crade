@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { safeJson } from "../fetch-json";
 
 interface Bar {
   time: number; // epoch seconds
@@ -32,8 +33,7 @@ export function JournalReviewChart({ symbol, entryAt, entryPrice }: JournalRevie
     setError(null);
     fetch(`/api/history/${encodeURIComponent(symbol)}?interval=1d&range=6mo`)
       .then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Failed to fetch history");
+        const data = await safeJson<{ bars?: NonNullable<typeof bars> }>(res);
         setBars(data.bars ?? []);
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to fetch history"));

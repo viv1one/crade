@@ -15,6 +15,7 @@ import { HoldingsDiversify } from "../holdings-diversify";
 import { CONDITION_LABELS, type ConditionType } from "@/lib/alerts/labels";
 import { useSwipeAction } from "../use-swipe-action";
 import { useToast } from "../toast-provider";
+import { safeJson } from "../fetch-json";
 
 interface RealHolding {
   _id: string;
@@ -225,8 +226,9 @@ export function HoldingsPanel() {
 
   function load() {
     fetch("/api/holdings")
-      .then((res) => res.json())
+      .then((res) => safeJson<Parameters<typeof setHoldings>[0]>(res))
       .then(setHoldings)
+      .catch(() => {})
       .finally(() => setLoaded(true));
   }
 
@@ -240,8 +242,8 @@ export function HoldingsPanel() {
         try {
           const res = await fetch(`/api/quote/${encodeURIComponent(s)}`);
           if (!res.ok) return null;
-          const data = await res.json();
-          return [s, data.price as number] as const;
+          const data = await safeJson<{ price: number }>(res);
+          return [s, data.price] as const;
         } catch {
           return null;
         }
@@ -278,7 +280,7 @@ export function HoldingsPanel() {
       return;
     }
     fetch("/api/holdings/sector-allocation")
-      .then((res) => res.json())
+      .then((res) => safeJson<Parameters<typeof setSectorData>[0]>(res))
       .then(setSectorData)
       .catch(() => setSectorData(null));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -319,8 +321,7 @@ export function HoldingsPanel() {
           purchasedAt: purchasedAt || undefined,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to add holding");
+      await safeJson(res);
       setSymbol("");
       setQty("");
       setAvgCost("");
@@ -358,8 +359,7 @@ export function HoldingsPanel() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ symbol: row.symbol, qty: row.qty, avgCost: row.avgCost }),
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Failed to add");
+        await safeJson(res);
         added++;
       } catch (err) {
         submitErrors.push(

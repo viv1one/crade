@@ -7,6 +7,8 @@ import { runPairsBacktest } from "@/lib/backtest/pairs-engine";
 import { DEFAULT_STARTING_CASH } from "@/lib/backtest/types";
 import type { PairsBacktestConfig, PairsParams } from "@/lib/backtest/types";
 import { toErrorResponse } from "@/lib/api-error";
+import { withProgress } from "@/lib/progress/server";
+import type { ProgressReporter } from "@/lib/progress/types";
 
 const DEFAULT_PARAMS: PairsParams = { lookback: 20, entryZ: 2, exitZ: 0.5 };
 
@@ -18,7 +20,7 @@ export async function GET() {
   return NextResponse.json(runs);
 }
 
-export async function POST(request: Request) {
+async function handle(request: Request, report: ProgressReporter) {
   const user = await requireUserOrResponse();
   if (user instanceof NextResponse) return user;
   const ownerId = user.id;
@@ -57,11 +59,13 @@ export async function POST(request: Request) {
   };
 
   try {
+    report({ text: `Fetching price history for ${config.symbolA} and ${config.symbolB}…` });
     const [barsA, barsB] = await Promise.all([
       marketData.getHistorical(config.symbolA, config.interval, config.range),
       marketData.getHistorical(config.symbolB, config.interval, config.range),
     ]);
 
+    report({ text: "Running the pairs simulation…" });
     const { equityCurve, trades, metrics } = runPairsBacktest(
       config.symbolA,
       config.symbolB,
@@ -87,4 +91,8 @@ export async function POST(request: Request) {
   } catch (err) {
     return toErrorResponse(err, "Pairs backtest failed — check both symbols are correct and try again", 400);
   }
+}
+
+export function POST(request: Request) {
+  return withProgress(request, (report) => handle(request, report));
 }

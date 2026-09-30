@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { safeJson } from "../fetch-json";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -21,8 +22,7 @@ export default function LoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Login failed");
+      await safeJson(res);
       router.push("/");
       router.refresh();
     } catch (err) {

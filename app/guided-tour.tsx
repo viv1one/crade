@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
-interface TourStep {
+export interface TourStep {
   title: string;
   body: string;
   // CSS selector for the element to spotlight. When several elements match
@@ -13,7 +13,7 @@ interface TourStep {
   openNav?: string;
 }
 
-const STEPS: TourStep[] = [
+export const TOUR_STEPS: TourStep[] = [
   {
     title: "Your watchlist",
     body: "Stocks you follow. Quotes load automatically; Buy and Sell place simulated trades with fake money at the latest price.",
@@ -66,8 +66,8 @@ export function GuidedTour({ onClose }: GuidedTourProps) {
   const [index, setIndex] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const nextRef = useRef<HTMLButtonElement>(null);
-  const step = STEPS[index];
-  const last = index === STEPS.length - 1;
+  const step = TOUR_STEPS[index];
+  const last = index === TOUR_STEPS.length - 1;
 
   const measure = useCallback(() => {
     const el = findVisible(step.target);
@@ -115,7 +115,7 @@ export function GuidedTour({ onClose }: GuidedTourProps) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") close();
-      if (e.key === "ArrowRight") setIndex((i) => Math.min(i + 1, STEPS.length - 1));
+      if (e.key === "ArrowRight") setIndex((i) => Math.min(i + 1, TOUR_STEPS.length - 1));
       if (e.key === "ArrowLeft") setIndex((i) => Math.max(i - 1, 0));
     }
     document.addEventListener("keydown", onKey);
@@ -163,14 +163,14 @@ export function GuidedTour({ onClose }: GuidedTourProps) {
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={`Tour step ${index + 1} of ${STEPS.length}: ${step.title}`}
+        aria-label={`Tour step ${index + 1} of ${TOUR_STEPS.length}: ${step.title}`}
         className="card absolute flex flex-col gap-3 p-4 shadow-xl"
         style={tooltipStyle}
       >
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-semibold">{step.title}</h2>
           <span className="text-xs text-foreground-muted tabular-nums">
-            {index + 1} / {STEPS.length}
+            {index + 1} / {TOUR_STEPS.length}
           </span>
         </div>
         <p className="text-xs text-foreground-muted">{step.body}</p>

@@ -5,6 +5,7 @@ import { MarkdownContent } from "../markdown-content";
 import { Disclaimer } from "../disclaimer";
 import { AGENT_DECISION_NOT_ADVICE, PAPER_TRADING_ONLY } from "@/lib/disclaimers";
 import { usePaperPortfolio } from "../use-paper-portfolio";
+import { safeJson } from "../fetch-json";
 import type { AgentPipelineResult } from "@/lib/agents/types";
 
 export const ACTION_STYLES: Record<string, string> = {
@@ -44,6 +45,16 @@ const STAGES: { key: keyof AgentPipelineResult; label: string }[] = [
 ];
 
 const POLL_INTERVAL_MS = 3000;
+// The pipeline has been measured at ~4m43s against real NIM capacity, and
+// the execution route's own maxDuration caps at 300s — but on Vercel that
+// cap is only honored on Pro+; Hobby kills the function well before then.
+// If the platform kills the run mid-flight, the execution route's own
+// try/catch never runs (the whole process is terminated, not a JS
+// exception), so the run doc can be left stuck at status "running" forever
+// with nothing to ever flip it to "failed". This is the client-side
+// backstop for that: give up waiting a bit past the longest known-good
+// duration rather than polling forever.
+const RUN_TIMEOUT_MS = 6 * 60 * 1000;
 
 interface TradingAgentsRunProps {
   symbol: string;
@@ -79,6 +90,7 @@ export function TradingAgentsRun({ symbol, onComplete, initialResult }: TradingA
   const { buy, sell } = usePaperPortfolio();
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const settledRef = useRef(false);
+  const startedAtRef = useRef(0);
 
   useEffect(() => {
     return () => {
@@ -100,6 +112,7 @@ export function TradingAgentsRun({ symbol, onComplete, initialResult }: TradingA
     setTraded(false);
     setAlertCreated(false);
     settledRef.current = false;
+    startedAtRef.current = Date.now();
 
     try {
       const createRes = await fetch("/api/agents/run", {
@@ -107,22 +120,31 @@ export function TradingAgentsRun({ symbol, onComplete, initialResult }: TradingA
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ symbol }),
       });
-      const created = await createRes.json();
-      if (!createRes.ok) throw new Error(created.error ?? "Failed to start analysis");
-      const runId: string = created.runId;
+      const created = await safeJson<{ runId: string }>(createRes);
+      const runId = created.runId;
 
       pollRef.current = setInterval(async () => {
         if (settledRef.current) return;
+        if (Date.now() - startedAtRef.current > RUN_TIMEOUT_MS) {
+          settledRef.current = true;
+          stopPolling();
+          setStatus("failed");
+          setError(
+            "This is taking longer than expected and may have hit a hosting time limit. " +
+              "Check the \"Past analyses\" list in a minute — the run may still complete in the background."
+          );
+          return;
+        }
         try {
           const res = await fetch(`/api/agents/run/${runId}`);
           if (!res.ok) return;
-          const doc = await res.json();
+          const doc = await safeJson<{ status: string; result?: AgentPipelineResult; error?: string }>(res);
           setPartial(doc.result ?? {});
           if (doc.status === "complete" && !settledRef.current) {
             settledRef.current = true;
             stopPolling();
             setStatus("complete");
-            onComplete?.(doc.result);
+            onComplete?.(doc.result as AgentPipelineResult);
           } else if (doc.status === "failed" && !settledRef.current) {
             settledRef.current = true;
             stopPolling();
@@ -130,28 +152,29 @@ export function TradingAgentsRun({ symbol, onComplete, initialResult }: TradingA
             setError(doc.error ?? "Analysis failed");
           }
         } catch {
-          // Transient poll failure — try again on the next tick.
+          // Transient poll failure (bad JSON, network hiccup) — try again
+          // on the next tick rather than surfacing a one-off glitch.
         }
       }, POLL_INTERVAL_MS);
 
-      const execRes = await fetch(`/api/agents/run/${runId}`, { method: "POST" });
-      if (settledRef.current) return; // polling already resolved this run
-      const execData = await execRes.json();
-      settledRef.current = true;
-      stopPolling();
-      if (!execRes.ok) {
-        setStatus("failed");
-        setError(execData.error ?? "Analysis failed");
-        return;
-      }
-      setPartial(execData);
-      setStatus("complete");
-      onComplete?.(execData);
+      // Kicks off execution but deliberately doesn't let this call's own
+      // response settle UI state — the poll loop above (reading the run
+      // doc directly) is the sole source of truth for status. This request
+      // can take minutes, and the hosting platform may kill it before any
+      // response comes back at all (see app/api/agents/run/[id]/route.ts's
+      // comment on serverless timeout limits); when that happens this
+      // promise would otherwise resolve with a non-JSON error page and crash
+      // the UI on `.json()`, even though the run itself may still complete
+      // server-side moments later.
+      fetch(`/api/agents/run/${runId}`, { method: "POST" }).catch(() => {
+        // Network-level failure only — the poll loop keeps checking the
+        // run doc regardless of what happens to this specific request.
+      });
     } catch (err) {
       settledRef.current = true;
       stopPolling();
       setStatus("failed");
-      setError(err instanceof Error ? err.message : "Analysis failed");
+      setError(err instanceof Error ? err.message : "Failed to start analysis");
     }
   }
 
@@ -160,12 +183,13 @@ export function TradingAgentsRun({ symbol, onComplete, initialResult }: TradingA
     if (!result.finalDecision) return;
     if (result.finalDecision.action !== "buy" && result.finalDecision.action !== "sell") return;
     fetch(`/api/quote/${encodeURIComponent(symbol)}`)
-      .then((res) => res.json())
+      .then((res) => safeJson<{ price: number }>(res))
       .then((quote) => {
         if (result.finalDecision.action === "buy") buy(symbol, tradeQty, quote.price);
         else sell(symbol, tradeQty, quote.price);
         setTraded(true);
-      });
+      })
+      .catch(() => setError("Couldn't fetch the live quote to place this trade."));
   }
 
   function createStopLossAlert() {

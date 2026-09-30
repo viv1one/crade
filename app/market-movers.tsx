@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { ScreenerRow } from "@/lib/screener/types";
+import { safeJson } from "./fetch-json";
 
 export function MarketMovers() {
   const [rows, setRows] = useState<ScreenerRow[] | null>(null);
 
   useEffect(() => {
     fetch("/api/screener")
-      .then((res) => res.json())
+      .then((res) => safeJson<{ rows?: ScreenerRow[] }>(res))
       .then((data) => setRows(Array.isArray(data.rows) ? data.rows : []))
       .catch(() => setRows([]));
   }, []);

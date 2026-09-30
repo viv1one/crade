@@ -7,6 +7,7 @@ import type { EquityPoint } from "@/lib/backtest/types";
 import { PortfolioDiagnostics } from "./portfolio-diagnostics";
 import { EquityChart } from "./backtest/equity-chart";
 import { useBenchmarkCurve } from "./backtest/use-benchmark-curve";
+import { safeJson } from "./fetch-json";
 
 interface PortfolioProps {
   cash: number;
@@ -31,8 +32,8 @@ export function Portfolio({ cash, holdings, trades, equityCurve, error, loaded, 
         symbols.map(async (symbol) => {
           const res = await fetch(`/api/quote/${encodeURIComponent(symbol)}`);
           if (!res.ok) return null;
-          const data = await res.json();
-          return [symbol, data.price as number] as const;
+          const data = await safeJson<{ price: number }>(res).catch(() => null);
+          return data ? ([symbol, data.price] as const) : null;
         })
       );
       setPrices((prev) => {

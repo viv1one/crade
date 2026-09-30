@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AppShellNav } from "../app-shell-nav";
+import { safeJson } from "../fetch-json";
 
 interface SharedWithMeRow {
   _id: string;
@@ -16,8 +17,9 @@ export default function SharedWithMePage() {
 
   useEffect(() => {
     fetch("/api/shares/shared-with-me")
-      .then((res) => res.json())
-      .then((data) => setRows(Array.isArray(data) ? data : []));
+      .then((res) => safeJson(res))
+      .then((data) => setRows(Array.isArray(data) ? data : []))
+      .catch(() => setRows([]));
   }, []);
 
   return (

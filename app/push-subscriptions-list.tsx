@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { safeJson } from "./fetch-json";
 
 interface Subscription {
   id: string;
@@ -18,7 +19,7 @@ export function PushSubscriptionsList({ refreshSignal }: PushSubscriptionsListPr
 
   function load() {
     fetch("/api/push/subscriptions")
-      .then((res) => res.json())
+      .then((res) => safeJson(res))
       .then((data) => setSubs(Array.isArray(data) ? data : []))
       .catch(() => setSubs([]));
   }

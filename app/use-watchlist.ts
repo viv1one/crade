@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { safeJson } from "./fetch-json";
 
 const DEFAULT_SYMBOLS = ["RELIANCE.NS", "TCS.NS", "INFY.NS"];
 
@@ -21,8 +22,8 @@ export function useWatchlist() {
 
   useEffect(() => {
     fetch("/api/watchlist")
-      .then((res) => res.json())
-      .then((data: { symbols: string[]; isNew: boolean }) => {
+      .then((res) => safeJson<{ symbols: string[]; isNew: boolean }>(res))
+      .then((data) => {
         if (data.isNew) {
           setSymbols(DEFAULT_SYMBOLS);
           setIsNew(true);

@@ -11,6 +11,7 @@ import { AiScreenerQuery } from "./ai-screener-query";
 import { BottomSheet } from "../bottom-sheet";
 import { TradingAgentsRun } from "../trading-agents/trading-agents-run";
 import { useToast } from "../toast-provider";
+import { safeJson } from "../fetch-json";
 
 const HIGH_PE_THRESHOLD = 60;
 
@@ -85,7 +86,7 @@ export function ScreenerPanel({ initialHighlighted }: ScreenerPanelProps = {}) {
 
   async function loadWatchlist() {
     const res = await fetch("/api/watchlist");
-    const data = await res.json();
+    const data = await safeJson<{ isNew: boolean; symbols: string[] }>(res);
     setWatchlist(data.isNew ? [] : data.symbols);
   }
 
@@ -94,7 +95,7 @@ export function ScreenerPanel({ initialHighlighted }: ScreenerPanelProps = {}) {
   }, [universe]);
 
   useEffect(() => {
-    loadWatchlist();
+    loadWatchlist().catch(() => {});
   }, []);
 
   async function addToWatchlist(symbol: string) {

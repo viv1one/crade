@@ -6,6 +6,7 @@ import type { Quote } from "@/lib/market-data";
 import { AppShellNav } from "@/app/app-shell-nav";
 import { Disclaimer } from "@/app/disclaimer";
 import { FREE_DATA_SOURCE, NOT_INVESTMENT_ADVICE } from "@/lib/disclaimers";
+import { safeJson } from "../../../fetch-json";
 
 interface RowState {
   quote?: Quote;
@@ -23,8 +24,7 @@ export default function SharedWatchlistPage() {
   useEffect(() => {
     fetch(`/api/shared/${ownerId}/watchlist`)
       .then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Failed to load shared watchlist");
+        const data = await safeJson<{ ownerEmail: string; symbols: string[] }>(res);
         setOwnerEmail(data.ownerEmail);
         setSymbols(data.symbols);
       })
@@ -37,8 +37,7 @@ export default function SharedWatchlistPage() {
       setRowState((prev) => ({ ...prev, [symbol]: { loading: true } }));
       fetch(`/api/quote/${encodeURIComponent(symbol)}`)
         .then(async (res) => {
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error ?? "Failed to fetch quote");
+          const data = await safeJson<NonNullable<RowState["quote"]>>(res);
           setRowState((prev) => ({ ...prev, [symbol]: { quote: data, loading: false } }));
         })
         .catch((err) =>

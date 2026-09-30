@@ -409,9 +409,10 @@ export function BacktestPanel() {
               mode === "cross_sectional" ? crossSectional.progress
               : mode === "portfolio" ? portfolio.progress
               : mode === "leaderboard" ? leaderboard.progress
-              : null
+              : mode === "pairs" ? pairs.progress
+              : single.progress
             }
-            fallback="Fetching price history and running the simulation…"
+            fallback="Starting the backtest…"
           />
         )}
       </form>

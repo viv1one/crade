@@ -8,6 +8,8 @@ import { STRATEGIES } from "@/lib/backtest/strategies";
 import { DEFAULT_STARTING_CASH } from "@/lib/backtest/types";
 import type { BacktestConfig, StrategyId, StrategyParams } from "@/lib/backtest/types";
 import { toErrorResponse } from "@/lib/api-error";
+import { withProgress } from "@/lib/progress/server";
+import type { ProgressReporter } from "@/lib/progress/types";
 
 export async function GET() {
   const user = await requireUserOrResponse();
@@ -17,7 +19,7 @@ export async function GET() {
   return NextResponse.json(runs);
 }
 
-export async function POST(request: Request) {
+async function handle(request: Request, report: ProgressReporter) {
   const user = await requireUserOrResponse();
   if (user instanceof NextResponse) return user;
   const ownerId = user.id;
@@ -54,11 +56,13 @@ export async function POST(request: Request) {
   };
 
   try {
+    report({ text: `Fetching price history for ${config.symbol}…` });
     const bars = await marketData.getHistorical(config.symbol, config.interval, config.range);
     const auxiliaryBars =
       strategy.auxiliary === "crude_oil"
         ? await marketData.getHistorical("CL=F", config.interval, config.range)
         : undefined;
+    report({ text: "Simulating trades…" });
     const { equityCurve, trades, metrics } = runBacktest(
       config.symbol,
       bars,
@@ -84,4 +88,8 @@ export async function POST(request: Request) {
   } catch (err) {
     return toErrorResponse(err, "Backtest failed — check the symbol is correct and try again", 400);
   }
+}
+
+export function POST(request: Request) {
+  return withProgress(request, (report) => handle(request, report));
 }

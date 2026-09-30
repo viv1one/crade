@@ -705,12 +705,15 @@ model to reason about freshness at all and just gating the data before it gets t
   Callers opt in with the `x-crade-progress: 1` header (`fetchWithProgress` in `lib/progress/client.ts`);
   without it the route returns its normal JSON, so nothing else changes. With it the response is NDJSON —
   `progress` events, then exactly one `result` or `error`. Instrumented: chat, digest, screener refresh,
-  cross-sectional + portfolio backtest, leaderboard, holdings/portfolio diagnostics, diversify. Worker pools
+  all five backtest modes, leaderboard, holdings/portfolio diagnostics, diversify. Worker pools
   report real counts via `makeCounter`; `chat()` takes `onProgress` and reports which provider it is waiting
-  on / failing over from. `app/progress-note.tsx` renders it (with a bar when there are counts). Single-symbol
-  and pairs backtests don't report (1–2 fetches) and show a plain fallback. Never invent stage text — only
-  report what the server is actually doing. Trading Agents keeps its own polling (long-running, survives
+  on / failing over from. `app/progress-note.tsx` renders it (with a bar when there are counts). Never invent
+  stage text — only report what the server is actually doing. Trading Agents keeps its own polling (long-running, survives
   navigation).
+- **Parsing fetch responses**: use `safeJson` (`app/fetch-json.ts`) or `fetchWithProgress`, not a bare
+  `res.json()` — a proxy/platform error page then becomes "Request failed (502)" instead of a cryptic
+  JSON-parse error (HTML bodies are never quoted). `app/guided-tour.test.ts` fails if a tour target (an id or
+  nav link) is renamed away.
 - `app/watchlist.tsx` shows the *reason* Buy/Sell is disabled as visible text (tooltips don't exist on touch).
 - `globals.css` has a `@media (pointer: coarse)` block raising controls to ~44px and 16px input text (stops
   iOS focus-zoom); `layout.tsx` sets `viewportFit: "cover"` so the bottom nav clears the home indicator.

@@ -12,6 +12,7 @@ import type {
 } from "@/lib/backtest/types";
 import type { Trade } from "@/lib/paper-trading/types";
 import type { AiReview } from "./use-backtest";
+import { safeJson } from "./fetch-json";
 
 export interface PortfolioBacktestRun {
   _id: string;
@@ -45,7 +46,7 @@ export function usePortfolioBacktest() {
 
   const loadHistory = useCallback(() => {
     fetch("/api/backtest/portfolio")
-      .then((res) => res.json())
+      .then((res) => safeJson<PortfolioBacktestRun[]>(res))
       .then((data: PortfolioBacktestRun[]) => setHistory(data))
       .catch(() => {})
       .finally(() => setHistoryLoaded(true));
@@ -85,8 +86,7 @@ export function usePortfolioBacktest() {
     setError(null);
     try {
       const res = await fetch(`/api/backtest/portfolio/${id}/review`, { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "AI review failed");
+      const data = await safeJson<AiReview>(res);
       const patch = (run: PortfolioBacktestRun) => (run._id === id ? { ...run, aiReview: data } : run);
       setCurrent((prev) => (prev ? patch(prev) : prev));
       setHistory((prev) => prev.map(patch));
