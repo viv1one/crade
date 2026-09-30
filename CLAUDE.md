@@ -44,7 +44,7 @@ the app needs Python; skip this and everything still works off the existing free
 
 ## Architecture
 
-Single Next.js 15 App Router deployable — no separate backend. Server work happens in server
+Single Next.js 16 App Router deployable — no separate backend. Server work happens in server
 components, API routes, and server actions under `app/`.
 
 ### `lib/` — the provider-agnostic core
@@ -239,9 +239,9 @@ touching call sites.
     degrades that one alert's delivery rather than 500ing the whole evaluation run. Chosen at
     alert-creation time via `alerts-panel.tsx`'s channel select, defaulting to push. Gated by
     `CRON_SECRET` (`Authorization: Bearer <secret>`) when that env var is set.
-    Scheduled via `.github/workflows/evaluate-alerts.yml` (GitHub Actions, `*/5 * * * *`) rather than
+    Scheduled via `.github/workflows/evaluate-alerts.yml` (GitHub Actions, `0 */4 * * *` — every 4 hours; `lib/alerts/next-evaluation.ts` must be kept in sync with it) rather than
     Vercel's own `crons` in `vercel.json` — Vercel Hobby-tier projects reject any cron schedule more
-    frequent than once/day, and this endpoint needs 5-minute granularity to be useful, so a GitHub
+    frequent than once/day, so a GitHub
     Actions schedule pings it instead, sending the same `Authorization: Bearer` header Vercel Cron
     would have. Needs two GitHub repo secrets (Settings > Secrets and variables > Actions):
     `CRON_SECRET` (same value as the Vercel env var) and `CRADE_DEPLOYMENT_URL` (the deployed origin,
@@ -473,7 +473,7 @@ that weren't given to them unless told not to, repeatedly, across different feat
     (`?offset=&limit=50`) per call and **merges** those rows into the snapshot by symbol, leaving
     every other symbol's row untouched — so the cache is never empty after the first cycle and
     reads don't need to know a refresh is mid-flight, just a mix of freshnesses.
-    `.github/workflows/refresh-screener.yml` calls it with a sequence of offsets, hourly, covering
+    `.github/workflows/refresh-screener.yml` calls it with a sequence of offsets, every 6 hours, covering
     the full universe over ~40 short requests per run instead of one giant one — reuses the same
     `CRON_SECRET`/`CRADE_DEPLOYMENT_URL` secrets `evaluate-alerts.yml` already needs, no new
     secrets required. **This workflow can only ever reach a public deployed URL, never

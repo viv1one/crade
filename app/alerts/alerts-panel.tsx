@@ -109,7 +109,7 @@ export function AlertsPanel() {
     <div className="w-full max-w-2xl flex flex-col gap-6">
       <SymbolDatalist />
       <h1 className="text-2xl font-semibold">Alerts</h1>
-      <PageIntro kind="track">Get a notification when a stock crosses a price, RSI, or volume level — checked every 5 minutes.</PageIntro>
+      <PageIntro kind="track">Get a notification when a stock crosses a price, RSI, or volume level — checked every 4 hours.</PageIntro>
 
       {!pushGranted && (
         <div className="alert-banner alert-banner-warning">

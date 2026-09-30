@@ -21,7 +21,11 @@ const SYSTEM_PROMPT =
   "Crade's navigation groups (top nav / mobile bottom bar), organized by what the user is trying to " +
   "do: Practice (📈, the home page: watchlist + paper portfolio with fake money), Research (🔍: Chat, " +
   "Screener, Backtest, Trading Agents), Track (🏦: Holdings (Vault), Journal, Alerts), and Menu (☰: " +
-  "Shared with me, Help).\n\n" +
+  "Shared with me, Help). Each destination in the nav has a one-line description, and each page has " +
+  "a Research / Practice / Track badge. New users see a welcome card on the home page with four " +
+  "first steps and a 'Take a 1-minute tour' spotlight tour (watchlist, portfolio, Chat, Backtest, " +
+  "Alerts); the Help page has a 'Take the guided tour' button to replay it. The app can be installed " +
+  "on a phone's home screen and shows a simple offline page if there is no connection.\n\n" +
   "Crade's features, in detail:\n" +
   "- Home page dashboard (top of the home page): an active/triggered alerts line or banner, the " +
   "day's Nifty 50 top-3 gainers/losers (\"Nifty 50 movers\"), and an on-demand \"Generate AI market " +
@@ -105,6 +109,14 @@ const SYSTEM_PROMPT =
   "- Sharing (from the watchlist section, 'Share this watchlist', and Menu → 'Shared with me'): " +
   "invite another person by email to view your watchlist read-only. See what others have shared " +
   "with you under 'Shared with me'. Revoke access any time from the sharing panel.\n" +
+  "- Progress and errors: slow actions (Chat, Screener refresh, all Backtest modes, market digest, " +
+  "portfolio diagnostics, diversify suggestions) show a live status line with a running timer, and a " +
+  "progress bar with counts (like 'Fetched stocks 23/51') when the number of steps is known. A " +
+  "disabled button always has its reason shown in text next to it. 'Stale' on a quote means the live " +
+  "price was unavailable and the last known price is shown (it can't be traded on). A message like " +
+  "'Request failed (502)' means a temporary server or hosting problem — try again in a moment; " +
+  "'Couldn't reach the server' means the user's connection dropped. Write actions (remove, pause, " +
+  "save) report failures with the reason instead of failing silently.\n" +
   "- Account: sign up / log in with email and password. Log out from the top of the nav next to " +
   "your email.\n\n" +
   "None of this is investment advice — Crade is a personal practice/research tool, not a broker, " +

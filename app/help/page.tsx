@@ -8,6 +8,7 @@ const QUICK_START = [
   "Add a stock to your Watchlist on the home page (top nav, Practice 📈) — try RELIANCE.NS or just \"Adani\".",
   "Try a paper trade — click Buy on any watchlist row, or swipe the row right. It uses fake money, so there's nothing to lose.",
   "Ask the AI Chat a question about that stock (Research → Chat) to see how it reasons from real data.",
+  "Prefer a walkthrough? Use \"Take the guided tour\" below, or \"Take a 1-minute tour\" on the welcome card on the home page.",
 ];
 
 interface Section {
@@ -21,6 +22,19 @@ interface Section {
 // knows what's written there, so the two drift apart silently otherwise.
 const SECTIONS: Section[] = [
   {
+    title: "Finding your way around — the nav",
+    intro: "The nav (top bar on a computer, bottom bar on a phone) is grouped by what you're trying to do. Tap a group to see its pages, each with a one-line description:",
+    bullets: [
+      "Practice (📈) — the home page: your watchlist and your paper portfolio, where you buy and sell with fake money.",
+      "Research (🔍) — understand a stock or an idea: Chat, Screener, Backtest a strategy, and Trading Agents.",
+      "Track (🏦) — record and monitor: Holdings (Vault) for what you really own, Journal for your reasoning, and Alerts.",
+      "Menu (☰) — Shared with me and Help.",
+      "Every page has a small Research / Practice / Track badge and a one-line summary under its title.",
+      "First time in? A welcome card on the home page lists four good first steps and offers a 1-minute spotlight tour (it highlights the watchlist, portfolio, Chat, Backtest and Alerts). You can replay the tour any time from the button below.",
+      "On a phone, the home screen can be installed like an app; if you go offline you'll see a simple offline page rather than stale prices.",
+    ],
+  },
+  {
     title: "Home page dashboard — top of the home page",
     intro: "A few small widgets above your Watchlist, meant to be glanced at, not read in depth:",
     bullets: [
@@ -33,17 +47,19 @@ const SECTIONS: Section[] = [
     title: "Watchlist — 📈, home page",
     intro: "Your list of stocks to keep an eye on, and where you place paper trades.",
     bullets: [
-      "Add a stock by symbol (RELIANCE.NS) or company name (\"Adani\") — a live price loads automatically, no extra click needed.",
+      "Add a stock by symbol (RELIANCE.NS) or company name (\"Adani\") — a live price loads automatically, no extra click needed. New accounts start with a few starter stocks; if you empty the list, popular Nifty 50 stocks are offered as one-tap buttons.",
       "Each row shows the price, day change %, and (if a Trading Agents analysis has been run on it) a BUY/SELL/HOLD badge — tap it to jump straight to that analysis. A badge older than 48 hours shows \"Stale\" instead, as a reminder to re-run it.",
       "RSI/SMA toggle (top right) — turns on 14-day RSI plus 20-day and 50-day moving averages per row, flagging \"oversold\"/\"overbought\" when RSI crosses 30/70.",
       "Buy and Sell buttons place a paper trade at the live price; on a touchscreen you can also swipe a row right to Buy or left to Sell — the buttons are always there too, swiping is just a shortcut.",
       "A quote marked \"Stale\" (data provider hiccup — see the price when we couldn't refresh it) can't be traded on until it's fresh again.",
+      "If Buy and Sell are greyed out, the row says why in plain text underneath: still fetching a quote, no quote available (tap Refresh to retry), the live price is unavailable, or the quantity needs to be 1 or more.",
+      "If a trade is rejected (for example not enough cash), the message says the reason, not just that it failed.",
       "Refresh re-fetches one row's price on demand; Refresh all does every row at once. ✕ removes a symbol.",
     ],
   },
   {
     title: "Paper trading & Portfolio — home page, below the watchlist",
-    intro: "\"Paper trading\" means practicing with fake money — no real broker, no real risk. This is where your simulated results live.",
+    intro: "\"Paper trading\" means practicing with fake money — no real broker, no real risk. This is where your simulated results live. A \"What is paper trading?\" box at the top of the portfolio explains it and stays open until your first trade.",
     bullets: [
       "Starts at ₹1,00,000 fake cash. The summary row shows remaining Cash, Total value (cash + what your positions are worth now), and Total P&L.",
       "Holdings list — each open position with its quantity, average cost, and live profit/loss in both ₹ and %.",
@@ -61,6 +77,7 @@ const SECTIONS: Section[] = [
       "Task picker changes how it approaches your question: Chat (open-ended), Explain a move (why did the price do X), Summarize, or Digest.",
       "Answers that used real data show small \"Source\" pills underneath (e.g. which headline or price point it drew from) so you can see what it actually looked at.",
       "If the underlying data genuinely couldn't be fetched, the reply renders as a distinct dashed \"⚠ No live data available\" block instead of a normal answer — it's built to say so plainly rather than invent numbers or headlines.",
+      "While it works you'll see what it's actually doing — fetching data for the symbol, then waiting on the AI provider (and which one, if it has to fall back to another) — with a running timer.",
       "History is saved per symbol, so it's still there next time you ask about the same stock. Clicking any symbol name elsewhere in the app (watchlist, screener) jumps straight into a chat about it.",
     ],
   },
@@ -87,6 +104,7 @@ const SECTIONS: Section[] = [
       "Filters: sector dropdown, min/max price, and max P/E, plus a sort-by dropdown (% change, price, P/E, or market cap).",
       "The Ask box lets you describe what you want in plain English — e.g. \"5 stocks with positive momentum and a reasonable P/E\" — and the AI picks matching rows from the real table shown and explains why, without predicting future returns.",
       "Each row has a \"+ Watchlist\" button to add it, and a \"⚡ Agents\" button that opens a full Trading Agents run for that stock right there.",
+      "Refreshing the Nifty 50 tab shows a live progress bar (\"Fetched stocks 23/51\") instead of a bare spinner.",
       "Arriving here from a triggered price alert filters the table down to just the stock(s) that fired, with a banner and a \"Clear filter\" link.",
     ],
   },
@@ -101,6 +119,7 @@ const SECTIONS: Section[] = [
       "Strategy leaderboard — runs every ranking strategy over the same period and shows which performed best historically, plus what each currently holds.",
       "Pick a strategy (grouped by family, e.g. trend-following, mean-reversion), tune its parameters, choose a data interval (daily/weekly/monthly) and lookback range (3 months to 5 years), then Run.",
       "Results show a metrics grid (total return, return vs. plain buy-and-hold, CAGR, max drawdown, Sharpe ratio, win rate, number of trades, final equity), an equity curve chart plotted against a benchmark, and a full trade log.",
+      "While a backtest runs you'll see real progress — how many stocks' price history has been fetched so far, then the simulation step. The cross-sectional mode and the leaderboard fetch all 50 stocks, so up to a minute is normal.",
       "\"Synthesize results\" gets an optional AI summary of what the numbers actually show — it does not predict future returns.",
       "Every run is saved under \"Past runs\" so you can reopen it later.",
     ],
@@ -135,6 +154,7 @@ const SECTIONS: Section[] = [
       "Conditions: price above a value, price below a value, RSI(14) below a value, or a volume spike vs. the 20-day average (\"When\" side of the form).",
       "Delivery: a push notification on this device (click \"Enable push notifications\" once first) or an email — chosen per alert (\"Then\" side of the form).",
       "Checked automatically every 4 hours — the page shows the exact time of the next check.",
+      "Pause/Activate and Remove tell you if they didn't work (with the reason), rather than silently doing nothing.",
       "A fired alert shows a \"triggered\" badge and stays that way until you reactivate it; Pause/Activate toggles whether it's being checked at all.",
     ],
   },
@@ -145,6 +165,18 @@ const SECTIONS: Section[] = [
       "\"Share this watchlist\" (on the home page) invites someone by email — they don't need an account yet for you to invite them, only to actually view it once it's shared.",
       "Revoke access any time from the same panel.",
       "Anything others have shared with you appears under \"Shared with me\" in the Menu.",
+    ],
+  },
+  {
+    title: "When something goes wrong — what the messages mean",
+    intro: "Crade uses free data sources and AI providers, which are sometimes slow or briefly unavailable. It tries to tell you what happened rather than fail silently:",
+    bullets: [
+      "A disabled button always has a reason shown next to it (for example Buy/Sell on the watchlist, Run Backtest, Add all, Ask).",
+      "\"Stale\" means the live price couldn't be fetched, so the last known price is shown; you can look at it but not trade on it.",
+      "\"Request failed (502)\" (or another number) means the server or hosting platform had a temporary problem — wait a moment and try again. Messages that start with what you were doing (\"Couldn't remove this holding: …\") tell you which action didn't go through.",
+      "\"Couldn't reach the server\" means your device lost its connection; check your network and try again.",
+      "A long wait that says \"Taking longer than usual\" is the free data source or AI provider being slow; the running timer shows it's still working. Trading Agents can take up to 5 minutes and keeps running if you leave the page.",
+      "\"No data available\" in Chat means the data source failed for that stock — the AI is told not to guess, so it won't invent numbers or headlines.",
     ],
   },
   {
@@ -173,7 +205,7 @@ export default function HelpPage() {
         </div>
 
         <div className="card p-4 flex flex-col gap-2">
-          <h2 className="text-sm font-semibold">New here? Try these three things first</h2>
+          <h2 className="text-sm font-semibold">New here? Try these first</h2>
           <ol className="text-sm text-foreground-muted list-decimal pl-5 flex flex-col gap-1">
             {QUICK_START.map((step) => (
               <li key={step}>{step}</li>

@@ -20,7 +20,15 @@ replacement for it.
 ## Features
 
 - **Auth** — real email/password accounts (hand-rolled, not a third-party auth library).
-- **Watchlist** — track symbols, auto-fetch live quotes.
+- **Guided first run** — a welcome card with four first steps and an opt-in spotlight tour
+  (watchlist, portfolio, Chat, Backtest, Alerts) that highlights the real elements on the page;
+  replayable from Help or via `/?tour=1`.
+- **Intent-based navigation** — the nav is grouped by what you're doing: **Practice** (watchlist +
+  paper portfolio), **Research** (Chat, Screener, Backtest, Trading Agents), **Track** (Holdings,
+  Journal, Alerts) and **Menu** (Shared with me, Help). Every destination has a one-line
+  description and every page a Research / Practice / Track badge.
+- **Watchlist** — track symbols, auto-fetch live quotes. Buy/Sell explain in text why they are
+  disabled (stale quote, no quote, invalid quantity).
 - **Paper trading** — a simulated cash + holdings portfolio; buys/sells fill at the live quote,
   server-authoritative (the client never sends a pre-computed balance).
 - **AI chat** — ask about a symbol or general market questions; answers are grounded in real
@@ -29,21 +37,35 @@ replacement for it.
 - **Alerts** — price-above/below, RSI-below, and volume-spike conditions, evaluated on a
   schedule and delivered as real browser push notifications (works installed as a PWA,
   including iOS 16.4+ home-screen installs).
-- **Backtesting** — single-symbol, cross-sectional (ranks the whole universe and rebalances
-  into the top N), and pairs-trading (market-neutral spread) strategies, with an optional
-  AI-generated review of the results.
+- **Trading Agents** — a multi-agent research pipeline (technical, fundamentals, news and
+  sentiment analysts → bull/bear debate → trader → risk debate → final call) for one symbol. It
+  runs in the background (up to ~5 minutes) with a live per-stage checklist and saves each run.
+  The one AI surface that ends in a directive buy/sell/hold, with a stronger disclaimer.
+- **Backtesting** — single-symbol, portfolio (basket), cross-sectional (ranks the whole universe
+  and rebalances into the top N), pairs-trading (market-neutral spread), and a strategy
+  leaderboard, with an optional AI-generated review of the results.
 - **Screener** — Nifty 50 (on-demand, 10-minute cache) and all-NSE (~2,000 symbols, batch
-  cron-refreshed hourly) with manual filters and natural-language AI-assisted filtering.
+  cron-refreshed every 6 hours) with manual filters and natural-language AI-assisted filtering.
 - **Real holdings tracker** — manually record positions you actually hold at your real broker,
   purely for research/diagnostics (allocation, concentration, sector exposure, factor tilts,
   diversification suggestions) — separate from the paper-trading portfolio, no fake cash involved.
+- **Trade journal** — write down *why* before acting, then record the outcome later; an on-demand
+  AI review describes patterns across your own entries (never predicts returns).
+- **Live progress for slow actions** — Chat, Screener refresh, every Backtest mode, the market
+  digest and the portfolio/holdings AI tools stream what the server is *actually* doing (real
+  counts like "Fetched stocks 23/51", which AI provider is being waited on) instead of a bare
+  spinner. See [`lib/progress/`](lib/progress).
+- **Clear errors** — failed writes (remove, pause, save, trade) say what didn't happen and why;
+  network drops and proxy error pages are turned into readable messages.
 - **Sharing** — invite another user (by email) to view your watchlist read-only. No teams/orgs,
   just per-resource, per-invitee grants.
-- **PWA** — installable, service worker for push notifications.
+- **PWA** — installable, service worker for push notifications, and a simple offline page.
+  Mobile-first touch targets (≥44px), safe-area-aware bottom nav, and swipe-to-buy/sell on
+  watchlist rows.
 
 ## Tech stack
 
-- [Next.js 15](https://nextjs.org) (App Router, Turbopack) + React 19 + TypeScript
+- [Next.js 16](https://nextjs.org) (App Router, Turbopack) + React 19 + TypeScript
 - [MongoDB](https://www.mongodb.com/) via the official driver (no ORM)
 - Tailwind CSS v4
 - Hand-rolled session auth (`node:crypto` scrypt, no bcrypt/Auth.js)
@@ -126,18 +148,22 @@ All of these live in `.env.local` (see [`.env.example`](.env.example) for the li
 
 ### Scheduled jobs
 
-Two GitHub Actions workflows call cron-gated API routes on the deployed URL (they can't reach
+Three GitHub Actions workflows call cron-gated API routes on the deployed URL (they can't reach
 `localhost`, so locally these features only update when you trigger them manually):
 
-- [`.github/workflows/evaluate-alerts.yml`](.github/workflows/evaluate-alerts.yml) — every 5
-  minutes, evaluates active alerts and sends push notifications for any that trigger.
-- [`.github/workflows/refresh-screener.yml`](.github/workflows/refresh-screener.yml) — hourly,
-  refreshes the all-NSE screener cache in small batches to stay well under serverless timeouts.
+- [`.github/workflows/evaluate-alerts.yml`](.github/workflows/evaluate-alerts.yml) — every 4
+  hours, evaluates active alerts and sends push/email notifications for any that trigger.
+- [`.github/workflows/refresh-screener.yml`](.github/workflows/refresh-screener.yml) — every 6
+  hours, refreshes the all-NSE screener cache in small batches to stay well under serverless
+  timeouts.
+- [`.github/workflows/snapshot-portfolios.yml`](.github/workflows/snapshot-portfolios.yml) — once
+  per trading day (15:45 IST), marks every paper portfolio to market so the performance chart
+  shows day-to-day drift between trades.
 
 Both need two repo secrets (Settings → Secrets and variables → Actions): `CRON_SECRET` (same
 value as the Vercel env var) and `CRADE_DEPLOYMENT_URL` (the deployed origin, no trailing slash).
 Vercel's own `crons` config in `vercel.json` isn't used for these because Hobby-tier projects only
-allow once-daily schedules, and alerts need 5-minute granularity to be useful.
+allow once-daily schedules, so GitHub Actions provides the finer-grained schedule instead.
 
 ## Testing
 
@@ -146,8 +172,10 @@ npm test
 ```
 
 Runs the Vitest suite: paper-trading buy/sell logic, market-data provider fallback behavior,
-the backtest engine/indicators/ML strategy, and the pub/sub event engine used to fan out
-cross-sectional backtest results. Business logic in `lib/` is deliberately kept I/O-free and
+the backtest engine/indicators/ML strategy, the pub/sub event engine used to fan out
+cross-sectional backtest results, the progress-streaming layer (tested over real local sockets,
+including mid-stream drops and proxy error pages), the `safeJson`/`errorMessage` helpers, and a
+guard that fails if a guided-tour target or nav link is renamed. Business logic in `lib/` is deliberately kept I/O-free and
 framework-free so it's directly unit-testable — see e.g. `lib/paper-trading/store.test.ts`.
 
 ## Project structure
@@ -155,12 +183,12 @@ framework-free so it's directly unit-testable — see e.g. `lib/paper-trading/st
 ```
 app/            Next.js App Router — pages, API routes, and the one client-owned home page
 lib/            Provider-agnostic core: db, auth, market-data, ai, news, push, paper-trading,
-                portfolio diagnostics, screener, backtest
+                portfolio diagnostics, screener, backtest, agents, progress (streaming)
 scripts/        One-off/generator scripts (NSE universe generation, local screener seeding,
                 the jugaad-data Python bridge)
 docs/           Product plan, enterprise/sharing plan, strategy-library implementation log
-.github/        Scheduled-job workflows (alerts, screener refresh)
-public/         PWA manifest + service worker
+.github/        Scheduled-job workflows (alerts, screener refresh, portfolio snapshots)
+public/         PWA manifest, service worker, offline page
 ```
 
 For the full architectural tour — why each provider/cache/fallback layer exists, what broke
