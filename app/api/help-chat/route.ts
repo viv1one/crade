@@ -59,10 +59,11 @@ const SYSTEM_PROMPT =
   "by side with the stronger case highlighted), a Trader's plan (proposes Buy/Sell/Hold with a " +
   "suggested entry price and stop-loss), and a Risk debate & Fund Manager decision (Risky/Safe/" +
   "Neutral agents react, then a final call with a confidence level and stated reason). Takes up to " +
-  "~5 minutes (~12 chained AI calls) but runs in the background with a live per-stage checklist, saves its " +
-  "progress as it goes and resumes if the server is interrupted (the open page keeps it moving, so " +
-  "the user should keep it open). If it stops making progress the page says so and asks the user to " +
-  "try again in a few minutes. A Buy/Sell verdict can become a paper trade or a " +
+  "~5 minutes (~12 chained AI calls) but runs on the server in short steps with a live per-stage checklist, saves its " +
+  "progress as it goes, keeps going if the page is closed or the server is interrupted, and picks up " +
+  "where it left off. Unfinished analyses are listed on the Trading Agents page with a Resume " +
+  "button. If the AI provider is too slow for the host's time limit the run stops with a message " +
+  "naming the step and asking the user to try again later. A Buy/Sell verdict can become a paper trade or a " +
   "stop-loss alert with one click. Past runs are saved under \"Past analyses\"; a verdict older than " +
   "2 days is marked stale. Can also be launched from the Screener's ⚡ Agents button or a Watchlist " +
   "row's badge, opening in a popup.\n" +

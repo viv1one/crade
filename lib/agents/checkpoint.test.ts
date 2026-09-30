@@ -2,7 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import type { StoredChat } from "./checkpoint";
 
 const chatMock = vi.fn();
-vi.mock("../ai", () => ({ chat: (...args: unknown[]) => chatMock(...args) }));
+vi.mock("../ai", () => ({
+  chat: (...args: unknown[]) => chatMock(...args),
+  AiDeadlineError: class AiDeadlineError extends Error {},
+}));
 
 function memory() {
   const store: Record<string, StoredChat> = {};
@@ -63,5 +66,69 @@ describe("checkpointedChat", () => {
     };
     await expect(checkpointedChat(cp, "k", [], { task: "agent_reasoning" })).rejects.toBeInstanceOf(YieldForContinuation);
     expect(store.k.content).toBe("done"); // stored before the hand-off, so the next invocation replays it
+  });
+
+  it("turns an AI deadline into a StepDeadlineError that names the step", async () => {
+    chatMock.mockReset();
+    const { AiDeadlineError } = await import("../ai");
+    chatMock.mockRejectedValue(new AiDeadlineError());
+    const { checkpointedChat, StepDeadlineError } = await import("./checkpoint");
+    const { store, cp } = memory();
+    const err = await checkpointedChat(cp, "debate_bull", [], { task: "agent_reasoning" }).catch((e) => e);
+    expect(err).toBeInstanceOf(StepDeadlineError);
+    expect(err.key).toBe("debate_bull");
+    expect(store).toEqual({}); // nothing stored for a call that didn't finish
+  });
+
+  it("passes the caller's per-step call options (deadline, provider rotation) to chat()", async () => {
+    chatMock.mockReset();
+    chatMock.mockResolvedValue({ content: "x", provider: "p", model: "m" });
+    const { checkpointedChat } = await import("./checkpoint");
+    const { cp } = memory();
+    await checkpointedChat(
+      { ...cp, callOptions: (key: string) => ({ deadline: 123, startAt: key === "trader" ? 2 : 0 }) },
+      "trader",
+      [],
+      { task: "agent_reasoning" }
+    );
+    expect(chatMock).toHaveBeenCalledWith([], { task: "agent_reasoning", deadline: 123, startAt: 2 });
+  });
+
+  it("tells the caller a call is about to start, before making it", async () => {
+    chatMock.mockReset();
+    const order: string[] = [];
+    chatMock.mockImplementation(async () => (order.push("chat"), { content: "x", provider: "p", model: "m" }));
+    const { checkpointedChat } = await import("./checkpoint");
+    const { cp } = memory();
+    await checkpointedChat({ ...cp, began: (k: string) => void order.push(`began:${k}`) }, "risk_safe", [], {
+      task: "agent_reasoning",
+    });
+    expect(order).toEqual(["began:risk_safe", "chat"]);
+  });
+
+  it("doesn't announce a call it answers from storage", async () => {
+    chatMock.mockReset();
+    const began = vi.fn();
+    const { checkpointedChat } = await import("./checkpoint");
+    const { store, cp } = memory();
+    store.k = { content: "stored", provider: "p", model: "m" };
+    await checkpointedChat({ ...cp, began }, "k", [], { task: "agent_reasoning" });
+    expect(began).not.toHaveBeenCalled();
+    expect(chatMock).not.toHaveBeenCalled();
+  });
+
+  it("in concise mode asks for a shorter answer by extending the system prompt only", async () => {
+    chatMock.mockReset();
+    chatMock.mockResolvedValue({ content: "x", provider: "p", model: "m" });
+    const { checkpointedChat } = await import("./checkpoint");
+    const { cp } = memory();
+    await checkpointedChat({ ...cp, callOptions: () => ({ concise: true }) }, "k", [
+      { role: "system", content: "You are the bull." },
+      { role: "user", content: "Data." },
+    ], { task: "agent_reasoning" });
+    const [sent, opts] = chatMock.mock.calls[0];
+    expect(sent[0].content).toMatch(/^You are the bull\. .*concise/);
+    expect(sent[1].content).toBe("Data.");
+    expect(opts).not.toHaveProperty("concise"); // a checkpoint option, not a chat() option
   });
 });

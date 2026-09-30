@@ -1,3 +1,4 @@
+import { AiDeadlineError } from "./types";
 import type { AiProviderConfig, ChatMessage, ChatOptions, ChatResult, ChatTask } from "./types";
 
 // All providers are reached through OpenAI-compatible /chat/completions
@@ -92,7 +93,19 @@ async function fetchWithBackoff(url: string, init: RequestInit, retries = 2, bas
     if (res.status !== 429 && res.status !== 503) return res;
     lastRes = res;
     if (attempt < retries) {
-      await new Promise((resolve) => setTimeout(resolve, baseDelayMs * 2 ** attempt));
+      // The shared abort signal (if any) covers the sleep too: a call with a
+      // deadline never backs off past it.
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(resolve, baseDelayMs * 2 ** attempt);
+        init.signal?.addEventListener(
+          "abort",
+          () => {
+            clearTimeout(timer);
+            reject(init.signal!.reason);
+          },
+          { once: true }
+        );
+      });
     }
   }
   return lastRes!;
@@ -100,7 +113,8 @@ async function fetchWithBackoff(url: string, init: RequestInit, retries = 2, bas
 
 async function callProvider(
   config: AiProviderConfig,
-  messages: ChatMessage[]
+  messages: ChatMessage[],
+  signal?: AbortSignal
 ): Promise<ChatResult> {
   const res = await fetchWithBackoff(`${config.baseURL}/chat/completions`, {
     method: "POST",
@@ -109,6 +123,7 @@ async function callProvider(
       Authorization: `Bearer ${config.apiKey}`,
     },
     body: JSON.stringify({ model: config.model, messages }),
+    signal,
   });
   if (!res.ok) {
     throw new Error(`${config.name} chat failed: ${res.status}`);
@@ -127,25 +142,54 @@ const PROVIDER_LABELS: Record<string, string> = {
   openai: "OpenAI",
 };
 
+// Time left, below which starting another provider attempt is pointless.
+const MIN_ATTEMPT_MS = 2_000;
+// With a deadline, one attempt gets at most this share of the time that's left
+// (when there's plenty), so a provider that hangs can't use up the whole budget
+// and leave no room to fail over to the next one.
+const ATTEMPT_SHARE = 0.65;
+const SHARE_ONLY_ABOVE_MS = 30_000;
+
 export async function chat(
   messages: ChatMessage[],
   options: ChatOptions
 ): Promise<ChatResult> {
-  const chain = chainByTask[options.task];
+  const configured = chainByTask[options.task].filter((name) => providers[name].apiKey);
+  // Rotate the starting point on retries so a provider that was too slow last
+  // time isn't simply asked again first.
+  const offset = configured.length > 0 ? (options.startAt ?? 0) % configured.length : 0;
+  const chain = [...configured.slice(offset), ...configured.slice(0, offset)];
+
   let lastError: unknown;
+  let timedOut = false;
   for (const providerName of chain) {
     const config = providers[providerName];
-    if (!config.apiKey) continue; // skip unconfigured providers
+
+    let signal: AbortSignal | undefined;
+    if (options.deadline !== undefined) {
+      const remaining = options.deadline - Date.now();
+      if (remaining < MIN_ATTEMPT_MS) throw new AiDeadlineError();
+      const budget = remaining > SHARE_ONLY_ABOVE_MS ? remaining * ATTEMPT_SHARE : remaining;
+      // AbortSignal.timeout only accepts a whole number of milliseconds.
+      signal = AbortSignal.timeout(Math.floor(budget));
+    }
+
     options.onProgress?.({ text: `Waiting for ${PROVIDER_LABELS[providerName] ?? providerName}…` });
     try {
-      return await callProvider(config, messages);
+      return await callProvider(config, messages, signal);
     } catch (err) {
       lastError = err;
+      if (signal?.aborted) timedOut = true;
       options.onProgress?.({
-        text: `${PROVIDER_LABELS[providerName] ?? providerName} didn't respond — trying the next provider…`,
+        text: `${PROVIDER_LABELS[providerName] ?? providerName} ${
+          signal?.aborted ? "was too slow" : "didn't respond"
+        } — trying the next provider…`,
       });
     }
   }
+  // Every attempt that failed did so by running out of time: this is "try
+  // again later", not "the request is bad".
+  if (timedOut) throw new AiDeadlineError();
   throw new Error(
     `All AI providers failed or unconfigured for task "${options.task}": ${lastError}`
   );

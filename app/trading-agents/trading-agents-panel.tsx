@@ -15,6 +15,13 @@ interface AgentRunSummary {
   createdAt: string;
 }
 
+interface UnfinishedRun {
+  _id: string;
+  symbol: string;
+  createdAt: string;
+  stagesDone: number;
+}
+
 interface TradingAgentsPanelProps {
   initialSymbol?: string;
 }
@@ -33,6 +40,8 @@ export function TradingAgentsPanel({ initialSymbol }: TradingAgentsPanelProps = 
 
   const [history, setHistory] = useState<AgentRunSummary[]>([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [unfinished, setUnfinished] = useState<UnfinishedRun[]>([]);
+  const [resumeRun, setResumeRun] = useState<UnfinishedRun | null>(null);
 
   function loadHistory() {
     fetch("/api/agents/run")
@@ -44,8 +53,19 @@ export function TradingAgentsPanel({ initialSymbol }: TradingAgentsPanelProps = 
 
   useEffect(loadHistory, []);
 
+  // Analyses that started but never finished (the host cut them off, or the page
+  // was closed) — offered for resuming rather than silently lost.
+  function loadUnfinished() {
+    fetch("/api/agents/run?unfinished=1")
+      .then((res) => safeJson(res))
+      .then((data) => setUnfinished(Array.isArray(data) ? (data as UnfinishedRun[]) : []))
+      .catch(() => {});
+  }
+  useEffect(loadUnfinished, []);
+
   function startRun(e: React.FormEvent) {
     e.preventDefault();
+    setResumeRun(null);
     const sym = symbolInput.trim().toUpperCase();
     if (!sym) return;
     setActiveResult(undefined);
@@ -80,13 +100,57 @@ export function TradingAgentsPanel({ initialSymbol }: TradingAgentsPanelProps = 
         <p className="text-xs text-foreground-muted -mt-2">Enter a symbol above to enable the button.</p>
       )}
 
-      {activeSymbol && (
+      {resumeRun ? (
         <TradingAgentsRun
-          key={activeSymbol + (activeResult ? "-history" : "-fresh")}
-          symbol={activeSymbol}
-          onComplete={loadHistory}
-          initialResult={activeResult}
+          key={`resume-${resumeRun._id}`}
+          symbol={resumeRun.symbol}
+          resumeRunId={resumeRun._id}
+          onComplete={() => {
+            loadHistory();
+            loadUnfinished();
+          }}
         />
+      ) : (
+        activeSymbol && (
+          <TradingAgentsRun
+            key={activeSymbol + (activeResult ? "-history" : "-fresh")}
+            symbol={activeSymbol}
+            onComplete={loadHistory}
+            initialResult={activeResult}
+          />
+        )
+      )}
+
+      {unfinished.filter((u) => u._id !== resumeRun?._id).length > 0 && (
+        <div>
+          <h3 className="text-sm font-medium mb-1">Unfinished analyses</h3>
+          <p className="text-xs text-foreground-muted mb-2">
+            These started but never completed. Resuming picks up from the last step that finished.
+          </p>
+          <ul className="card flex flex-col divide-y divide-border">
+            {unfinished
+              .filter((u) => u._id !== resumeRun?._id)
+              .map((u) => (
+                <li key={u._id} className="flex items-center justify-between gap-3 p-3 text-xs">
+                  <span className="font-mono">{u.symbol}</span>
+                  <span className="text-foreground-muted">
+                    {u.stagesDone}/4 steps · started {new Date(u.createdAt).toLocaleString()}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setActiveSymbol(null);
+                      setActiveResult(undefined);
+                      setResumeRun(u);
+                    }}
+                    className="btn-secondary-sm"
+                    aria-label={`Resume the ${u.symbol} analysis`}
+                  >
+                    Resume
+                  </button>
+                </li>
+              ))}
+          </ul>
+        </div>
       )}
 
       <div>

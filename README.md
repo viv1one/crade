@@ -39,7 +39,10 @@ replacement for it.
   including iOS 16.4+ home-screen installs).
 - **Trading Agents** — a multi-agent research pipeline (technical, fundamentals, news and
   sentiment analysts → bull/bear debate → trader → risk debate → final call) for one symbol. It
-  runs in the background (up to ~5 minutes) with a live per-stage checklist and saves each run.
+  runs in the background (up to ~5 minutes) with a live per-stage checklist and saves each run. It
+  is executed in short resumable slices, so a host that limits how long one request may run can't
+  strand it: it continues on the server with the tab closed, learns the host's limit, and runs that
+  did get stuck can be resumed from an "Unfinished analyses" list.
   The one AI surface that ends in a directive buy/sell/hold, with a stronger disclaimer.
 - **Backtesting** — single-symbol, portfolio (basket), cross-sectional (ranks the whole universe
   and rebalances into the top N), pairs-trading (market-neutral spread), and a strategy
@@ -144,11 +147,12 @@ All of these live in `.env.local` (see [`.env.example`](.env.example) for the li
 | `MONGODB_URI` | **Always** | Every API route reads/writes Mongo through this. Include a default database name in the connection string. |
 | `NIM_API_KEY` / `NIM_MODEL` / `NIM_MODEL_LARGE`, `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL`, `OPENAI_API_KEY` / `OPENAI_MODEL` | At least one, for `/api/chat` | The AI router tries providers in a task-specific order and skips any without a key. Without any key configured, `/api/chat` returns a 502 with a clear error instead of failing silently. |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | For push notifications | Generate a keypair with `npx web-push generate-vapid-keys`. `VAPID_SUBJECT` must be a real `mailto:`/`https:` URI with no angle brackets. `NEXT_PUBLIC_VAPID_PUBLIC_KEY` must match `VAPID_PUBLIC_KEY` exactly (it's the browser-exposed copy). |
-| `CRON_SECRET` | Recommended | Bearer-token secret the alert-evaluation and screener-refresh cron endpoints require (`Authorization: Bearer <secret>`). If unset, those endpoints accept unauthenticated calls. |
+| `CRON_SECRET` | Recommended | Bearer-token secret the cron endpoints require (`Authorization: Bearer <secret>`): alert evaluation, screener refresh, portfolio snapshots, and Trading Agents resuming. Without it those endpoints refuse to run, and a Trading Agents run is driven only by the open page. |
+| `AGENTS_STEP_BUDGET_SECONDS`, `AGENTS_INVOCATION_LIMIT_SECONDS` | Optional | Trading Agents tuning. The first (default 20) is how long one server slice keeps starting new AI calls before handing off; the second (default 300) is the starting assumption for how long one request may live — it is corrected automatically if the host turns out to kill requests sooner. Rarely need changing. |
 
 ### Scheduled jobs
 
-Three GitHub Actions workflows call cron-gated API routes on the deployed URL (they can't reach
+Four GitHub Actions workflows call cron-gated API routes on the deployed URL (they can't reach
 `localhost`, so locally these features only update when you trigger them manually):
 
 - [`.github/workflows/evaluate-alerts.yml`](.github/workflows/evaluate-alerts.yml) — every 4
@@ -159,6 +163,10 @@ Three GitHub Actions workflows call cron-gated API routes on the deployed URL (t
 - [`.github/workflows/snapshot-portfolios.yml`](.github/workflows/snapshot-portfolios.yml) — once
   per trading day (15:45 IST), marks every paper portfolio to market so the performance chart
   shows day-to-day drift between trades.
+- [`.github/workflows/resume-agent-runs.yml`](.github/workflows/resume-agent-runs.yml) — every 5
+  minutes, a backstop for Trading Agents runs: resumes any run that is still "running" but that
+  nothing is working on (a function the host killed with nobody watching). A run normally keeps
+  itself going — see [`CLAUDE.md`](CLAUDE.md).
 
 Both need two repo secrets (Settings → Secrets and variables → Actions): `CRON_SECRET` (same
 value as the Vercel env var) and `CRADE_DEPLOYMENT_URL` (the deployed origin, no trailing slash).

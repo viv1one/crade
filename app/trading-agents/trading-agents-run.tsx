@@ -56,6 +56,9 @@ const POLL_INTERVAL_MS = 3000;
 // - RUN_TIMEOUT_MS: an absolute cap.
 const IDLE_TIMEOUT_MS = 4 * 60 * 1000;
 const RUN_TIMEOUT_MS = 20 * 60 * 1000;
+// A run being resumed may have been idle for days; give the first continuation
+// this long to land before "no progress" is judged.
+const IDLE_GRACE_MS = 45 * 1000;
 
 interface TradingAgentsRunProps {
   symbol: string;
@@ -67,6 +70,9 @@ interface TradingAgentsRunProps {
   // flow entirely rather than needlessly re-running a ~5-minute pipeline
   // just to redisplay something already computed.
   initialResult?: AgentPipelineResult;
+  // Attach to a run that already exists (started earlier and never finished)
+  // instead of creating a new one: shows what it has so far and keeps it going.
+  resumeRunId?: string;
 }
 
 // Extracted from what used to be inline in trading-agents-panel.tsx so it
@@ -79,9 +85,9 @@ interface TradingAgentsRunProps {
 // pipeline (that call's own promise isn't awaited for UI purposes, only to
 // know when to stop polling and to catch a hard failure) — see those
 // routes' comments for why creation and execution are split.
-export function TradingAgentsRun({ symbol, onComplete, initialResult }: TradingAgentsRunProps) {
+export function TradingAgentsRun({ symbol, onComplete, initialResult, resumeRunId }: TradingAgentsRunProps) {
   const [status, setStatus] = useState<"idle" | "running" | "complete" | "failed">(
-    initialResult ? "complete" : "idle"
+    initialResult ? "complete" : resumeRunId ? "running" : "idle"
   );
   const [partial, setPartial] = useState<Partial<AgentPipelineResult>>(initialResult ?? {});
   const [error, setError] = useState<string | null>(null);
@@ -92,6 +98,7 @@ export function TradingAgentsRun({ symbol, onComplete, initialResult }: TradingA
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const settledRef = useRef(false);
   const startedAtRef = useRef(0);
+  const attachedAtRef = useRef(0);
   // True while a poll request is in flight, so a slow response can never be
   // overtaken by a newer one and then overwrite it with staler data.
   const pollingRef = useRef(false);
@@ -116,7 +123,75 @@ export function TradingAgentsRun({ symbol, onComplete, initialResult }: TradingA
     fetch(`/api/agents/run/${runId}`, { method: "POST" }).catch(() => {});
   }
 
-  async function run() {
+  // Watches a run and keeps it moving: polls its state, and whenever the
+  // server says nothing is working on it, asks for the next slice. Used for a
+  // freshly created run and for resuming an old one.
+  function attach(runId: string) {
+    attachedAtRef.current = Date.now();
+    pollRef.current = setInterval(async () => {
+      if (settledRef.current || pollingRef.current) return;
+      if (Date.now() - startedAtRef.current > RUN_TIMEOUT_MS) {
+        settledRef.current = true;
+        stopPolling();
+        setStatus("failed");
+        setError(
+          "This analysis is taking far longer than expected. Check the \"Past analyses\" list in a " +
+            "minute — it may still complete — or run it again."
+        );
+        return;
+      }
+      pollingRef.current = true;
+      try {
+        const res = await fetch(`/api/agents/run/${runId}`);
+        if (!res.ok) return;
+        const doc = await safeJson<{
+          status: string;
+          result?: AgentPipelineResult;
+          error?: string;
+          stalled?: boolean;
+          idleMs?: number;
+        }>(res);
+        // The run may have settled while this request was in flight.
+        if (settledRef.current) return;
+        setPartial(doc.result ?? {});
+        if (doc.status === "complete" && !settledRef.current) {
+          settledRef.current = true;
+          stopPolling();
+          setStatus("complete");
+          onComplete?.(doc.result as AgentPipelineResult);
+        } else if (doc.status === "failed" && !settledRef.current) {
+          settledRef.current = true;
+          stopPolling();
+          setStatus("failed");
+          setError(doc.error ?? "Analysis failed");
+        } else if (doc.status === "running" && !settledRef.current) {
+          if ((doc.idleMs ?? 0) > IDLE_TIMEOUT_MS && Date.now() - attachedAtRef.current > IDLE_GRACE_MS) {
+            settledRef.current = true;
+            stopPolling();
+            setStatus("failed");
+            setError(
+              "The analysis stopped making progress (the AI provider or hosting may be having trouble). " +
+                "Please try again in a few minutes."
+            );
+          } else if (doc.stalled) {
+            // No live invocation is working on this run (it handed off, or
+            // was cut off by the host) — start the next one. The server
+            // claim is atomic, so a duplicate request here is harmless.
+            continueRun(runId);
+          }
+        }
+      } catch {
+        // Transient poll failure (bad JSON, network hiccup) — try again
+        // on the next tick rather than surfacing a one-off glitch.
+      } finally {
+        pollingRef.current = false;
+      }
+    }, POLL_INTERVAL_MS);
+
+    continueRun(runId);
+  }
+
+  function beginRun() {
     setStatus("running");
     setError(null);
     setPartial({});
@@ -124,7 +199,10 @@ export function TradingAgentsRun({ symbol, onComplete, initialResult }: TradingA
     setAlertCreated(false);
     settledRef.current = false;
     startedAtRef.current = Date.now();
+  }
 
+  async function run() {
+    beginRun();
     try {
       const createRes = await fetch("/api/agents/run", {
         method: "POST",
@@ -132,69 +210,7 @@ export function TradingAgentsRun({ symbol, onComplete, initialResult }: TradingA
         body: JSON.stringify({ symbol }),
       });
       const created = await safeJson<{ runId: string }>(createRes);
-      const runId = created.runId;
-
-      pollRef.current = setInterval(async () => {
-        if (settledRef.current || pollingRef.current) return;
-        if (Date.now() - startedAtRef.current > RUN_TIMEOUT_MS) {
-          settledRef.current = true;
-          stopPolling();
-          setStatus("failed");
-          setError(
-            "This analysis is taking far longer than expected. Check the \"Past analyses\" list in a " +
-              "minute — it may still complete — or run it again."
-          );
-          return;
-        }
-        pollingRef.current = true;
-        try {
-          const res = await fetch(`/api/agents/run/${runId}`);
-          if (!res.ok) return;
-          const doc = await safeJson<{
-            status: string;
-            result?: AgentPipelineResult;
-            error?: string;
-            stalled?: boolean;
-            idleMs?: number;
-          }>(res);
-          // The run may have settled while this request was in flight.
-          if (settledRef.current) return;
-          setPartial(doc.result ?? {});
-          if (doc.status === "complete" && !settledRef.current) {
-            settledRef.current = true;
-            stopPolling();
-            setStatus("complete");
-            onComplete?.(doc.result as AgentPipelineResult);
-          } else if (doc.status === "failed" && !settledRef.current) {
-            settledRef.current = true;
-            stopPolling();
-            setStatus("failed");
-            setError(doc.error ?? "Analysis failed");
-          } else if (doc.status === "running" && !settledRef.current) {
-            if ((doc.idleMs ?? 0) > IDLE_TIMEOUT_MS) {
-              settledRef.current = true;
-              stopPolling();
-              setStatus("failed");
-              setError(
-                "The analysis stopped making progress (the AI provider or hosting may be having trouble). " +
-                  "Please try again in a few minutes."
-              );
-            } else if (doc.stalled) {
-              // No live invocation is working on this run (it handed off, or
-              // was cut off by the host) — start the next one. The server
-              // claim is atomic, so a duplicate request here is harmless.
-              continueRun(runId);
-            }
-          }
-        } catch {
-          // Transient poll failure (bad JSON, network hiccup) — try again
-          // on the next tick rather than surfacing a one-off glitch.
-        } finally {
-          pollingRef.current = false;
-        }
-      }, POLL_INTERVAL_MS);
-
-      continueRun(runId);
+      attach(created.runId);
     } catch (err) {
       settledRef.current = true;
       stopPolling();
@@ -202,6 +218,14 @@ export function TradingAgentsRun({ symbol, onComplete, initialResult }: TradingA
       setError(errorMessage(err, "Failed to start analysis"));
     }
   }
+
+  // Picking up an existing run (see resumeRunId).
+  useEffect(() => {
+    if (!resumeRunId || pollRef.current) return;
+    beginRun();
+    attach(resumeRunId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resumeRunId]);
 
   function placeTrade() {
     const result = partial as AgentPipelineResult;

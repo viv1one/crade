@@ -26,6 +26,11 @@ interface Doc {
   heartbeatAt?: Date;
   lastProgressAt?: Date;
   invocations?: number;
+  stepAttempts?: Record<string, number>;
+  claimedAt?: Date;
+  inflightKey?: string;
+  learnedLimitMs?: number;
+  deathLifetimesMs?: number[];
 }
 let store: Doc[] = [];
 
@@ -45,11 +50,13 @@ vi.mock("mongodb", () => ({ ObjectId: FakeObjectId }));
 vi.mock("@/lib/db/collections", () => ({
   getCollections: async () => ({
     agentRuns: {
-      findOne: async (filter: { _id: { toString(): string }; userId: { toString(): string } }) =>
-        store.find((d) => d._id === filter._id.toString() && d.userId === filter.userId.toString()) ?? null,
+      findOne: async (filter: { _id: { toString(): string }; userId?: { toString(): string } }) =>
+        store.find(
+          (d) => d._id === filter._id.toString() && (filter.userId === undefined || d.userId === filter.userId.toString())
+        ) ?? null,
       updateOne: async (
         filter: { _id: { toString(): string }; $or?: unknown },
-        update: { $set?: Record<string, unknown>; $inc?: Record<string, number> }
+        update: { $set?: Record<string, unknown>; $inc?: Record<string, number>; $unset?: Record<string, unknown> }
       ) => {
         const doc = store.find((d) => d._id === filter._id.toString());
         if (!doc) return { modifiedCount: 0 };
@@ -68,8 +75,11 @@ vi.mock("@/lib/db/collections", () => ({
           if (key.startsWith("result.")) doc.result[key.slice("result.".length)] = value;
           else if (key.startsWith("checkpoints.")) {
             doc.checkpoints = { ...(doc.checkpoints ?? {}), [key.slice("checkpoints.".length)]: value };
+          } else if (key.startsWith("stepAttempts.")) {
+            doc.stepAttempts = { ...(doc.stepAttempts ?? {}), [key.slice("stepAttempts.".length)]: value as number };
           } else (doc as unknown as Record<string, unknown>)[key] = value;
         }
+        for (const key of Object.keys(update.$unset ?? {})) delete (doc as unknown as Record<string, unknown>)[key];
         for (const [key, by] of Object.entries(update.$inc ?? {})) {
           const rec = doc as unknown as Record<string, number | undefined>;
           rec[key] = (rec[key] ?? 0) + by;
@@ -257,6 +267,149 @@ describe("app/api/agents/run/[id] (poll + execute)", () => {
       const { POST } = await import("./route");
       expect((await POST(req(), params())).status).toBe(200);
       expect(store[0].status).toBe("complete");
+    });
+
+    it("gives each AI call the invocation's deadline, and rotates the provider on a retry", async () => {
+      store[0].stepAttempts = { debate_bull: 2 };
+      let seen: { a: unknown; b: unknown } | undefined;
+      mockRunPipeline.mockImplementation(async (_s: string, _o: OnStage | undefined, resume?: ResumeState) => {
+        seen = { a: resume?.checkpoints?.callOptions?.("debate_bull"), b: resume?.checkpoints?.callOptions?.("debate_bear") };
+        return FAKE_RESULT;
+      });
+      const before = Date.now();
+      const { POST } = await import("./route");
+      await POST(req(), params());
+      const a = seen!.a as { deadline: number; startAt: number };
+      const b = seen!.b as { deadline: number; startAt: number };
+      expect(a.startAt).toBe(2); // the step that timed out twice starts two providers along
+      expect(b.startAt).toBe(0);
+      expect(a.deadline).toBeGreaterThan(before);
+      expect(a.deadline).toBeLessThan(before + 300_000); // inside the assumed invocation limit
+    });
+
+    describe("learning the host's real limit from a slice it killed", () => {
+      const T = Date.now() - 200_000;
+      const killedMidCall = (lifetimeMs: number, extra: Partial<Doc> = {}): Partial<Doc> => ({
+        claimedAt: new Date(T),
+        heartbeatAt: new Date(T + lifetimeMs), // last sign of life; long since stale
+        inflightKey: "debate_bull",
+        ...extra,
+      });
+      let seen: { deadline: number; startAt: number; concise?: boolean } | undefined;
+      let startedAt = 0;
+      beforeEach(() => {
+        seen = undefined;
+        mockRunPipeline.mockImplementation(async (_s: string, _o: OnStage | undefined, resume?: ResumeState) => {
+          startedAt = Date.now();
+          seen = resume?.checkpoints?.callOptions?.("debate_bull") as typeof seen;
+          return FAKE_RESULT;
+        });
+      });
+
+      it("does not set a limit from a single death, but does count the call as an attempt", async () => {
+        Object.assign(store[0], killedMidCall(60_000));
+        const { POST } = await import("./route");
+        await POST(req(), params());
+        expect(store[0].learnedLimitMs).toBeUndefined();
+        expect(store[0].deathLifetimesMs).toEqual([60_000]);
+        expect(store[0].stepAttempts).toEqual({ debate_bull: 1 });
+        expect(seen!.startAt).toBe(1); // a different provider first this time
+      });
+
+      it("keeps later calls inside the limit once two slices have died at about the same age", async () => {
+        Object.assign(store[0], killedMidCall(58_000, { deathLifetimesMs: [60_000] }));
+        const { POST } = await import("./route");
+        await POST(req(), params());
+        expect(store[0].learnedLimitMs).toBe(60_000); // the larger of the two
+        // deadline = this slice's start + learned limit - margin (a few seconds), not the 300s default
+        expect(seen!.deadline - startedAt).toBeGreaterThan(50_000);
+        expect(seen!.deadline - startedAt).toBeLessThan(60_000);
+      });
+
+      it("a stray crash followed by a real host kill doesn't cap the run at the crash's age", async () => {
+        Object.assign(store[0], killedMidCall(60_000, { deathLifetimesMs: [9_000] }));
+        const { POST } = await import("./route");
+        await POST(req(), params());
+        expect(store[0].learnedLimitMs).toBe(60_000);
+      });
+
+      it("never learns a limit below 30s (two quick crashes aren't a host limit)", async () => {
+        Object.assign(store[0], killedMidCall(4_000, { deathLifetimesMs: [5_000] }));
+        const { POST } = await import("./route");
+        await POST(req(), params());
+        expect(store[0].learnedLimitMs).toBe(30_000);
+      });
+
+      it("only ever tightens the limit", async () => {
+        Object.assign(store[0], killedMidCall(90_000, { deathLifetimesMs: [90_000], learnedLimitMs: 45_000 }));
+        const { POST } = await import("./route");
+        await POST(req(), params());
+        expect(store[0].learnedLimitMs).toBe(45_000);
+      });
+
+      it("learns nothing from a clean hand-off (epoch heartbeat), even with a call marked in flight", async () => {
+        Object.assign(store[0], killedMidCall(60_000, { heartbeatAt: new Date(0) }));
+        const { POST } = await import("./route");
+        await POST(req(), params());
+        expect(store[0].learnedLimitMs).toBeUndefined();
+        expect(store[0].stepAttempts).toBeUndefined();
+      });
+
+      it("asks for a shorter answer once the same call has timed out twice", async () => {
+        Object.assign(store[0], killedMidCall(60_000, { stepAttempts: { debate_bull: 1 }, deathLifetimesMs: [60_000] })); // this death makes it 2
+        const { POST } = await import("./route");
+        await POST(req(), params());
+        expect(seen!.concise).toBe(true);
+      });
+
+      it("fails the run, naming the step and the host limit, once one call has been killed too often", async () => {
+        Object.assign(store[0], killedMidCall(60_000, { stepAttempts: { debate_bull: 3 }, deathLifetimesMs: [60_000] }));
+        const { POST } = await import("./route");
+        const res = await POST(req(), params());
+        expect(res.status).toBe(502);
+        const { error } = await res.json();
+        expect(error).toMatch(/too slow/i);
+        expect(error).toMatch(/research debate/i);
+        expect(error).toMatch(/60s/);
+        expect(mockRunPipeline).not.toHaveBeenCalled();
+      });
+
+      it("records which call is in flight, and clears it once the call is saved", async () => {
+        mockRunPipeline.mockImplementation(async (_s: string, _o: OnStage | undefined, resume?: ResumeState) => {
+          await resume?.checkpoints?.began?.("debate_bear");
+          expect(store[0].inflightKey).toBe("debate_bear");
+          await resume?.checkpoints?.save("debate_bear", { content: "x", provider: "p", model: "m" });
+          expect(store[0].inflightKey).toBeUndefined();
+          return FAKE_RESULT;
+        });
+        const { POST } = await import("./route");
+        await POST(req(), params());
+        expect(store[0].claimedAt).toBeInstanceOf(Date);
+      });
+    });
+
+    it("treats a call that ran out of time as a retry (202), not a failure, and counts the attempt", async () => {
+      const { StepDeadlineError } = await import("@/lib/agents/checkpoint");
+      mockRunPipeline.mockRejectedValue(new StepDeadlineError("debate_bull"));
+      const { POST, GET } = await import("./route");
+      const res = await POST(req(), params());
+      expect(res.status).toBe(202);
+      expect(store[0].status).toBe("running");
+      expect(store[0].stepAttempts).toEqual({ debate_bull: 1 });
+      expect((await (await GET(req(), params())).json()).stalled).toBe(true); // continues right away
+    });
+
+    it("fails the run with a clear message once the same call has timed out too many times", async () => {
+      const { StepDeadlineError } = await import("@/lib/agents/checkpoint");
+      store[0].stepAttempts = { risk_fm: 3 };
+      mockRunPipeline.mockRejectedValue(new StepDeadlineError("risk_fm"));
+      const { POST } = await import("./route");
+      const res = await POST(req(), params());
+      expect(res.status).toBe(502);
+      const { error } = await res.json();
+      expect(error).toMatch(/too slow/i);
+      expect(error).toMatch(/fund manager/i);
+      expect(store[0].status).toBe("failed");
     });
 
     it("gives up on a run that has been attempted too many times", async () => {

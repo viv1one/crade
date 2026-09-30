@@ -230,6 +230,19 @@ export interface AgentRun {
   heartbeatAt?: Date;
   lastProgressAt?: Date;
   invocations?: number;
+  // How many times each AI call timed out (see lib/agents/run-executor.ts).
+  stepAttempts?: Record<string, number>;
+  // When the current/last slice began, and the AI call it had in flight — so
+  // a slice the host killed can be recognised on the next claim, and how long
+  // it lived before dying tells us the host's real function limit.
+  claimedAt?: Date;
+  inflightKey?: string;
+  // The shortest slice lifetime observed for a killed slice; later slices keep
+  // each AI call inside it instead of assuming the host allows more.
+  learnedLimitMs?: number;
+  // Lifetimes (ms) of the last two slices the host killed mid-call; the limit is
+  // only learned once two agree, so one crash or restart doesn't set it.
+  deathLifetimesMs?: number[];
 }
 
 export interface AiSession {

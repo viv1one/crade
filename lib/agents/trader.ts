@@ -1,11 +1,12 @@
-import { chat } from "../ai";
+import { checkpointedChat, type Checkpoints } from "./checkpoint";
 import { coerceOptionalPrice, extractAction } from "./parse-decision";
 import type { AnalystReports, DebateResult, TraderPlan } from "./types";
 
 export async function runTrader(
   symbol: string,
   reports: AnalystReports,
-  debate: DebateResult
+  debate: DebateResult,
+  checkpoints?: Checkpoints
 ): Promise<TraderPlan> {
   const context = [
     `Symbol: ${symbol}`,
@@ -18,7 +19,9 @@ export async function runTrader(
     `\nBear case:\n${debate.bearCase}`,
   ].join("\n");
 
-  const result = await chat(
+  const result = await checkpointedChat(
+    checkpoints,
+    "trader",
     [
       {
         role: "system",

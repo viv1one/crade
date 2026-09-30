@@ -23,12 +23,17 @@ function matchesUser(doc: Doc, userId: unknown) {
 vi.mock("@/lib/db/collections", () => ({
   getCollections: async () => ({
     agentRuns: {
-      find: (filter: { userId: unknown; status?: string }) => ({
+      find: (filter: { userId: unknown; status?: string; createdAt?: { $gt: Date } }) => ({
         sort: () => ({
           limit: () => ({
             toArray: async () =>
               store
-                .filter((d) => matchesUser(d, filter.userId) && (!filter.status || d.status === filter.status))
+                .filter(
+                  (d) =>
+                    matchesUser(d, filter.userId) &&
+                    (!filter.status || d.status === filter.status) &&
+                    (!filter.createdAt || d.createdAt > filter.createdAt.$gt)
+                )
                 .slice()
                 .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
           }),
@@ -67,13 +72,13 @@ describe("app/api/agents/run (create)", () => {
     const { NextResponse } = await import("next/server");
     mockRequireUserOrResponse.mockResolvedValue(NextResponse.json({ error: "Not authenticated" }, { status: 401 }));
     const { GET } = await import("./route");
-    const res = await GET();
+    const res = await GET(new Request("http://localhost/api/agents/run"));
     expect(res.status).toBe(401);
   });
 
   it("GET returns an empty list before any run", async () => {
     const { GET } = await import("./route");
-    const res = await GET();
+    const res = await GET(new Request("http://localhost/api/agents/run"));
     expect(await res.json()).toEqual([]);
   });
 
@@ -107,6 +112,37 @@ describe("app/api/agents/run (create)", () => {
       createdAt: new Date(),
     });
     const { GET } = await import("./route");
-    expect(await (await GET()).json()).toEqual([]);
+    expect(await (await GET(new Request("http://localhost/api/agents/run"))).json()).toEqual([]);
+  });
+
+  describe("?unfinished=1 (resumable runs)", () => {
+    const listReq = () => new Request("http://localhost/api/agents/run?unfinished=1");
+    const doc = (over: Partial<Doc> & { id: string }): Doc => ({
+      _id: { toString: () => over.id },
+      userId: { toString: () => USER.id },
+      symbol: "TCS.NS",
+      status: "running",
+      result: {},
+      createdAt: new Date(),
+      ...over,
+    });
+
+    it("lists this user's running runs with how many steps they finished", async () => {
+      store.push(doc({ id: "r1", symbol: "JSWHL.NS", result: { reports: {}, debate: {}, checkpoints: 1 } }));
+      const { GET } = await import("./route");
+      const body = await (await GET(listReq())).json();
+      expect(body).toHaveLength(1);
+      expect(body[0]).toMatchObject({ _id: "r1", symbol: "JSWHL.NS", stagesDone: 2 });
+    });
+
+    it("leaves out complete runs, other users' runs, and runs older than a week", async () => {
+      store.push(
+        doc({ id: "done", status: "complete" }),
+        doc({ id: "other", userId: { toString: () => "someone-else" } }),
+        doc({ id: "old", createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000) })
+      );
+      const { GET } = await import("./route");
+      expect(await (await GET(listReq())).json()).toEqual([]);
+    });
   });
 });

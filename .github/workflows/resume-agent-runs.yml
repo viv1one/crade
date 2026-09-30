@@ -1,0 +1,22 @@
+name: Resume Trading Agents runs
+
+on:
+  schedule:
+    # Backstop only. A Trading Agents run normally keeps itself going (the page
+    # polling it, plus each slice chaining the next — see
+    # lib/agents/continuation.ts). This catches a run whose chain broke with
+    # nobody watching, e.g. a function the host killed after the tab was
+    # closed. GitHub's schedule granularity is 5 minutes; the route is cheap
+    # when there is nothing to resume.
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  resume:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call resume-agent-runs endpoint
+        run: |
+          curl -sf -X GET \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.CRADE_DEPLOYMENT_URL }}/api/cron/resume-agent-runs"

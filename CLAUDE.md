@@ -603,20 +603,38 @@ directly under the decision itself, not just once at the page bottom.
   `lib/ai/context.ts`'s `buildMarketContext`. Then: 4 analysts in parallel → one research debate → one
   trader plan → one risk debate ending in the final decision. ~12 `chat()` calls total (the paper
   reports ~11 per prediction, §5 footnote) — live-tested end-to-end against real free-tier NIM capacity
-  at 4m43s. **A run is resumable across server invocations** (`app/api/agents/run/[id]/route.ts`,
-  `lib/agents/checkpoint.ts`), because hosts that cap function duration below that killed runs
-  mid-debate and left them stuck "running" forever (observed in production: analysts ✓, then nothing).
-  Each POST *claims* the run atomically (`heartbeatAt` staleness = the previous invocation died),
-  heartbeats every 5s, and works for at most `AGENTS_STEP_BUDGET_SECONDS` (default 20) — after each save
-  it ends cleanly with `202` and an epoch heartbeat so the run reads as `stalled` immediately. Progress is
-  saved at two granularities: whole stages in `result` (analysts → debate → trader → risk; the pipeline
-  skips any stage already present, and skips the data fetch entirely once `reports` exist) and, for the
-  two multi-call stages, every individual AI call in `checkpoints` via `checkpointedChat`, so a
-  debate cut off after the bull case redoes only the calls after it. GET reports `stalled` / `idleMs`
-  (computed server-side, no client/server clock comparison); the polling client re-POSTs whenever
-  `stalled`, so a deliberate hand-off and a killed function recover the same way. Backstops:
-  `MAX_INVOCATIONS` (40) server-side, and a 4-minute no-progress / 20-minute absolute cap client-side.
-  `maxDuration = 300` is kept as the ceiling where the plan honors it, but nothing depends on it.
+  at 4m43s. **A run is executed in short "slices", not one long call** — hosts that cap function
+  duration below that killed runs mid-debate and left them stuck "running" forever (observed in
+  production: analysts ✓, then nothing). `lib/agents/run-executor.ts`'s `executeRunSlice` is the one
+  place that runs a slice: it *claims* the run atomically (`heartbeatAt` staleness = the previous slice
+  died), heartbeats every 5s, works for at most `AGENTS_STEP_BUDGET_SECONDS` (default 20), saves, and
+  ends cleanly (epoch heartbeat = "stalled right now"). Progress is saved at two granularities: whole
+  stages in `result` (the pipeline skips any stage already present, and skips the data fetch once
+  `reports` exist) and every individual AI call in `checkpoints` via `checkpointedChat`
+  (`lib/agents/checkpoint.ts`), so a resumed run redoes at most the call that was in flight.
+  - **Who starts the next slice** (all safe together — the claim is atomic): the open page's poll loop
+    (`GET` reports `stalled`/`idleMs`, computed server-side; the client re-POSTs when stalled);
+    the server itself (`lib/agents/continuation.ts`'s `scheduleContinuation` POSTs
+    `/api/cron/resume-agent-runs?runId=` with `CRON_SECRET` after each hand-off; that route answers 202
+    at once and does the slice in `after()`, so the chain works with the tab closed); and a scheduled
+    sweeper (`.github/workflows/resume-agent-runs.yml`, every 5 min, same route without `runId`) for a
+    chain that died (e.g. a killed function). The sweeper takes the *newest* stalled runs (max 3, last
+    6h) — never older ones, which would spend AI calls nobody is waiting for; those are resumed by hand
+    via the "Unfinished analyses" list (`GET /api/agents/run?unfinished=1`, last 7 days, "Resume"
+    → `TradingAgentsRun`'s `resumeRunId`). Server-chaining and the sweeper need `CRON_SECRET` (fail
+    closed without it); without it only the open page drives a run.
+  - **A call slower than the host allows** can't be fixed by retrying it the same way, so each AI call
+    gets a `deadline` (`ChatOptions.deadline`; `lib/ai/router.ts` aborts an attempt at it and throws
+    `AiDeadlineError` instead of hanging until the host kills the function). A timed-out call is
+    retried in the next slice starting from a *different provider* (`startAt`), and from the 2nd
+    timeout with a "keep it concise" nudge. The limit itself is learned, not configured: a slice that
+    dies mid-call (`inflightKey`) counts as an attempt, and once two slices die at about the same age
+    the larger lifetime becomes `learnedLimitMs` (floor 30s; one death never sets it, so a crash or
+    deploy can't cap a run). `AGENTS_INVOCATION_LIMIT_SECONDS` only changes the starting assumption
+    (default 300 = the routes' `maxDuration`). A call that times out `MAX_STEP_ATTEMPTS` (4) times
+    fails the run with a message naming the step, rather than looping.
+  - Backstops: `MAX_INVOCATIONS` (40) server-side; 4-minute no-progress / 20-minute cap client-side
+    (the idle rule waits 45s after attaching, since a resumed run may have been idle for days).
 - **`lib/agents/analysts.ts`** — 4 analysts (Technical, Fundamentals, News, Sentiment), each one
   `chat()` call on task `"agent_report"` (fast tier first in `lib/ai/router.ts`) that only narrates
   data the caller already fetched — same anti-fabrication instruction proven in `buildMarketContext`
@@ -668,8 +686,8 @@ directly under the decision itself, not just once at the page bottom.
   reusing the existing `POST /api/alerts` when the trader's plan states a stop-loss. Analyst
   reports/debates render in collapsible `<details>` sections. A run takes up to ~5 minutes, so the page
   explicitly tells the user to leave the tab open rather than showing a bare spinner with no context
-  (the tab is what re-triggers the next server invocation; if it is closed the run pauses and resumes
-  when the page is reopened on it or run again).
+  (an open page speeds a run up by re-triggering stalled slices, but is no longer required: the server
+  chains slices itself and the sweeper backstops it).
 
 ### App structure
 

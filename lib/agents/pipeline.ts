@@ -89,14 +89,22 @@ export async function runTradingAgentsPipeline(
 
   let reports = done.reports;
   if (!reports) {
-    const data = await fetchPipelineData(symbol);
-    const [technical, fundamentals, news, sentiment] = await Promise.all([
-      runTechnicalAnalyst(symbol, data.quote, data.bars),
-      runFundamentalsAnalyst(symbol, data.fundamentals ?? { symbol }, data.insiderActivity),
-      runNewsAnalyst(symbol, data.news),
-      runSentimentAnalyst(symbol, data.sentiment),
-    ]);
-    reports = { technical, fundamentals, news, sentiment } satisfies AnalystReports;
+    // Every analyst call finished in an earlier invocation but the stage
+    // itself wasn't saved: assemble the reports without re-fetching any data.
+    const stored = ["technical", "fundamentals", "news", "sentiment"].map((k) => cp?.get(`analyst_${k}`)?.content);
+    if (stored.every((c) => c !== undefined)) {
+      const [technical, fundamentals, news, sentiment] = stored as string[];
+      reports = { technical, fundamentals, news, sentiment } satisfies AnalystReports;
+    } else {
+      const data = await fetchPipelineData(symbol);
+      const [technical, fundamentals, news, sentiment] = await Promise.all([
+        runTechnicalAnalyst(symbol, data.quote, data.bars, cp),
+        runFundamentalsAnalyst(symbol, data.fundamentals ?? { symbol }, data.insiderActivity, cp),
+        runNewsAnalyst(symbol, data.news, cp),
+        runSentimentAnalyst(symbol, data.sentiment, cp),
+      ]);
+      reports = { technical, fundamentals, news, sentiment } satisfies AnalystReports;
+    }
     await onStage?.({ reports });
   }
 
@@ -108,7 +116,7 @@ export async function runTradingAgentsPipeline(
 
   let traderPlan = done.traderPlan;
   if (!traderPlan) {
-    traderPlan = await runTrader(symbol, reports, debate);
+    traderPlan = await runTrader(symbol, reports, debate, cp);
     await onStage?.({ traderPlan });
   }
 

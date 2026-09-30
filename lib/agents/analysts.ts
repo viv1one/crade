@@ -1,4 +1,4 @@
-import { chat } from "../ai";
+import { checkpointedChat, type Checkpoints } from "./checkpoint";
 import { sma, rsi, rollingHigh, rollingLow, volatility } from "../backtest/indicators";
 import type { HistoricalBar, Fundamentals, Quote } from "../market-data/types";
 import type { NewsItem } from "../news/types";
@@ -18,8 +18,15 @@ const BASE_INSTRUCTION =
   "it. If a section says no data was available, say so plainly rather than guessing. Keep the report " +
   "to a few short paragraphs.";
 
-async function narrate(role: string, dataText: string): Promise<string> {
-  const result = await chat(
+async function narrate(
+  checkpoints: Checkpoints | undefined,
+  key: string,
+  role: string,
+  dataText: string
+): Promise<string> {
+  const result = await checkpointedChat(
+    checkpoints,
+    key,
     [
       {
         role: "system",
@@ -32,9 +39,14 @@ async function narrate(role: string, dataText: string): Promise<string> {
   return result.content;
 }
 
-export async function runTechnicalAnalyst(symbol: string, quote: Quote, bars: HistoricalBar[]): Promise<string> {
+export async function runTechnicalAnalyst(
+  symbol: string,
+  quote: Quote,
+  bars: HistoricalBar[],
+  checkpoints?: Checkpoints
+): Promise<string> {
   if (bars.length === 0) {
-    return narrate("Technical Analyst", `No historical bars are available for ${symbol}.`);
+    return narrate(checkpoints, "analyst_technical", "Technical Analyst", `No historical bars are available for ${symbol}.`);
   }
 
   const smaValues = sma(bars, 20);
@@ -56,13 +68,14 @@ export async function runTechnicalAnalyst(symbol: string, quote: Quote, bars: Hi
       : "- 20-day volatility: not enough data",
     `- Last 10 closes: ${bars.slice(-10).map((b) => b.close.toFixed(2)).join(", ")}`,
   ];
-  return narrate("Technical Analyst", lines.join("\n"));
+  return narrate(checkpoints, "analyst_technical", "Technical Analyst", lines.join("\n"));
 }
 
 export async function runFundamentalsAnalyst(
   symbol: string,
   fundamentals: Fundamentals,
-  insiderActivity: InsiderTransaction[] | null
+  insiderActivity: InsiderTransaction[] | null,
+  checkpoints?: Checkpoints
 ): Promise<string> {
   const lines = [`Fundamentals data for ${symbol}:`];
   if (fundamentals.peRatio != null) lines.push(`- P/E ratio: ${fundamentals.peRatio.toFixed(1)}`);
@@ -85,24 +98,30 @@ export async function runFundamentalsAnalyst(
     }
   }
 
-  return narrate("Fundamentals Analyst", lines.join("\n"));
+  return narrate(checkpoints, "analyst_fundamentals", "Fundamentals Analyst", lines.join("\n"));
 }
 
-export async function runNewsAnalyst(symbol: string, news: NewsItem[]): Promise<string> {
+export async function runNewsAnalyst(symbol: string, news: NewsItem[], checkpoints?: Checkpoints): Promise<string> {
   if (news.length === 0) {
-    return narrate("News Analyst", `No recent headlines were available for ${symbol}.`);
+    return narrate(checkpoints, "analyst_news", "News Analyst", `No recent headlines were available for ${symbol}.`);
   }
   const lines = [
     `Recent headlines for ${symbol} (titles only, not full articles — don't claim to know more than ` +
       `a headline states):`,
     ...news.map((n) => `- "${n.title}" — ${n.source}, ${new Date(n.publishedAt).toLocaleDateString()}`),
   ];
-  return narrate("News Analyst", lines.join("\n"));
+  return narrate(checkpoints, "analyst_news", "News Analyst", lines.join("\n"));
 }
 
-export async function runSentimentAnalyst(symbol: string, sentiment: SentimentSnapshot): Promise<string> {
+export async function runSentimentAnalyst(
+  symbol: string,
+  sentiment: SentimentSnapshot,
+  checkpoints?: Checkpoints
+): Promise<string> {
   if (sentiment.postCount === 0) {
     return narrate(
+      checkpoints,
+      "analyst_sentiment",
       "Sentiment Analyst",
       `No recent Reddit discussion was found for ${symbol} in the searched subreddits. Say plainly ` +
         `that there isn't enough social data to characterize sentiment right now.`
@@ -118,5 +137,5 @@ export async function runSentimentAnalyst(symbol: string, sentiment: SentimentSn
     "- Top posts by upvotes:",
     ...sentiment.topPosts.map((p) => `  - "${p.title}" (post sentiment ${p.score.toFixed(2)})`),
   ];
-  return narrate("Sentiment Analyst", lines.join("\n"));
+  return narrate(checkpoints, "analyst_sentiment", "Sentiment Analyst", lines.join("\n"));
 }
