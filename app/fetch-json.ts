@@ -4,6 +4,16 @@
 // "Unexpected token '...' is not valid JSON" instead of a message a user
 // can act on. Also folds in the "check res.ok and surface data.error"
 // pattern nearly every call site in this app repeats by hand.
+// The message to show a user for a caught error. A rejected fetch() (offline,
+// DNS, server unreachable) is a bare TypeError whose text is a browser-specific
+// "Failed to fetch" / "Load failed"; that is replaced with something
+// actionable. Errors thrown by safeJson already carry a readable message.
+export function errorMessage(err: unknown, fallback: string): string {
+  if (err instanceof TypeError) return "Couldn't reach the server — check your connection and try again.";
+  if (err instanceof Error && err.message) return err.message;
+  return fallback;
+}
+
 export async function safeJson<T = unknown>(res: Response): Promise<T> {
   const text = await res.text();
   let data: unknown;

@@ -7,6 +7,7 @@ import { useState } from "react";
 import { MarkdownContent } from "./markdown-content";
 import { Disclaimer } from "./disclaimer";
 import { DIAGNOSTICS_NOT_PREDICTIVE } from "@/lib/disclaimers";
+import { errorMessage } from "./fetch-json";
 
 interface PortfolioDiagnosticsProps {
   // Which route to call — the paper-trading portfolio and the real-holdings
@@ -48,7 +49,7 @@ export function PortfolioDiagnostics({
       setContent(data.content);
       setFetchedAt(data.fetchedAt);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to generate diagnostics");
+      setError(errorMessage(err, "Failed to generate diagnostics"));
     } finally {
       setLoading(false);
       setProgress(null);

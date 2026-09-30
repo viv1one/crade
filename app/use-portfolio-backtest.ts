@@ -12,7 +12,7 @@ import type {
 } from "@/lib/backtest/types";
 import type { Trade } from "@/lib/paper-trading/types";
 import type { AiReview } from "./use-backtest";
-import { safeJson } from "./fetch-json";
+import { safeJson, errorMessage } from "./fetch-json";
 
 export interface PortfolioBacktestRun {
   _id: string;
@@ -73,7 +73,7 @@ export function usePortfolioBacktest() {
       setHistory((prev) => [data, ...prev]);
       return data as PortfolioBacktestRun;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Portfolio backtest failed");
+      setError(errorMessage(err, "Portfolio backtest failed"));
       return null;
     } finally {
       setRunning(false);
@@ -92,7 +92,7 @@ export function usePortfolioBacktest() {
       setHistory((prev) => prev.map(patch));
       return data as AiReview;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "AI review failed");
+      setError(errorMessage(err, "AI review failed"));
       return null;
     } finally {
       setReviewLoading(false);

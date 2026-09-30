@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { safeJson } from "./fetch-json";
+import { safeJson, errorMessage } from "./fetch-json";
 
 interface Subscription {
   id: string;
@@ -16,6 +16,7 @@ interface PushSubscriptionsListProps {
 export function PushSubscriptionsList({ refreshSignal }: PushSubscriptionsListProps = {}) {
   const [subs, setSubs] = useState<Subscription[] | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   function load() {
     fetch("/api/push/subscriptions")
@@ -28,9 +29,12 @@ export function PushSubscriptionsList({ refreshSignal }: PushSubscriptionsListPr
 
   async function remove(id: string) {
     setRemovingId(id);
+    setError(null);
     try {
-      await fetch(`/api/push/subscriptions/${id}`, { method: "DELETE" });
+      await safeJson(await fetch(`/api/push/subscriptions/${id}`, { method: "DELETE" }));
       load();
+    } catch (err) {
+      setError(`Couldn't remove this device: ${errorMessage(err, "try again")}`);
     } finally {
       setRemovingId(null);
     }
@@ -66,6 +70,7 @@ export function PushSubscriptionsList({ refreshSignal }: PushSubscriptionsListPr
           </li>
         ))}
       </ul>
+      {error && <p role="alert" className="text-xs text-danger">{error}</p>}
     </div>
   );
 }

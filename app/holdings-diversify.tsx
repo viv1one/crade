@@ -5,6 +5,7 @@ import type { ProgressUpdate } from "@/lib/progress/types";
 import { ProgressNote } from "./progress-note";
 import { useState } from "react";
 import { Disclaimer } from "./disclaimer";
+import { errorMessage } from "./fetch-json";
 
 interface Pick {
   symbol: string;
@@ -30,7 +31,7 @@ export function HoldingsDiversify({ hasHoldings }: { hasHoldings: boolean }) {
       setCriteria(data.criteria);
       setPicks(data.picks);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to suggest diversifiers");
+      setError(errorMessage(err, "Failed to suggest diversifiers"));
     } finally {
       setLoading(false);
       setProgress(null);

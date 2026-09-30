@@ -15,7 +15,7 @@ import { HoldingsDiversify } from "../holdings-diversify";
 import { CONDITION_LABELS, type ConditionType } from "@/lib/alerts/labels";
 import { useSwipeAction } from "../use-swipe-action";
 import { useToast } from "../toast-provider";
-import { safeJson } from "../fetch-json";
+import { safeJson, errorMessage } from "../fetch-json";
 
 interface RealHolding {
   _id: string;
@@ -329,7 +329,7 @@ export function HoldingsPanel() {
       setPurchasedAt("");
       load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add holding");
+      setError(errorMessage(err, "Failed to add holding"));
     } finally {
       setSubmitting(false);
     }
@@ -363,7 +363,7 @@ export function HoldingsPanel() {
         added++;
       } catch (err) {
         submitErrors.push(
-          `Line ${row.line}: ${row.symbol} — ${err instanceof Error ? err.message : "failed to add"}`
+          `Line ${row.line}: ${row.symbol} — ${errorMessage(err, "failed to add")}`
         );
       }
     }
@@ -392,8 +392,10 @@ export function HoldingsPanel() {
   async function remove(id: string) {
     setRemovingId(id);
     try {
-      await fetch(`/api/holdings/${id}`, { method: "DELETE" });
+      await safeJson(await fetch(`/api/holdings/${id}`, { method: "DELETE" }));
       load();
+    } catch (err) {
+      showToast(`Couldn't remove this holding: ${errorMessage(err, "try again")}`, "danger");
     } finally {
       setRemovingId(null);
     }
@@ -422,13 +424,12 @@ export function HoldingsPanel() {
           condition: { type: alertConditionType, value: numericValue },
         }),
       });
-      if (res.ok) {
-        setAlertFormFor(null);
-        setAlertCreatedFor(symbol);
-        showToast(`Alert created for ${symbol}`, "success");
-      } else {
-        showToast(`Failed to create alert for ${symbol}`, "danger");
-      }
+      await safeJson(res);
+      setAlertFormFor(null);
+      setAlertCreatedFor(symbol);
+      showToast(`Alert created for ${symbol}`, "success");
+    } catch (err) {
+      showToast(`Couldn't create alert for ${symbol}: ${errorMessage(err, "try again")}`, "danger");
     } finally {
       setAlertSubmitting(false);
     }

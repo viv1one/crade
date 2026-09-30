@@ -15,7 +15,7 @@ import { useSwipeAction } from "./use-swipe-action";
 import { useToast } from "./toast-provider";
 import { PageIntro } from "./page-intro";
 import { NIFTY_50 } from "@/lib/screener/universe";
-import { safeJson } from "./fetch-json";
+import { safeJson, errorMessage } from "./fetch-json";
 
 interface AgentRunSummary {
   symbol: string;
@@ -68,6 +68,8 @@ function computeIndicators(bars: HistoricalBar[]): Omit<IndicatorState, "loading
 interface WatchlistProps {
   onBuy: (symbol: string, qty: number, price: number) => Promise<boolean>;
   onSell: (symbol: string, qty: number, price: number) => Promise<boolean>;
+  // Why the last trade failed, read right after onBuy/onSell resolves false.
+  getTradeError?: () => string | null;
 }
 
 interface WatchlistRowProps {
@@ -288,7 +290,7 @@ function WatchlistRow({
   );
 }
 
-export function Watchlist({ onBuy, onSell }: WatchlistProps) {
+export function Watchlist({ onBuy, onSell, getTradeError }: WatchlistProps) {
   const { symbols, addSymbol, removeSymbol, loaded, isNew } = useWatchlist();
   const { showToast } = useToast();
   const [input, setInput] = useState("");
@@ -338,7 +340,7 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
       const data = await safeJson<Quote>(res);
       patchRow(symbol, { quote: data, loading: false });
     } catch (err) {
-      const raw = err instanceof Error ? err.message : "Failed to fetch quote";
+      const raw = errorMessage(err, "Failed to fetch quote");
       patchRow(symbol, {
         error: friendlyFetchError(raw),
         loading: false,
@@ -423,7 +425,7 @@ export function Watchlist({ onBuy, onSell }: WatchlistProps) {
         linkLabel: "Log it",
       });
     } else {
-      showToast(`Trade failed for ${symbol}`, "danger");
+      showToast(`Trade failed for ${symbol}: ${getTradeError?.() ?? "please try again"}`, "danger");
     }
   }
 

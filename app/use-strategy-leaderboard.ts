@@ -4,6 +4,7 @@ import { fetchWithProgress } from "@/lib/progress/client";
 import type { ProgressUpdate } from "@/lib/progress/types";
 import { useCallback, useState } from "react";
 import type { LeaderboardResult } from "@/lib/backtest/types";
+import { errorMessage } from "./fetch-json";
 
 // Simpler than the other use-*-backtest hooks: this is a cached, shared
 // GET (no per-user persistence, no history list, no AI review) — see
@@ -28,7 +29,7 @@ export function useStrategyLeaderboard() {
       setResult(data);
       return data as LeaderboardResult;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Strategy leaderboard failed");
+      setError(errorMessage(err, "Strategy leaderboard failed"));
       return null;
     } finally {
       setRunning(false);

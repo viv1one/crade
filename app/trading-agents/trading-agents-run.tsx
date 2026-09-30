@@ -5,7 +5,7 @@ import { MarkdownContent } from "../markdown-content";
 import { Disclaimer } from "../disclaimer";
 import { AGENT_DECISION_NOT_ADVICE, PAPER_TRADING_ONLY } from "@/lib/disclaimers";
 import { usePaperPortfolio } from "../use-paper-portfolio";
-import { safeJson } from "../fetch-json";
+import { safeJson, errorMessage } from "../fetch-json";
 import type { AgentPipelineResult } from "@/lib/agents/types";
 
 export const ACTION_STYLES: Record<string, string> = {
@@ -174,7 +174,7 @@ export function TradingAgentsRun({ symbol, onComplete, initialResult }: TradingA
       settledRef.current = true;
       stopPolling();
       setStatus("failed");
-      setError(err instanceof Error ? err.message : "Failed to start analysis");
+      setError(errorMessage(err, "Failed to start analysis"));
     }
   }
 

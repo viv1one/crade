@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { createEmptyPortfolio } from "@/lib/paper-trading/store";
 import type { PortfolioState } from "@/lib/paper-trading/types";
 import type { EquityPoint } from "@/lib/backtest/types";
-import { safeJson } from "./fetch-json";
+import { safeJson, errorMessage } from "./fetch-json";
 
 type PortfolioStateWithCurve = PortfolioState & { equityCurve: EquityPoint[] };
 
@@ -21,12 +21,15 @@ export function usePaperPortfolio() {
   const [state, setState] = useState<PortfolioStateWithCurve>({ ...createEmptyPortfolio(), equityCurve: [] });
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
+  // Reason for the most recent failed buy/sell, readable synchronously right
+  // after the awaited call resolves false (state `error` lags a render behind).
+  const lastTradeError = useRef<string | null>(null);
 
   useEffect(() => {
     fetch("/api/portfolio")
       .then((res) => safeJson<PortfolioStateWithCurve>(res))
       .then((data) => setState(data))
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load portfolio"))
+      .catch((err) => setError(errorMessage(err, "Failed to load portfolio")))
       .finally(() => setLoaded(true));
   }, []);
 
@@ -42,11 +45,14 @@ export function usePaperPortfolio() {
   const buy = useCallback(async (symbol: string, qty: number, price: number) => {
     setError(null);
     try {
+      lastTradeError.current = null;
       const s = await postTrade({ action: "buy", symbol, qty, price });
       setState(s);
       return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Trade failed");
+      const message = errorMessage(err, "Trade failed");
+      lastTradeError.current = message;
+      setError(message);
       return false;
     }
   }, []);
@@ -54,11 +60,14 @@ export function usePaperPortfolio() {
   const sell = useCallback(async (symbol: string, qty: number, price: number) => {
     setError(null);
     try {
+      lastTradeError.current = null;
       const s = await postTrade({ action: "sell", symbol, qty, price });
       setState(s);
       return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Trade failed");
+      const message = errorMessage(err, "Trade failed");
+      lastTradeError.current = message;
+      setError(message);
       return false;
     }
   }, []);
@@ -67,8 +76,8 @@ export function usePaperPortfolio() {
     setError(null);
     postTrade({ action: "reset" })
       .then(setState)
-      .catch((err) => setError(err instanceof Error ? err.message : "Reset failed"));
+      .catch((err) => setError(errorMessage(err, "Reset failed")));
   }, []);
 
-  return { ...state, error, loaded, buy, sell, reset };
+  return { ...state, error, loaded, buy, sell, reset, lastTradeError };
 }

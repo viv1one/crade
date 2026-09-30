@@ -8,7 +8,7 @@ import { SymbolDatalist, SYMBOL_SUGGESTIONS_ID } from "../symbol-datalist";
 import { JournalReviewChart } from "./journal-review-chart";
 import { VERDICT_BADGE_CLASS, type AgentPipelineResult } from "@/lib/agents/types";
 import { useToast } from "../toast-provider";
-import { safeJson } from "../fetch-json";
+import { safeJson, errorMessage } from "../fetch-json";
 
 interface JournalEntry {
   _id: string;
@@ -42,7 +42,7 @@ function JournalReview() {
       setContent(data.content);
       setFetchedAt(data.fetchedAt);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to generate review");
+      setError(errorMessage(err, "Failed to generate review"));
     } finally {
       setLoading(false);
     }
@@ -219,7 +219,7 @@ export function JournalPanel({ prefill }: { prefill?: JournalPrefill } = {}) {
       load();
       showToast(`Journal entry logged for ${normalizedSymbol}`, "success");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add entry");
+      setError(errorMessage(err, "Failed to add entry"));
     } finally {
       setSubmitting(false);
     }
@@ -234,11 +234,12 @@ export function JournalPanel({ prefill }: { prefill?: JournalPrefill } = {}) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ outcome: outcomeText.trim() }),
       });
-      if (res.ok) {
-        setOutcomeFormFor(null);
-        setOutcomeText("");
-        load();
-      }
+      await safeJson(res);
+      setOutcomeFormFor(null);
+      setOutcomeText("");
+      load();
+    } catch (err) {
+      showToast(`Couldn't save the outcome: ${errorMessage(err, "try again")}`, "danger");
     } finally {
       setOutcomeSubmitting(false);
     }
@@ -247,8 +248,10 @@ export function JournalPanel({ prefill }: { prefill?: JournalPrefill } = {}) {
   async function remove(id: string) {
     setRemovingId(id);
     try {
-      await fetch(`/api/journal/${id}`, { method: "DELETE" });
+      await safeJson(await fetch(`/api/journal/${id}`, { method: "DELETE" }));
       load();
+    } catch (err) {
+      showToast(`Couldn't remove this entry: ${errorMessage(err, "try again")}`, "danger");
     } finally {
       setRemovingId(null);
     }

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { BacktestMetrics, EquityPoint, PairsBacktestConfig, PairsParams } from "@/lib/backtest/types";
 import type { Trade } from "@/lib/paper-trading/types";
 import type { AiReview } from "./use-backtest";
-import { safeJson } from "./fetch-json";
+import { safeJson, errorMessage } from "./fetch-json";
 import { fetchWithProgress } from "@/lib/progress/client";
 import type { ProgressUpdate } from "@/lib/progress/types";
 
@@ -66,7 +66,7 @@ export function usePairsBacktest() {
       setHistory((prev) => [data, ...prev]);
       return data as PairsBacktestRun;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Pairs backtest failed");
+      setError(errorMessage(err, "Pairs backtest failed"));
       return null;
     } finally {
       setRunning(false);
@@ -85,7 +85,7 @@ export function usePairsBacktest() {
       setHistory((prev) => prev.map(patch));
       return data as AiReview;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "AI review failed");
+      setError(errorMessage(err, "AI review failed"));
       return null;
     } finally {
       setReviewLoading(false);

@@ -10,7 +10,7 @@ import { MarkdownContent } from "./markdown-content";
 import { Disclaimer } from "./disclaimer";
 import { NOT_INVESTMENT_ADVICE } from "@/lib/disclaimers";
 import { SYMBOL_SUGGESTIONS_ID } from "./symbol-datalist";
-import { safeJson } from "./fetch-json";
+import { safeJson, errorMessage } from "./fetch-json";
 
 const TASK_OPTIONS: { value: ChatTask; label: string }[] = [
   { value: "chat", label: "Chat" },
@@ -113,7 +113,7 @@ export function ChatPanel({ initialSymbol }: ChatPanelProps = {}) {
       });
       setMeta({ provider: data.provider, model: data.model });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Chat request failed");
+      setError(errorMessage(err, "Chat request failed"));
     } finally {
       setLoading(false);
       setProgress(null);

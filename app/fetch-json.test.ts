@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { safeJson } from "./fetch-json";
+import { errorMessage, safeJson } from "./fetch-json";
 
 const res = (body: string, status: number, type = "application/json") =>
   new Response(body, { status, headers: { "Content-Type": type } });
@@ -19,5 +19,19 @@ describe("safeJson", () => {
   });
   it("reports a 200 with a non-JSON body as unexpected", async () => {
     await expect(safeJson(res("<html>login</html>", 200, "text/html"))).rejects.toThrow(/unexpected response/i);
+  });
+});
+
+describe("errorMessage", () => {
+  it("turns a network TypeError into an actionable message", () => {
+    expect(errorMessage(new TypeError("Failed to fetch"), "x")).toMatch(/couldn't reach the server/i);
+    expect(errorMessage(new TypeError("Load failed"), "x")).toMatch(/couldn't reach the server/i);
+  });
+  it("passes through an Error's own message", () => {
+    expect(errorMessage(new Error("Insufficient cash"), "x")).toBe("Insufficient cash");
+  });
+  it("falls back for non-errors and empty messages", () => {
+    expect(errorMessage("boom", "fallback")).toBe("fallback");
+    expect(errorMessage(new Error(""), "fallback")).toBe("fallback");
   });
 });

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { safeJson } from "../fetch-json";
+import { safeJson, errorMessage } from "../fetch-json";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -27,7 +27,7 @@ export default function SignupPage() {
       router.push("/");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Sign up failed");
+      setError(errorMessage(err, "Sign up failed"));
       setLoading(false);
     }
   }

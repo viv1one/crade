@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { enablePushNotifications } from "@/lib/push/subscribe-client";
+import { errorMessage } from "./fetch-json";
 
 interface PushSubscribeButtonProps {
   onSubscribed?: () => void;
@@ -19,7 +20,7 @@ export function PushSubscribeButton({ onSubscribed }: PushSubscribeButtonProps =
       setStatus("done");
       onSubscribed?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to enable notifications");
+      setError(errorMessage(err, "Failed to enable notifications"));
       setStatus("error");
     }
   }

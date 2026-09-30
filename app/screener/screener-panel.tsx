@@ -11,7 +11,7 @@ import { AiScreenerQuery } from "./ai-screener-query";
 import { BottomSheet } from "../bottom-sheet";
 import { TradingAgentsRun } from "../trading-agents/trading-agents-run";
 import { useToast } from "../toast-provider";
-import { safeJson } from "../fetch-json";
+import { safeJson, errorMessage } from "../fetch-json";
 
 const HIGH_PE_THRESHOLD = 60;
 
@@ -76,7 +76,7 @@ export function ScreenerPanel({ initialHighlighted }: ScreenerPanelProps = {}) {
       setRows(data.rows);
       setFetchedAt(data.fetchedAt);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load screener data");
+      setError(errorMessage(err, "Failed to load screener data"));
     } finally {
       setLoading(false);
       setProgress(null);
@@ -108,12 +108,13 @@ export function ScreenerPanel({ initialHighlighted }: ScreenerPanelProps = {}) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ symbols: next }),
       });
-      if (!res.ok) throw new Error("Failed to add to watchlist");
+      await safeJson(res);
       setWatchlist(next);
       showToast(`Added ${symbol} to your watchlist`, "success");
-    } catch {
-      setError(`Failed to add ${symbol} to watchlist`);
-      showToast(`Failed to add ${symbol} to watchlist`, "danger");
+    } catch (err) {
+      const message = `Couldn't add ${symbol} to your watchlist: ${errorMessage(err, "try again")}`;
+      setError(message);
+      showToast(message, "danger");
     } finally {
       setAddingSymbol(null);
     }

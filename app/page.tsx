@@ -47,7 +47,11 @@ function HomeContent() {
             toast itself (app/watchlist.tsx's trade()), not a separate
             always-on card here — see app/toast-provider.tsx's href/linkLabel
             support, added specifically to unify these into one mechanism. */}
-        <Watchlist onBuy={portfolio.buy} onSell={portfolio.sell} />
+        <Watchlist
+          onBuy={portfolio.buy}
+          onSell={portfolio.sell}
+          getTradeError={() => portfolio.lastTradeError.current}
+        />
         <ShareWatchlist />
         <Portfolio
           cash={portfolio.cash}

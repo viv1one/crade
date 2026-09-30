@@ -6,7 +6,7 @@ import type { Quote } from "@/lib/market-data";
 import { AppShellNav } from "@/app/app-shell-nav";
 import { Disclaimer } from "@/app/disclaimer";
 import { FREE_DATA_SOURCE, NOT_INVESTMENT_ADVICE } from "@/lib/disclaimers";
-import { safeJson } from "../../../fetch-json";
+import { safeJson, errorMessage } from "../../../fetch-json";
 
 interface RowState {
   quote?: Quote;
@@ -28,7 +28,7 @@ export default function SharedWatchlistPage() {
         setOwnerEmail(data.ownerEmail);
         setSymbols(data.symbols);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load"));
+      .catch((err) => setError(errorMessage(err, "Failed to load")));
   }, [ownerId]);
 
   useEffect(() => {
@@ -43,7 +43,7 @@ export default function SharedWatchlistPage() {
         .catch((err) =>
           setRowState((prev) => ({
             ...prev,
-            [symbol]: { loading: false, error: err instanceof Error ? err.message : "Failed" },
+            [symbol]: { loading: false, error: errorMessage(err, "Failed") },
           }))
         );
     });

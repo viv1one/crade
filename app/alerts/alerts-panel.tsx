@@ -8,7 +8,7 @@ import { SymbolDatalist, SYMBOL_SUGGESTIONS_ID } from "../symbol-datalist";
 import { CONDITION_LABELS, type ConditionType } from "@/lib/alerts/labels";
 import { nextEvaluationTime } from "@/lib/alerts/next-evaluation";
 import { useToast } from "../toast-provider";
-import { safeJson } from "../fetch-json";
+import { safeJson, errorMessage } from "../fetch-json";
 
 interface Alert {
   _id: string;
@@ -72,7 +72,7 @@ export function AlertsPanel() {
       load();
       showToast(`Alert created for ${data.symbol}`, "success");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create alert");
+      setError(errorMessage(err, "Failed to create alert"));
     } finally {
       setSubmitting(false);
     }
@@ -80,19 +80,29 @@ export function AlertsPanel() {
 
   async function toggleStatus(alert: Alert) {
     const nextStatus = alert.status === "active" ? "paused" : "active";
-    await fetch(`/api/alerts/${alert._id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: nextStatus }),
-    });
-    load();
-    showToast(`${alert.symbol} alert ${nextStatus}`, "neutral");
+    try {
+      await safeJson(
+        await fetch(`/api/alerts/${alert._id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: nextStatus }),
+        })
+      );
+      load();
+      showToast(`${alert.symbol} alert ${nextStatus}`, "neutral");
+    } catch (err) {
+      showToast(`Couldn't update the ${alert.symbol} alert: ${errorMessage(err, "try again")}`, "danger");
+    }
   }
 
   async function remove(id: string, symbol: string) {
-    await fetch(`/api/alerts/${id}`, { method: "DELETE" });
-    load();
-    showToast(`Removed alert for ${symbol}`, "neutral");
+    try {
+      await safeJson(await fetch(`/api/alerts/${id}`, { method: "DELETE" }));
+      load();
+      showToast(`Removed alert for ${symbol}`, "neutral");
+    } catch (err) {
+      showToast(`Couldn't remove the ${symbol} alert: ${errorMessage(err, "try again")}`, "danger");
+    }
   }
 
   return (

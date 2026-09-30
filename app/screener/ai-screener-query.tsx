@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { ScreenerRow } from "@/lib/screener/types";
 import { Disclaimer } from "../disclaimer";
-import { safeJson } from "../fetch-json";
+import { safeJson, errorMessage } from "../fetch-json";
 
 interface Pick {
   symbol: string;
@@ -46,7 +46,7 @@ export function AiScreenerQuery({ rows, onResult, onClear }: AiScreenerQueryProp
       setPicks(data.picks);
       onResult(data.picks.map((p: Pick) => p.symbol));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "AI query failed");
+      setError(errorMessage(err, "AI query failed"));
     } finally {
       setLoading(false);
     }

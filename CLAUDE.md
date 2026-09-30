@@ -712,7 +712,10 @@ model to reason about freshness at all and just gating the data before it gets t
   navigation).
 - **Parsing fetch responses**: use `safeJson` (`app/fetch-json.ts`) or `fetchWithProgress`, not a bare
   `res.json()` — a proxy/platform error page then becomes "Request failed (502)" instead of a cryptic
-  JSON-parse error (HTML bodies are never quoted). `app/guided-tour.test.ts` fails if a tour target (an id or
+  JSON-parse error (HTML bodies are never quoted). In a `catch`, show `errorMessage(err, fallback)` (turns a
+  network `TypeError` into "Couldn't reach the server…"), and prefix write failures with what was being
+  attempted ("Couldn't remove this holding: …") — a bare "Request failed (502)" doesn't say which action
+  failed. Never fire a DELETE/PATCH without checking the result. `app/guided-tour.test.ts` fails if a tour target (an id or
   nav link) is renamed away.
 - `app/watchlist.tsx` shows the *reason* Buy/Sell is disabled as visible text (tooltips don't exist on touch).
 - `globals.css` has a `@media (pointer: coarse)` block raising controls to ~44px and 16px input text (stops

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { BacktestConfig, BacktestMetrics, EquityPoint, StrategyParams } from "@/lib/backtest/types";
 import type { Trade } from "@/lib/paper-trading/types";
-import { safeJson } from "./fetch-json";
+import { safeJson, errorMessage } from "./fetch-json";
 import { fetchWithProgress } from "@/lib/progress/client";
 import type { ProgressUpdate } from "@/lib/progress/types";
 
@@ -72,7 +72,7 @@ export function useBacktest() {
       setHistory((prev) => [data, ...prev]);
       return data as BacktestRun;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Backtest failed");
+      setError(errorMessage(err, "Backtest failed"));
       return null;
     } finally {
       setRunning(false);
@@ -91,7 +91,7 @@ export function useBacktest() {
       setHistory((prev) => prev.map(patch));
       return data as AiReview;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "AI review failed");
+      setError(errorMessage(err, "AI review failed"));
       return null;
     } finally {
       setReviewLoading(false);

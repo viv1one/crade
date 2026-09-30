@@ -7,6 +7,7 @@ import { useState } from "react";
 import { MarkdownContent } from "./markdown-content";
 import { Disclaimer } from "./disclaimer";
 import { NOT_INVESTMENT_ADVICE } from "@/lib/disclaimers";
+import { errorMessage } from "./fetch-json";
 
 export function MarketDigest() {
   const [content, setContent] = useState<string | null>(null);
@@ -27,7 +28,7 @@ export function MarketDigest() {
       setContent(data.content);
       setFetchedAt(data.fetchedAt);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to generate digest");
+      setError(errorMessage(err, "Failed to generate digest"));
     } finally {
       setLoading(false);
       setProgress(null);

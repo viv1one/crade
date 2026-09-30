@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { safeJson } from "./fetch-json";
+import { safeJson, errorMessage } from "./fetch-json";
 
 interface ShareRow {
   _id: string;
@@ -38,15 +38,20 @@ export function ShareWatchlist() {
       setEmail("");
       load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to share");
+      setError(errorMessage(err, "Failed to share"));
     } finally {
       setSubmitting(false);
     }
   }
 
   async function revoke(id: string) {
-    await fetch(`/api/shares/${id}`, { method: "DELETE" });
-    load();
+    setError(null);
+    try {
+      await safeJson(await fetch(`/api/shares/${id}`, { method: "DELETE" }));
+      load();
+    } catch (err) {
+      setError(`Couldn't revoke access: ${errorMessage(err, "try again")}`);
+    }
   }
 
   return (
