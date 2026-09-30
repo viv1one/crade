@@ -11,6 +11,8 @@ import { NIFTY_50 } from "@/lib/screener/universe";
 import type { Fundamentals, HistoricalBar } from "@/lib/market-data";
 import type { CrossSectionalBacktestConfig, StrategyId, StrategyParams } from "@/lib/backtest/types";
 import { toErrorResponse } from "@/lib/api-error";
+import { makeCounter, withProgress } from "@/lib/progress/server";
+import type { ProgressReporter } from "@/lib/progress/types";
 
 const CONCURRENCY = 5;
 
@@ -26,7 +28,7 @@ export async function GET() {
   return NextResponse.json(runs);
 }
 
-export async function POST(request: Request) {
+async function handle(request: Request, report: ProgressReporter) {
   const user = await requireUserOrResponse();
   if (user instanceof NextResponse) return user;
   const ownerId = user.id;
@@ -82,6 +84,7 @@ export async function POST(request: Request) {
     const barsBySymbol: Record<string, HistoricalBar[]> = {};
     const fundamentalsBySymbol: Record<string, Fundamentals | undefined> = {};
     const queue = [...NIFTY_50];
+    const tick = makeCounter(NIFTY_50.length, "Fetched price history", report);
 
     async function worker() {
       while (queue.length > 0) {
@@ -103,9 +106,11 @@ export async function POST(request: Request) {
             fundamentalsBySymbol[stock.symbol] = undefined;
           }
         }
+        tick();
       }
     }
     await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+    report({ text: "Ranking stocks and simulating rebalances…" });
 
     const scoreFn = getScoreFn(config.strategyId);
     const { equityCurve, trades, metrics } = runCrossSectionalBacktest(
@@ -134,4 +139,8 @@ export async function POST(request: Request) {
   } catch (err) {
     return toErrorResponse(err, "Cross-sectional backtest failed — try again in a moment", 400);
   }
+}
+
+export function POST(request: Request) {
+  return withProgress(request, (report) => handle(request, report));
 }

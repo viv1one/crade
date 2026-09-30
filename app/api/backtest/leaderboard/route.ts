@@ -7,6 +7,8 @@ import { DEFAULT_STARTING_CASH } from "@/lib/backtest/types";
 import { NIFTY_50 } from "@/lib/screener/universe";
 import type { Fundamentals, HistoricalBar } from "@/lib/market-data";
 import { toErrorResponse } from "@/lib/api-error";
+import { makeCounter, withProgress } from "@/lib/progress/server";
+import type { ProgressReporter } from "@/lib/progress/types";
 
 const CONCURRENCY = 5;
 const TTL_MS = 30 * 60 * 1000;
@@ -18,7 +20,7 @@ const NEEDS_FUNDAMENTALS = CROSS_SECTIONAL_STRATEGIES.some((s) => s.needsFundame
 
 // Public, no auth — same reasoning as app/api/screener/route.ts: this is a
 // cached, shared, market-derived dataset, not per-user state.
-export async function GET(request: Request) {
+async function handle(request: Request, report: ProgressReporter) {
   const { searchParams } = new URL(request.url);
   const interval = searchParams.get("interval") ?? "1d";
   const range = searchParams.get("range") ?? "1y";
@@ -42,6 +44,7 @@ export async function GET(request: Request) {
     const barsBySymbol: Record<string, HistoricalBar[]> = {};
     const fundamentalsBySymbol: Record<string, Fundamentals | undefined> = {};
     const queue = [...NIFTY_50];
+    const tick = makeCounter(NIFTY_50.length, "Fetched price history", report);
 
     async function worker() {
       while (queue.length > 0) {
@@ -59,9 +62,11 @@ export async function GET(request: Request) {
             fundamentalsBySymbol[stock.symbol] = undefined;
           }
         }
+        tick();
       }
     }
     await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+    report({ text: `Backtesting ${CROSS_SECTIONAL_STRATEGIES.length} strategies…` });
 
     const entries = computeLeaderboard(
       NIFTY_50,
@@ -82,4 +87,8 @@ export async function GET(request: Request) {
   } catch (err) {
     return toErrorResponse(err, "Strategy leaderboard failed — try again in a moment", 400);
   }
+}
+
+export function GET(request: Request) {
+  return withProgress(request, (report) => handle(request, report));
 }

@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { getCollections } from "@/lib/db/collections";
 import { fetchScreenerData } from "@/lib/screener/fetch";
 import { NIFTY_50 } from "@/lib/screener/universe";
+import { withProgress } from "@/lib/progress/server";
+import type { ProgressReporter } from "@/lib/progress/types";
 
 const NIFTY50_UNIVERSE = "nifty50";
 const ALL_NSE_UNIVERSE_KEY = "all_nse";
 const TTL_MS = 10 * 60 * 1000;
 
-export async function GET(request: Request) {
+async function handle(request: Request, report: ProgressReporter) {
   const { searchParams } = new URL(request.url);
   const forceRefresh = searchParams.get("refresh") === "true";
   const universe = searchParams.get("universe") === "all_nse" ? ALL_NSE_UNIVERSE_KEY : NIFTY50_UNIVERSE;
@@ -33,7 +35,8 @@ export async function GET(request: Request) {
     }
   }
 
-  const rows = await fetchScreenerData(NIFTY_50);
+  report({ text: "Refreshing Nifty 50 data…" });
+  const rows = await fetchScreenerData(NIFTY_50, report);
   const fetchedAt = new Date();
   await screenerSnapshots.updateOne(
     { universe },
@@ -42,4 +45,8 @@ export async function GET(request: Request) {
   );
 
   return NextResponse.json({ rows, fetchedAt });
+}
+
+export function GET(request: Request) {
+  return withProgress(request, (report) => handle(request, report));
 }

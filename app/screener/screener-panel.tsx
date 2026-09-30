@@ -1,5 +1,7 @@
 "use client";
 
+import { fetchWithProgress } from "@/lib/progress/client";
+import type { ProgressUpdate } from "@/lib/progress/types";
 import { PageIntro } from "../page-intro";
 import { ProgressNote } from "../progress-note";
 import { useEffect, useMemo, useState } from "react";
@@ -38,6 +40,7 @@ export function ScreenerPanel({ initialHighlighted }: ScreenerPanelProps = {}) {
   const [universe, setUniverse] = useState<Universe>("nifty50");
   const [rows, setRows] = useState<ScreenerRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState<ProgressUpdate | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [fetchedAt, setFetchedAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -64,15 +67,18 @@ export function ScreenerPanel({ initialHighlighted }: ScreenerPanelProps = {}) {
       if (currentUniverse === "all_nse") params.set("universe", "all_nse");
       if (refresh) params.set("refresh", "true");
       const qs = params.toString();
-      const res = await fetch(`/api/screener${qs ? `?${qs}` : ""}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to load screener data");
+      const data = await fetchWithProgress<{ rows: ScreenerRow[]; fetchedAt: string | null }>(
+        `/api/screener${qs ? `?${qs}` : ""}`,
+        {},
+        setProgress
+      );
       setRows(data.rows);
       setFetchedAt(data.fetchedAt);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load screener data");
     } finally {
       setLoading(false);
+      setProgress(null);
       setLoaded(true);
     }
   }
@@ -151,15 +157,7 @@ export function ScreenerPanel({ initialHighlighted }: ScreenerPanelProps = {}) {
         )}
       </div>
       <PageIntro kind="research">Filter stocks by sector, price and P/E, or ask in plain English. Data may be a few minutes old.</PageIntro>
-      {loading && (
-        <ProgressNote
-          stages={[
-            { afterSeconds: 0, text: "Loading stock data…" },
-            { afterSeconds: 6, text: "Still fetching — a full refresh queries ~50 stocks one by one." },
-            { afterSeconds: 20, text: "Taking longer than usual — the free data source may be slow. Cached data will show if it fails." },
-          ]}
-        />
-      )}
+      {loading && <ProgressNote progress={progress} fallback="Loading stock data…" />}
 
       {onlyTriggered && (
         <div className="alert-banner alert-banner-warning flex-row items-center justify-between">

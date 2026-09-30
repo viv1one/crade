@@ -1,5 +1,7 @@
 "use client";
 
+import { fetchWithProgress } from "@/lib/progress/client";
+import type { ProgressUpdate } from "@/lib/progress/types";
 import { ProgressNote } from "./progress-note";
 import { useState } from "react";
 import { MarkdownContent } from "./markdown-content";
@@ -10,21 +12,25 @@ export function MarketDigest() {
   const [content, setContent] = useState<string | null>(null);
   const [fetchedAt, setFetchedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState<ProgressUpdate | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function generate() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/digest", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to generate digest");
+      const data = await fetchWithProgress<{ content: string; fetchedAt: string }>(
+        "/api/digest",
+        { method: "POST" },
+        setProgress
+      );
       setContent(data.content);
       setFetchedAt(data.fetchedAt);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate digest");
     } finally {
       setLoading(false);
+      setProgress(null);
     }
   }
 
@@ -41,15 +47,7 @@ export function MarketDigest() {
           )}
         </button>
       )}
-      {loading && (
-        <ProgressNote
-          stages={[
-            { afterSeconds: 0, text: "Reading today's screener data…" },
-            { afterSeconds: 5, text: "Writing the digest…" },
-            { afterSeconds: 20, text: "Still working — the AI provider is slow right now." },
-          ]}
-        />
-      )}
+      {loading && <ProgressNote progress={progress} fallback="Starting…" />}
       {error && <p role="alert" className="text-xs text-danger">{error}</p>}
       {content && (
         <div className="card p-3 flex flex-col gap-2">

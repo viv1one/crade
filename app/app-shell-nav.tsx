@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AccountNav } from "./account-nav";
@@ -23,46 +23,50 @@ interface NavGroup {
   icon: string;
   label: string;
   desc?: string; // tooltip/aria hint for direct destinations
-  href?: string; // direct destination — Watchlist, Vault
-  links?: SubLink[]; // grouped destinations — Discovery, AI Desk, Menu
+  href?: string; // direct destination — Practice
+  links?: SubLink[]; // grouped destinations — Research, Track, Menu
 }
 
-// 5-group structure per the spec's PWA nav (Watchlist / Discovery / AI Desk
-// / Vault / Menu) — but every existing route is kept exactly as-is (no IA
-// rewrite risking broken links elsewhere in the app): Discovery/AI Desk/
-// Menu are just a picker over routes that already existed under the old
-// flat AppNav. "AI Desk"'s Chat destination is `/#chat` (the home page's
-// chat section, not a separate route) — Chat has always lived on the home
-// page; giving it its own route would be a real route change, out of scope
-// here.
+// Grouped by what you are trying to do, not by feature name: Practice (fake
+// money), Research (understand a stock or idea), Track (record and monitor
+// what you actually own or decided), plus Menu for the rest. Every route
+// is unchanged — this is only a picker over routes that already existed.
+// Chat's destination is `/#chat` (the home page's chat section) rather than
+// its own route; giving it one would be a real route change, out of scope.
 const NAV_GROUPS: NavGroup[] = [
-  { key: "watchlist", icon: "📈", label: "Watchlist", href: "/", desc: "Practice: track stocks and paper-trade with fake money" },
   {
-    key: "discovery",
+    key: "practice",
+    icon: "📈",
+    label: "Practice",
+    href: "/",
+    desc: "Your watchlist and paper portfolio — buy and sell with fake money",
+  },
+  {
+    key: "research",
     icon: "🔍",
-    label: "Discovery",
+    label: "Research",
     links: [
-      { href: "/screener", label: "Screener", desc: "Research: filter Nifty 50 / all NSE stocks by sector, price, P/E" },
-      { href: "/backtest", label: "Backtest a strategy", desc: "Research: see how a rule would have performed on past prices" },
+      { href: "/#chat", label: "Chat", desc: "Ask why a stock moved or get a quick summary" },
+      { href: "/screener", label: "Screener", desc: "Filter Nifty 50 / all NSE stocks by sector, price, P/E" },
+      { href: "/backtest", label: "Backtest a strategy", desc: "See how a rule would have performed on past prices" },
+      { href: "/trading-agents", label: "Trading Agents", desc: "A multi-AI team debates one stock (takes ~5 min)" },
     ],
   },
   {
-    key: "ai-desk",
-    icon: "🤖",
-    label: "AI Desk",
+    key: "track",
+    icon: "🏦",
+    label: "Track",
     links: [
-      { href: "/#chat", label: "Chat", desc: "Research: ask why a stock moved or get a quick summary" },
-      { href: "/trading-agents", label: "Trading Agents", desc: "Research: a multi-AI team debates one stock (takes ~5 min)" },
+      { href: "/holdings", label: "Holdings (Vault)", desc: "Record what you really own (bought elsewhere) and review it" },
+      { href: "/journal", label: "Journal", desc: "Write down why you made a call, then review how it went" },
+      { href: "/alerts", label: "Alerts", desc: "Get notified on price, RSI or volume moves" },
     ],
   },
-  { key: "vault", icon: "🏦", label: "Vault", href: "/holdings", desc: "Track: record what you really own (bought elsewhere) and review it" },
   {
     key: "menu",
     icon: "☰",
     label: "Menu",
     links: [
-      { href: "/journal", label: "Journal", desc: "Track: write down why you made a call, then review how it went" },
-      { href: "/alerts", label: "Alerts", desc: "Get notified on price, RSI or volume moves" },
       { href: "/shared", label: "Shared with me", desc: "Watchlists other people have shared with you" },
       { href: "/help", label: "Help", desc: "How every feature works, plus an assistant" },
     ],
@@ -77,6 +81,16 @@ function isGroupActive(group: NavGroup, pathname: string): boolean {
 export function AppShellNav() {
   const pathname = usePathname();
   const [expanded, setExpanded] = useState<string | null>(null);
+
+  // Lets the guided tour (app/guided-tour.tsx) open a group's link list so it
+  // can point at a link inside it. Not used for anything else.
+  useEffect(() => {
+    function onExpand(e: Event) {
+      setExpanded((e as CustomEvent<string | null>).detail ?? null);
+    }
+    window.addEventListener("crade-nav-expand", onExpand);
+    return () => window.removeEventListener("crade-nav-expand", onExpand);
+  }, []);
 
   function toggle(key: string) {
     setExpanded((prev) => (prev === key ? null : key));
@@ -110,6 +124,7 @@ export function AppShellNav() {
                 <Link
                   key={group.key}
                   href={group.href}
+                  data-tour={`nav-${group.key}`}
                   title={group.desc}
                   className={`text-sm font-medium transition-colors ${
                     isGroupActive(group, pathname) ? "text-foreground" : "text-foreground-muted hover:text-foreground"
@@ -120,6 +135,7 @@ export function AppShellNav() {
               ) : (
                 <button
                   key={group.key}
+                  data-tour={`nav-${group.key}`}
                   onClick={() => toggle(group.key)}
                   aria-expanded={expanded === group.key}
                   className={`text-sm font-medium transition-colors ${
@@ -138,6 +154,7 @@ export function AppShellNav() {
               <Link
                 key={l.href}
                 href={l.href}
+                data-tour={`link-${l.href}`}
                 className="flex flex-col rounded-md p-2 hover:bg-background"
                 onClick={() => setExpanded(null)}
               >
@@ -158,6 +175,7 @@ export function AppShellNav() {
               <Link
                 key={l.href}
                 href={l.href}
+                data-tour={`link-${l.href}`}
                 className="flex flex-col px-4 py-3 min-h-11"
                 onClick={() => setExpanded(null)}
               >
@@ -167,12 +185,13 @@ export function AppShellNav() {
             ))}
           </div>
         )}
-        <div className="card rounded-none border-x-0 border-b-0 grid grid-cols-5 pb-[env(safe-area-inset-bottom)]">
+        <div className="card rounded-none border-x-0 border-b-0 grid grid-cols-4 pb-[env(safe-area-inset-bottom)]">
           {NAV_GROUPS.map((group) =>
             group.href ? (
               <Link
                 key={group.key}
                 href={group.href}
+                data-tour={`nav-${group.key}`}
                 title={group.desc}
                 className={`flex flex-col items-center justify-center gap-0.5 py-2 min-h-14 text-[0.65rem] font-medium ${
                   isGroupActive(group, pathname) ? "text-accent" : "text-foreground-muted"
@@ -184,6 +203,7 @@ export function AppShellNav() {
             ) : (
               <button
                 key={group.key}
+                data-tour={`nav-${group.key}`}
                 onClick={() => toggle(group.key)}
                 aria-expanded={expanded === group.key}
                 className={`flex flex-col items-center justify-center gap-0.5 py-2 min-h-14 text-[0.65rem] font-medium ${

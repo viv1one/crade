@@ -1,6 +1,8 @@
 import { marketData } from "../market-data";
 import type { Fundamentals, HistoricalBar } from "../market-data/types";
 import { NIFTY_50 } from "../screener/universe";
+import { makeCounter } from "../progress/server";
+import { NOOP_REPORTER, type ProgressReporter } from "../progress/types";
 
 const CONCURRENCY = 5;
 
@@ -16,7 +18,11 @@ export interface HoldingsMarketData {
 // someone accumulates many positions). A quote/history failure just omits
 // that symbol's price/bars — computePortfolioDiagnostics falls back to
 // avgCost and treats missing bars as "not available," never as zero.
-export async function fetchHoldingsData(symbols: string[]): Promise<HoldingsMarketData> {
+export async function fetchHoldingsData(
+  symbols: string[],
+  report: ProgressReporter = NOOP_REPORTER
+): Promise<HoldingsMarketData> {
+  const tick = makeCounter(symbols.length, "Fetched your holdings", report);
   const prices: Record<string, number> = {};
   const bars: Record<string, HistoricalBar[]> = {};
   const fundamentals: Record<string, Fundamentals | undefined> = {};
@@ -44,6 +50,7 @@ export async function fetchHoldingsData(symbols: string[]): Promise<HoldingsMark
       } catch {
         fundamentals[symbol] = undefined;
       }
+      tick();
     }
   }
 
@@ -65,7 +72,8 @@ export interface UniverseMarketData {
 // since this is meaningfully more expensive against the free provider. No
 // quote fetch here — factor scoring only needs bars/fundamentals, not a
 // live price.
-export async function fetchUniverseData(): Promise<UniverseMarketData> {
+export async function fetchUniverseData(report: ProgressReporter = NOOP_REPORTER): Promise<UniverseMarketData> {
+  const tick = makeCounter(NIFTY_50.length, "Fetched Nifty 50 stocks for comparison", report);
   const barsBySymbol: Record<string, HistoricalBar[]> = {};
   const fundamentalsBySymbol: Record<string, Fundamentals | undefined> = {};
   const queue = [...NIFTY_50];
@@ -87,6 +95,7 @@ export async function fetchUniverseData(): Promise<UniverseMarketData> {
       } catch {
         fundamentalsBySymbol[stock.symbol] = undefined;
       }
+      tick();
     }
   }
 

@@ -405,17 +405,13 @@ export function BacktestPanel() {
         )}
         {running && (
           <ProgressNote
-            stages={[
-              { afterSeconds: 0, text: "Fetching historical prices…" },
-              { afterSeconds: 5, text: "Simulating trades day by day…" },
-              {
-                afterSeconds: 20,
-                text:
-                  mode === "leaderboard" || mode === "cross_sectional"
-                    ? "Still running — this tests many stocks/strategies, so up to a minute is normal."
-                    : "Still running — the free data source can be slow.",
-              },
-            ]}
+            progress={
+              mode === "cross_sectional" ? crossSectional.progress
+              : mode === "portfolio" ? portfolio.progress
+              : mode === "leaderboard" ? leaderboard.progress
+              : null
+            }
+            fallback="Fetching price history and running the simulation…"
           />
         )}
       </form>

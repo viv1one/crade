@@ -686,18 +686,34 @@ indication anything was off, which is the same category of problem as the market
 fabrication issues elsewhere in this file — the fix here isn't a prompt change, it's not asking the
 model to reason about freshness at all and just gating the data before it gets there).
 
-### Onboarding & UX primitives
+### Onboarding, navigation & progress feedback
 
-- `app/welcome-card.tsx` — dismissible first-run guide on the home page (4 steps: watchlist → Chat → Alerts →
-  Backtest); dismissed flag is `localStorage` (`crade_welcome_dismissed`), so it's per-browser by design.
-- `app/page-intro.tsx` — one-line "what is this page for" with a Research / Practice / Track badge; the nav
-  (`app-shell-nav.tsx`) carries the same wording as a `desc` on every destination.
-- `app/progress-note.tsx` — spinner + elapsed seconds + stage text that changes as a wait grows; use it (not a
-  bare spinner) for any action that can take more than a couple of seconds.
-- `app/watchlist.tsx` shows the *reason* Buy/Sell is disabled as visible text (stale quote, no quote, bad qty) —
-  tooltips don't exist on touch. Empty watchlist offers one-tap NIFTY 50 suggestions.
-- `globals.css` has a `@media (pointer: coarse)` block raising buttons/inputs to ~44px and 16px input text
-  (prevents iOS focus-zoom); `layout.tsx` sets `viewportFit: "cover"` so the bottom nav clears the home indicator.
+- **Nav** (`app/app-shell-nav.tsx`) is grouped by intent, not feature name: **Practice** (`/`, watchlist +
+  paper portfolio), **Research** (Chat, Screener, Backtest, Trading Agents), **Track** (Holdings/Vault,
+  Journal, Alerts), **Menu** (Shared with me, Help). Routes are unchanged; every link carries a one-line
+  `desc`. `app/page-intro.tsx` repeats the Research/Practice/Track badge under page titles. If you add a
+  page, put it in a group *and* update `app/help/page.tsx` + `app/api/help-chat/route.ts` (both name the
+  groups).
+- **First run**: `app/welcome-card.tsx` (dismissible checklist, `localStorage` flag
+  `crade_welcome_dismissed`) offers `app/guided-tour.tsx` — a spotlight tour that dims the page, cuts a hole
+  around the real element per step, and opens nav groups (via the `crade-nav-expand` window event handled
+  in `app-shell-nav.tsx`) to point at links inside them. Targets are plain selectors (`#watchlist h1`,
+  `[data-tour="link-/alerts"]`), so renaming those ids/attributes breaks the tour. `/?tour=1` replays it
+  (linked from Help).
+- **Real progress for slow requests** (`lib/progress/`): a route wraps its handler in
+  `withProgress(request, (report) => handle(request, report))` and calls `report({ text, done?, total? })`.
+  Callers opt in with the `x-crade-progress: 1` header (`fetchWithProgress` in `lib/progress/client.ts`);
+  without it the route returns its normal JSON, so nothing else changes. With it the response is NDJSON —
+  `progress` events, then exactly one `result` or `error`. Instrumented: chat, digest, screener refresh,
+  cross-sectional + portfolio backtest, leaderboard, holdings/portfolio diagnostics, diversify. Worker pools
+  report real counts via `makeCounter`; `chat()` takes `onProgress` and reports which provider it is waiting
+  on / failing over from. `app/progress-note.tsx` renders it (with a bar when there are counts). Single-symbol
+  and pairs backtests don't report (1–2 fetches) and show a plain fallback. Never invent stage text — only
+  report what the server is actually doing. Trading Agents keeps its own polling (long-running, survives
+  navigation).
+- `app/watchlist.tsx` shows the *reason* Buy/Sell is disabled as visible text (tooltips don't exist on touch).
+- `globals.css` has a `@media (pointer: coarse)` block raising controls to ~44px and 16px input text (stops
+  iOS focus-zoom); `layout.tsx` sets `viewportFit: "cover"` so the bottom nav clears the home indicator.
 
 ### What's not built yet
 

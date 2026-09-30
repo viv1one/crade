@@ -1,5 +1,7 @@
 "use client";
 
+import { fetchWithProgress } from "@/lib/progress/client";
+import type { ProgressUpdate } from "@/lib/progress/types";
 import { useCallback, useState } from "react";
 import type { LeaderboardResult } from "@/lib/backtest/types";
 
@@ -9,6 +11,7 @@ import type { LeaderboardResult } from "@/lib/backtest/types";
 export function useStrategyLeaderboard() {
   const [result, setResult] = useState<LeaderboardResult | null>(null);
   const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState<ProgressUpdate | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const run = useCallback(async (interval: string, range: string, refresh = false) => {
@@ -17,9 +20,11 @@ export function useStrategyLeaderboard() {
     try {
       const params = new URLSearchParams({ interval, range });
       if (refresh) params.set("refresh", "true");
-      const res = await fetch(`/api/backtest/leaderboard?${params.toString()}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Strategy leaderboard failed");
+      const data = await fetchWithProgress<LeaderboardResult>(
+        `/api/backtest/leaderboard?${params.toString()}`,
+        {},
+        setProgress
+      );
       setResult(data);
       return data as LeaderboardResult;
     } catch (err) {
@@ -27,8 +32,9 @@ export function useStrategyLeaderboard() {
       return null;
     } finally {
       setRunning(false);
+      setProgress(null);
     }
   }, []);
 
-  return { result, running, error, run };
+  return { result, running, progress, error, run };
 }

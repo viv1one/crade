@@ -1,5 +1,7 @@
 "use client";
 
+import { fetchWithProgress } from "@/lib/progress/client";
+import type { ProgressUpdate } from "@/lib/progress/types";
 import { PageIntro } from "./page-intro";
 import { ProgressNote } from "./progress-note";
 import { useCallback, useEffect, useState } from "react";
@@ -26,6 +28,7 @@ export function ChatPanel({ initialSymbol }: ChatPanelProps = {}) {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState<ProgressUpdate | null>(null);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [meta, setMeta] = useState<{ provider: string; model: string } | null>(null);
@@ -81,13 +84,21 @@ export function ChatPanel({ initialSymbol }: ChatPanelProps = {}) {
     setError(null);
 
     try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: nextMessages, task, symbol: symbol.trim() || undefined }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Chat request failed");
+      const data = await fetchWithProgress<{
+        content: string;
+        provider: string;
+        model: string;
+        sources?: { label: string; detail: string }[];
+        noDataAvailable?: boolean;
+      }>(
+        "/api/chat",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: nextMessages, task, symbol: symbol.trim() || undefined }),
+        },
+        setProgress
+      );
       setMessages((prev) => {
         const next = [...prev, { role: "assistant" as const, content: data.content }];
         const index = next.length - 1;
@@ -104,6 +115,7 @@ export function ChatPanel({ initialSymbol }: ChatPanelProps = {}) {
       setError(err instanceof Error ? err.message : "Chat request failed");
     } finally {
       setLoading(false);
+      setProgress(null);
     }
   }
 
@@ -175,14 +187,7 @@ export function ChatPanel({ initialSymbol }: ChatPanelProps = {}) {
         ))}
         {loading && (
           <div className="self-start">
-            <ProgressNote
-              stages={[
-                { afterSeconds: 0, text: "Fetching price data and headlines…" },
-                { afterSeconds: 4, text: "Thinking…" },
-                { afterSeconds: 15, text: "Still working — the AI provider is slow right now." },
-                { afterSeconds: 40, text: "Taking unusually long. If this fails, try again in a moment." },
-              ]}
-            />
+            <ProgressNote progress={progress} fallback="Sending your question…" />
           </div>
         )}
       </div>

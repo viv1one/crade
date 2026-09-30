@@ -1,5 +1,7 @@
 "use client";
 
+import { fetchWithProgress } from "@/lib/progress/client";
+import type { ProgressUpdate } from "@/lib/progress/types";
 import { useCallback, useEffect, useState } from "react";
 import type {
   BacktestMetrics,
@@ -37,6 +39,7 @@ export function usePortfolioBacktest() {
   const [current, setCurrent] = useState<PortfolioBacktestRun | null>(null);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState<ProgressUpdate | null>(null);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,13 +59,15 @@ export function usePortfolioBacktest() {
     setRunning(true);
     setError(null);
     try {
-      const res = await fetch("/api/backtest/portfolio", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Portfolio backtest failed");
+      const data = await fetchWithProgress<PortfolioBacktestRun>(
+        "/api/backtest/portfolio",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        },
+        setProgress
+      );
       setCurrent(data);
       setHistory((prev) => [data, ...prev]);
       return data as PortfolioBacktestRun;
@@ -71,6 +76,7 @@ export function usePortfolioBacktest() {
       return null;
     } finally {
       setRunning(false);
+      setProgress(null);
     }
   }, []);
 
@@ -93,5 +99,5 @@ export function usePortfolioBacktest() {
     }
   }, []);
 
-  return { history, historyLoaded, current, setCurrent, running, reviewLoading, error, run, getReview };
+  return { history, historyLoaded, current, setCurrent, running, progress, reviewLoading, error, run, getReview };
 }

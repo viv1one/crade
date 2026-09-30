@@ -6,6 +6,8 @@ import type { PortfolioState } from "@/lib/paper-trading/types";
 import { fetchHoldingsData } from "@/lib/portfolio/fetch";
 import { computePortfolioDiagnostics, formatDiagnosticsForPrompt } from "@/lib/portfolio/diagnostics";
 import { chat } from "@/lib/ai";
+import { withProgress } from "@/lib/progress/server";
+import type { ProgressReporter } from "@/lib/progress/types";
 
 async function loadState(ownerId: string): Promise<PortfolioState> {
   const { paperPortfolios } = await getCollections();
@@ -29,7 +31,7 @@ const SYSTEM_PROMPT =
   "maximize profit — only describe patterns in the data you were given. If a field is marked " +
   "not available for a holding, say so rather than guessing. This is not investment advice.";
 
-export async function POST() {
+async function handle(report: ProgressReporter) {
   const user = await requireUserOrResponse();
   if (user instanceof NextResponse) return user;
 
@@ -42,7 +44,7 @@ export async function POST() {
     );
   }
 
-  const { prices, bars, fundamentals } = await fetchHoldingsData(symbols);
+  const { prices, bars, fundamentals } = await fetchHoldingsData(symbols, report);
   const diagnostics = computePortfolioDiagnostics(
     state.holdings,
     state.cash,
@@ -55,13 +57,14 @@ export async function POST() {
   }
   const dataText = formatDiagnosticsForPrompt(diagnostics);
 
+  report({ text: "Writing the review…" });
   try {
     const result = await chat(
       [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: `Data:\n${dataText}\n\nWrite the diagnostic summary.` },
       ],
-      { task: "portfolio_review" }
+      { task: "portfolio_review", onProgress: report }
     );
     return NextResponse.json({ ...result, fetchedAt: new Date().toISOString() });
   } catch (err) {
@@ -70,4 +73,8 @@ export async function POST() {
       { status: 502 }
     );
   }
+}
+
+export function POST(request: Request) {
+  return withProgress(request, (report) => handle(report));
 }

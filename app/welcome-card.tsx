@@ -32,11 +32,15 @@ const STEPS = [
   },
 ];
 
-// First-run guide: a dismissible checklist-style card rather than a
-// blocking overlay tour — it never traps a returning user, and the dismissed
-// flag lives in localStorage (per-browser is fine for a "you've seen this"
-// hint; a private window just shows it again).
-export function WelcomeCard() {
+interface WelcomeCardProps {
+  // Opens the spotlight tour (app/guided-tour.tsx). The card itself never
+  // blocks the page: it's a dismissible checklist, and the tour is opt-in.
+  onStartTour: () => void;
+}
+
+// First-run guide. The dismissed flag lives in localStorage (per-browser is
+// fine for a "you've seen this" hint; a private window just shows it again).
+export function WelcomeCard({ onStartTour }: WelcomeCardProps) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -99,9 +103,20 @@ export function WelcomeCard() {
         <Link href="/help" className="text-xs text-foreground-muted underline underline-offset-4 hover:no-underline">
           Full feature guide
         </Link>
-        <button onClick={dismiss} className="btn-secondary-sm">
-          Got it
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              dismiss();
+              onStartTour();
+            }}
+            className="btn-primary text-xs"
+          >
+            Take a 1-minute tour
+          </button>
+          <button onClick={dismiss} className="btn-secondary-sm">
+            Got it
+          </button>
+        </div>
       </div>
     </section>
   );

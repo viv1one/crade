@@ -20,6 +20,9 @@ export type ChatTask =
 
 export interface ChatOptions {
   task: ChatTask;
+  // Optional live progress hook: told which provider is being tried and
+  // when one fails over to the next. Never affects the result.
+  onProgress?: (update: { text: string }) => void;
 }
 
 export interface ChatResult {

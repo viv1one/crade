@@ -1,5 +1,7 @@
 "use client";
 
+import { fetchWithProgress } from "@/lib/progress/client";
+import type { ProgressUpdate } from "@/lib/progress/types";
 import { ProgressNote } from "./progress-note";
 import { useState } from "react";
 import { MarkdownContent } from "./markdown-content";
@@ -26,6 +28,7 @@ export function PortfolioDiagnostics({
   const [content, setContent] = useState<string | null>(null);
   const [fetchedAt, setFetchedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState<ProgressUpdate | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deep, setDeep] = useState(false);
 
@@ -33,19 +36,22 @@ export function PortfolioDiagnostics({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(deep ? { deep: true } : {}),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to generate diagnostics");
+      const data = await fetchWithProgress<{ content: string; fetchedAt: string }>(
+        endpoint,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(deep ? { deep: true } : {}),
+        },
+        setProgress
+      );
       setContent(data.content);
       setFetchedAt(data.fetchedAt);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate diagnostics");
     } finally {
       setLoading(false);
+      setProgress(null);
     }
   }
 
@@ -76,20 +82,7 @@ export function PortfolioDiagnostics({
               "Generate AI portfolio diagnostics"
             )}
           </button>
-          {loading && (
-            <ProgressNote
-              stages={[
-                { afterSeconds: 0, text: "Fetching prices and fundamentals for your holdings…" },
-                { afterSeconds: 6, text: "Writing the review…" },
-                {
-                  afterSeconds: 20,
-                  text: deep
-                    ? "Deep analysis compares against all 50 Nifty stocks — up to a minute or two is normal."
-                    : "Still working — the data source or AI provider is slow right now.",
-                },
-              ]}
-            />
-          )}
+          {loading && <ProgressNote progress={progress} fallback="Starting…" />}
         </div>
       )}
       {error && <p role="alert" className="text-xs text-danger">{error}</p>}

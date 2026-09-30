@@ -1,6 +1,8 @@
 import { marketData } from "../market-data";
 import type { UniverseStock } from "./universe";
 import type { ScreenerRow } from "./types";
+import { makeCounter } from "../progress/server";
+import { NOOP_REPORTER, type ProgressReporter } from "../progress/types";
 
 const CONCURRENCY = 5;
 
@@ -46,8 +48,12 @@ async function fetchOne(stock: UniverseStock): Promise<ScreenerRow | null> {
 // fetching the whole ~2,000-symbol universe in one call would run well past
 // any reasonable request timeout, which is exactly why that route only ever
 // passes a small slice at a time.
-export async function fetchScreenerData(universe: UniverseStock[]): Promise<ScreenerRow[]> {
+export async function fetchScreenerData(
+  universe: UniverseStock[],
+  report: ProgressReporter = NOOP_REPORTER
+): Promise<ScreenerRow[]> {
   const queue = [...universe];
+  const tick = makeCounter(universe.length, "Fetched stocks", report);
   const rows: ScreenerRow[] = [];
 
   async function worker() {
@@ -56,6 +62,7 @@ export async function fetchScreenerData(universe: UniverseStock[]): Promise<Scre
       if (!stock) break;
       const row = await fetchOne(stock);
       if (row) rows.push(row);
+      tick();
     }
   }
 

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { requireUserOrResponse } from "@/lib/auth/api";
 import { getCollections } from "@/lib/db/collections";
 import { chat } from "@/lib/ai";
+import { withProgress } from "@/lib/progress/server";
+import type { ProgressReporter } from "@/lib/progress/types";
 
 // Reuses the "digest" ChatTask (already routes NIM-first — see
 // lib/ai/router.ts) and the screener's existing cached snapshot, so this
@@ -17,10 +19,11 @@ const SYSTEM_PROMPT =
 
 const MAX_SNAPSHOT_AGE_MS = 60 * 60 * 1000;
 
-export async function POST() {
+async function handle(report: ProgressReporter) {
   const user = await requireUserOrResponse();
   if (user instanceof NextResponse) return user;
 
+  report({ text: "Reading today's screener data…" });
   const { screenerSnapshots } = await getCollections();
   const snapshot = await screenerSnapshots.findOne({ universe: "nifty50" });
   if (!snapshot || snapshot.rows.length === 0) {
@@ -52,7 +55,7 @@ export async function POST() {
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: `Data:\n${dataText}\n\nWrite the digest.` },
       ],
-      { task: "digest" }
+      { task: "digest", onProgress: report }
     );
     return NextResponse.json({ ...result, fetchedAt: snapshot.fetchedAt });
   } catch (err) {
@@ -61,4 +64,8 @@ export async function POST() {
       { status: 502 }
     );
   }
+}
+
+export function POST(request: Request) {
+  return withProgress(request, (report) => handle(report));
 }

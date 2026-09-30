@@ -7,6 +7,8 @@ import { computePortfolioDiagnostics, type PositionInput } from "@/lib/portfolio
 import { formatScreenerRowsForPrompt } from "@/lib/screener/format";
 import { SECTORS } from "@/lib/screener/universe";
 import { chat } from "@/lib/ai";
+import { withProgress } from "@/lib/progress/server";
+import type { ProgressReporter } from "@/lib/progress/types";
 
 // Same anti-prediction, "pick from the real table only" discipline as
 // app/api/screener/ai-query/route.ts — this is that route's sibling, just
@@ -41,7 +43,7 @@ interface AiPick {
   reason: string;
 }
 
-export async function POST() {
+async function handle(report: ProgressReporter) {
   const user = await requireUserOrResponse();
   if (user instanceof NextResponse) return user;
 
@@ -61,7 +63,7 @@ export async function POST() {
   const symbols = Object.keys(positions);
   const heldSymbols = new Set(symbols);
 
-  const { prices, bars, fundamentals } = await fetchHoldingsData(symbols);
+  const { prices, bars, fundamentals } = await fetchHoldingsData(symbols, report);
   const diagnostics = computePortfolioDiagnostics(positions, undefined, prices, bars, fundamentals);
   if (!diagnostics) {
     return NextResponse.json({ error: "Could not compute portfolio diagnostics" }, { status: 500 });
@@ -107,6 +109,7 @@ export async function POST() {
     `Sectors with no exposure at all: ${missingSectors.length > 0 ? missingSectors.join(", ") : "none"}.\n` +
     `Already-held symbols (do not suggest these): ${symbols.join(", ")}.`;
 
+  report({ text: "Matching sector gaps against cached NSE data, then asking the AI…" });
   try {
     const result = await chat(
       [
@@ -116,7 +119,7 @@ export async function POST() {
           content: `Portfolio:\n${portfolioText}\n\nNSE data:\n${formatScreenerRowsForPrompt(snapshot.rows)}`,
         },
       ],
-      { task: "portfolio_review" }
+      { task: "portfolio_review", onProgress: report }
     );
 
     let parsed: { criteria: string; picks: AiPick[] };
@@ -151,4 +154,8 @@ export async function POST() {
       { status: 502 }
     );
   }
+}
+
+export function POST(request: Request) {
+  return withProgress(request, (report) => handle(report));
 }

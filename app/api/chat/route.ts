@@ -5,6 +5,8 @@ import { getCollections } from "@/lib/db/collections";
 import { chat } from "@/lib/ai";
 import type { ChatMessage, ChatTask } from "@/lib/ai";
 import { buildMarketContext } from "@/lib/ai/context";
+import { withProgress } from "@/lib/progress/server";
+import type { ProgressReporter } from "@/lib/progress/types";
 
 const VALID_TASKS: ChatTask[] = ["explain_move", "summarize", "chat", "digest"];
 
@@ -32,7 +34,7 @@ const SYSTEM_PROMPT =
   "to want a definite answer. This is a personal research tool, not a substitute for a licensed " +
   "financial advisor.";
 
-export async function POST(request: Request) {
+async function handle(request: Request, report: ProgressReporter) {
   const user = await requireUserOrResponse();
   if (user instanceof NextResponse) return user;
 
@@ -46,6 +48,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "messages is required" }, { status: 400 });
   }
 
+  if (symbol) report({ text: `Fetching price data, fundamentals and headlines for ${symbol}…` });
   const marketContext = symbol ? await buildMarketContext(symbol) : null;
   // Deterministic, not inferred from the model's prose — the spec's
   // "failsafe" gray-block UI (chat-panel.tsx) keys off this flag rather
@@ -72,9 +75,10 @@ export async function POST(request: Request) {
   }
 
   try {
+    report({ text: "Asking the AI model…" });
     const result = await chat(
       [{ role: "system", content: systemContent }, ...messages],
-      { task }
+      { task, onProgress: report }
     );
 
     const { aiSessions } = await getCollections();
@@ -101,4 +105,8 @@ export async function POST(request: Request) {
       { status: 502 }
     );
   }
+}
+
+export function POST(request: Request) {
+  return withProgress(request, (report) => handle(request, report));
 }

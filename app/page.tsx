@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Watchlist } from "./watchlist";
 import { Portfolio } from "./portfolio";
@@ -13,18 +13,31 @@ import { MarketDigest } from "./market-digest";
 import { ShareWatchlist } from "./share-watchlist";
 import { SymbolDatalist } from "./symbol-datalist";
 import { WelcomeCard } from "./welcome-card";
+import { GuidedTour } from "./guided-tour";
 
 function HomeContent() {
   const portfolio = usePaperPortfolio();
   const searchParams = useSearchParams();
   const initialSymbol = searchParams.get("symbol") ?? undefined;
+  const [touring, setTouring] = useState(false);
+
+  // "/?tour=1" (linked from the Help page) replays the tour on demand.
+  const tourRequested = searchParams.get("tour") === "1";
+  useEffect(() => {
+    if (tourRequested) setTouring(true);
+  }, [tourRequested]);
+
+  function endTour() {
+    setTouring(false);
+    if (tourRequested) window.history.replaceState(null, "", "/");
+  }
 
   return (
     <div className="font-sans min-h-screen flex flex-col items-center gap-16 p-8 pb-20 sm:p-20">
       <SymbolDatalist />
       <AppShellNav />
       <main className="contents">
-        <WelcomeCard />
+        <WelcomeCard onStartTour={() => setTouring(true)} />
         <div className="w-full max-w-2xl flex flex-col gap-6">
           <AlertsSummary />
           <MarketMovers />
@@ -47,6 +60,7 @@ function HomeContent() {
         />
         <ChatPanel initialSymbol={initialSymbol} />
       </main>
+      {touring && <GuidedTour onClose={endTour} />}
     </div>
   );
 }

@@ -1,12 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { AppShellNav } from "../app-shell-nav";
 import { HelpChatPanel } from "./help-chat-panel";
 
 const QUICK_START = [
-  "Add a stock to your Watchlist on the home page (top nav, 📈) — try RELIANCE.NS or just \"Adani\".",
+  "Add a stock to your Watchlist on the home page (top nav, Practice 📈) — try RELIANCE.NS or just \"Adani\".",
   "Try a paper trade — click Buy on any watchlist row, or swipe the row right. It uses fake money, so there's nothing to lose.",
-  "Ask the AI Chat a question about that stock (AI Desk → Chat) to see how it reasons from real data.",
+  "Ask the AI Chat a question about that stock (Research → Chat) to see how it reasons from real data.",
 ];
 
 interface Section {
@@ -53,7 +54,7 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    title: "AI Chat — AI Desk → Chat (home page)",
+    title: "AI Chat — Research → Chat (home page)",
     intro: "A chat assistant for discussing one specific stock, grounded in real data rather than guessing.",
     bullets: [
       "Type a symbol into the field to ground answers in that stock's real price, price history, fundamentals, and recent news headlines — leave it blank for a general question.",
@@ -64,7 +65,7 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    title: "Trading Agents — AI Desk → Trading Agents",
+    title: "Trading Agents — Research → Trading Agents",
     intro: "A much deeper analysis than AI Chat — a simulated team of AI \"agents\" that debate a stock before reaching one verdict.",
     bullets: [
       "Analyst team (runs in parallel): a Technical analyst (price/RSI/moving averages), a Fundamentals analyst (P/E, market cap, EPS, dividend yield, plus recent insider trading disclosures), a News analyst (recent headlines), and a Sentiment analyst (Reddit discussion).",
@@ -78,7 +79,7 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    title: "Screener — Discovery → Screener",
+    title: "Screener — Research → Screener",
     intro: "A filterable table of stocks for finding something worth researching further.",
     bullets: [
       "Two tabs: Nifty 50 (the 50 largest, refreshed on demand) or All NSE stocks (~2,000 stocks, refreshed automatically in the background over the course of an hour, so rows can have slightly different freshnesses).",
@@ -90,7 +91,7 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    title: "Backtest — Discovery → Backtest a strategy",
+    title: "Backtest — Research → Backtest a strategy",
     intro: "Test whether a buy/sell strategy would have worked historically, before trusting it with real decisions. Five modes:",
     bullets: [
       "Single symbol — test one strategy against one stock's own price history.",
@@ -105,7 +106,7 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    title: "Vault — 🏦, real holdings you already own",
+    title: "Vault — Track → Holdings (Vault), 🏦, real holdings you already own",
     intro: "For tracking investments you hold in your actual brokerage account (e.g. Groww) — entered manually, for research only. Crade never connects to your broker, never verifies these numbers, and never places real trades here.",
     bullets: [
       "Add one holding at a time (symbol, quantity, average cost, optional note and purchase date), or \"Add multiple at once\" to paste several lines in one go (one holding per line: symbol, quantity, avg cost).",
@@ -117,7 +118,7 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    title: "Journal — Menu → Journal",
+    title: "Journal — Track → Journal",
     intro: "A place to write down your reasoning before a trade (or before deciding not to make one), separate from the actual trade log in Portfolio/Vault.",
     bullets: [
       "Log an entry: symbol, action (Buy / Sell / Watch), your reasoning in your own words, and an optional price.",
@@ -128,7 +129,7 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    title: "Alerts — Menu → Alerts, 🔔",
+    title: "Alerts — Track → Alerts, 🔔",
     intro: "Get notified automatically when something happens to a stock you're watching.",
     bullets: [
       "Conditions: price above a value, price below a value, RSI(14) below a value, or a volume spike vs. the 20-day average (\"When\" side of the form).",
@@ -178,6 +179,9 @@ export default function HelpPage() {
               <li key={step}>{step}</li>
             ))}
           </ol>
+          <Link href="/?tour=1" className="btn-secondary-sm w-fit mt-1">
+            Take the guided tour
+          </Link>
         </div>
 
         <div className="card flex flex-col divide-y divide-border overflow-hidden">

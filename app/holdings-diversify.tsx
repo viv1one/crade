@@ -1,5 +1,7 @@
 "use client";
 
+import { fetchWithProgress } from "@/lib/progress/client";
+import type { ProgressUpdate } from "@/lib/progress/types";
 import { ProgressNote } from "./progress-note";
 import { useState } from "react";
 import { Disclaimer } from "./disclaimer";
@@ -11,6 +13,7 @@ interface Pick {
 
 export function HoldingsDiversify({ hasHoldings }: { hasHoldings: boolean }) {
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState<ProgressUpdate | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [criteria, setCriteria] = useState<string | null>(null);
   const [picks, setPicks] = useState<Pick[]>([]);
@@ -19,15 +22,18 @@ export function HoldingsDiversify({ hasHoldings }: { hasHoldings: boolean }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/holdings/diversify", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to suggest diversifiers");
+      const data = await fetchWithProgress<{ criteria: string; picks: Pick[] }>(
+        "/api/holdings/diversify",
+        { method: "POST" },
+        setProgress
+      );
       setCriteria(data.criteria);
       setPicks(data.picks);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to suggest diversifiers");
     } finally {
       setLoading(false);
+      setProgress(null);
     }
   }
 
@@ -51,15 +57,7 @@ export function HoldingsDiversify({ hasHoldings }: { hasHoldings: boolean }) {
           )}
         </button>
       )}
-      {loading && (
-        <ProgressNote
-          stages={[
-            { afterSeconds: 0, text: "Checking your sector exposure…" },
-            { afterSeconds: 5, text: "Matching gaps against the screener…" },
-            { afterSeconds: 20, text: "Still working — the AI provider is slow right now." },
-          ]}
-        />
-      )}
+      {loading && <ProgressNote progress={progress} fallback="Starting…" />}
       {error && <p role="alert" className="text-xs text-danger">{error}</p>}
       {criteria !== null && (
         <div className="card p-3 flex flex-col gap-2">

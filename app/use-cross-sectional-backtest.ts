@@ -1,5 +1,7 @@
 "use client";
 
+import { fetchWithProgress } from "@/lib/progress/client";
+import type { ProgressUpdate } from "@/lib/progress/types";
 import { useCallback, useEffect, useState } from "react";
 import type {
   BacktestMetrics,
@@ -34,6 +36,7 @@ export function useCrossSectionalBacktest() {
   const [current, setCurrent] = useState<CrossSectionalBacktestRun | null>(null);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState<ProgressUpdate | null>(null);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,13 +56,15 @@ export function useCrossSectionalBacktest() {
     setRunning(true);
     setError(null);
     try {
-      const res = await fetch("/api/backtest/cross-sectional", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Cross-sectional backtest failed");
+      const data = await fetchWithProgress<CrossSectionalBacktestRun>(
+        "/api/backtest/cross-sectional",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        },
+        setProgress
+      );
       setCurrent(data);
       setHistory((prev) => [data, ...prev]);
       return data as CrossSectionalBacktestRun;
@@ -68,6 +73,7 @@ export function useCrossSectionalBacktest() {
       return null;
     } finally {
       setRunning(false);
+      setProgress(null);
     }
   }, []);
 
@@ -90,5 +96,5 @@ export function useCrossSectionalBacktest() {
     }
   }, []);
 
-  return { history, historyLoaded, current, setCurrent, running, reviewLoading, error, run, getReview };
+  return { history, historyLoaded, current, setCurrent, running, progress, reviewLoading, error, run, getReview };
 }

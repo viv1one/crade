@@ -61,7 +61,7 @@ export function Portfolio({ cash, holdings, trades, equityCurve, error, loaded, 
   const { benchmarkCurve } = useBenchmarkCurve(equityCurve, STARTING_CASH);
 
   return (
-    <div className="w-full max-w-2xl flex flex-col gap-6">
+    <div id="portfolio" className="w-full max-w-2xl flex flex-col gap-6 scroll-mt-8">
       <div className="flex items-center justify-between gap-4">
         {/* Same cool-blue accent as Watchlist — the two are the "Paper
             Trading" half of the spec's Cool Blue / Warm Gold split, the

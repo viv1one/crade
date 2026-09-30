@@ -121,6 +121,12 @@ async function callProvider(
   };
 }
 
+const PROVIDER_LABELS: Record<string, string> = {
+  nim: "NVIDIA NIM",
+  anthropic: "Anthropic",
+  openai: "OpenAI",
+};
+
 export async function chat(
   messages: ChatMessage[],
   options: ChatOptions
@@ -130,10 +136,14 @@ export async function chat(
   for (const providerName of chain) {
     const config = providers[providerName];
     if (!config.apiKey) continue; // skip unconfigured providers
+    options.onProgress?.({ text: `Waiting for ${PROVIDER_LABELS[providerName] ?? providerName}…` });
     try {
       return await callProvider(config, messages);
     } catch (err) {
       lastError = err;
+      options.onProgress?.({
+        text: `${PROVIDER_LABELS[providerName] ?? providerName} didn't respond — trying the next provider…`,
+      });
     }
   }
   throw new Error(

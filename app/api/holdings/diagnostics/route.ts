@@ -11,6 +11,8 @@ import {
 import { computeFactorTilts, formatFactorTiltsForPrompt } from "@/lib/portfolio/factor-tilt";
 import { NIFTY_50 } from "@/lib/screener/universe";
 import { chat } from "@/lib/ai";
+import { withProgress } from "@/lib/progress/server";
+import type { ProgressReporter } from "@/lib/progress/types";
 
 // Same anti-prediction discipline as app/api/portfolio/diagnostics/route.ts
 // and app/api/screener/ai-query/route.ts, but worded for real holdings
@@ -42,7 +44,7 @@ const DEEP_ANALYSIS_CLAUSE =
   " A \"Deep factor analysis\" section is included below — its percentiles are relative standing " +
   "within the Nifty 50 universe, not a forecast — describe them the same cautious way.";
 
-export async function POST(request: Request) {
+async function handle(request: Request, report: ProgressReporter) {
   const user = await requireUserOrResponse();
   if (user instanceof NextResponse) return user;
 
@@ -64,7 +66,7 @@ export async function POST(request: Request) {
   }
   const symbols = Object.keys(positions);
 
-  const { prices, bars, fundamentals } = await fetchHoldingsData(symbols);
+  const { prices, bars, fundamentals } = await fetchHoldingsData(symbols, report);
   const diagnostics = computePortfolioDiagnostics(positions, undefined, prices, bars, fundamentals);
   if (!diagnostics) {
     return NextResponse.json({ error: "Could not compute diagnostics" }, { status: 500 });
@@ -72,20 +74,21 @@ export async function POST(request: Request) {
   let dataText = formatDiagnosticsForPrompt(diagnostics);
 
   if (deep) {
-    const { barsBySymbol, fundamentalsBySymbol } = await fetchUniverseData();
+    const { barsBySymbol, fundamentalsBySymbol } = await fetchUniverseData(report);
     const tilts = computeFactorTilts(symbols, NIFTY_50, barsBySymbol, fundamentalsBySymbol);
     dataText += `\n\n${formatFactorTiltsForPrompt(tilts)}`;
   }
 
   const systemPrompt = deep ? BASE_SYSTEM_PROMPT + DEEP_ANALYSIS_CLAUSE : BASE_SYSTEM_PROMPT;
 
+  report({ text: "Writing the review…" });
   try {
     const result = await chat(
       [
         { role: "system", content: systemPrompt },
         { role: "user", content: `Data:\n${dataText}\n\nWrite the diagnostic summary.` },
       ],
-      { task: "portfolio_review" }
+      { task: "portfolio_review", onProgress: report }
     );
     return NextResponse.json({ ...result, fetchedAt: new Date().toISOString() });
   } catch (err) {
@@ -94,4 +97,8 @@ export async function POST(request: Request) {
       { status: 502 }
     );
   }
+}
+
+export function POST(request: Request) {
+  return withProgress(request, (report) => handle(request, report));
 }
