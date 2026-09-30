@@ -11,23 +11,28 @@ export interface TourStep {
   target: string;
   // Nav group to open first, when the target is a link inside one.
   openNav?: string;
+  // Home-page tab to show first (the home page shows one panel at a time).
+  tab?: "watchlist" | "portfolio" | "chat";
 }
 
 export const TOUR_STEPS: TourStep[] = [
   {
     title: "Your watchlist",
     body: "Stocks you follow. Quotes load automatically; Buy and Sell place simulated trades with fake money at the latest price.",
-    target: "#watchlist h1",
+    target: "#watchlist ul",
+    tab: "watchlist",
   },
   {
     title: "Your paper portfolio",
     body: "Starts with ₹1,00,000 of practice cash. It tracks what you've 'bought', your profit and loss, and a performance chart. Nothing here is a real order.",
-    target: "#portfolio h2",
+    target: "#portfolio .card",
+    tab: "portfolio",
   },
   {
     title: "AI Chat",
     body: "Ask why a stock moved or for a summary. Answers are built from its real price data and headlines, and it says so when data is missing.",
-    target: "#chat h2",
+    target: "#chat input[aria-label='Message']",
+    tab: "chat",
   },
   {
     title: "Backtest",
@@ -82,12 +87,13 @@ export function GuidedTour({ onClose }: GuidedTourProps) {
   // Bring the target on screen (opening its nav group first if needed).
   useEffect(() => {
     setNav(step.openNav ?? null);
+    if (step.tab) window.dispatchEvent(new CustomEvent("crade-home-tab", { detail: step.tab }));
     let cancelled = false;
     const timer = setTimeout(() => {
       if (cancelled) return;
       findVisible(step.target)?.scrollIntoView({ block: "center", behavior: "auto" });
       measure();
-    }, step.openNav ? 200 : 0);
+    }, step.openNav || step.tab ? 200 : 0);
     return () => {
       cancelled = true;
       clearTimeout(timer);

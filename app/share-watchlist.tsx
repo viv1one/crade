@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { safeJson, errorMessage } from "./fetch-json";
+import { Collapsible } from "./collapsible";
 
 interface ShareRow {
   _id: string;
@@ -13,7 +14,6 @@ export function ShareWatchlist() {
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [expanded, setExpanded] = useState(false);
 
   function load() {
     fetch("/api/shares")
@@ -56,16 +56,8 @@ export function ShareWatchlist() {
 
   return (
     <div className="w-full max-w-2xl text-sm">
-      <button
-        onClick={() => setExpanded((v) => !v)}
-        aria-expanded={expanded}
-        className="text-xs text-foreground-muted underline underline-offset-4 hover:no-underline"
-      >
-        {expanded ? "▾ Hide sharing" : `▸ Share this watchlist${shares.length > 0 ? ` (${shares.length})` : ""}`}
-      </button>
-
-      {expanded && (
-        <div className="card mt-2 flex flex-col gap-2 p-3">
+      <Collapsible variant="inline" title="Share this watchlist" hint={shares.length > 0 ? `${shares.length}` : undefined}>
+        <div className="flex flex-col gap-2">
           <form onSubmit={handleShare} className="flex gap-2">
             <input
               type="email"
@@ -106,7 +98,7 @@ export function ShareWatchlist() {
             They&apos;ll see this watchlist read-only if they sign in with that email.
           </p>
         </div>
-      )}
+      </Collapsible>
     </div>
   );
 }

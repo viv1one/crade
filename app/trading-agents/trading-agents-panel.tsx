@@ -7,6 +7,7 @@ import { SymbolDatalist, SYMBOL_SUGGESTIONS_ID } from "../symbol-datalist";
 import { VERDICT_BADGE_CLASS, type AgentPipelineResult } from "@/lib/agents/types";
 import { TradingAgentsRun, ACTION_LABELS } from "./trading-agents-run";
 import { safeJson } from "../fetch-json";
+import { Collapsible } from "../collapsible";
 
 interface AgentRunSummary {
   _id: string;
@@ -75,13 +76,17 @@ export function TradingAgentsPanel({ initialSymbol }: TradingAgentsPanelProps = 
   return (
     <div id="trading-agents" className="w-full max-w-2xl flex flex-col gap-4 scroll-mt-8">
       <SymbolDatalist />
-      <h2 className="text-2xl font-semibold">Trading Agents</h2>
-      <p className="text-sm text-foreground-muted">
-        Runs a multi-agent research pipeline (technical, fundamentals, news, and sentiment analysts →
-        bull/bear debate → risk debate) for one symbol, ending in a simulated buy/hold/sell call. This
-        is ~12 chained AI calls, much slower than the regular chat — a real run has taken up to 5
-        minutes. Progress below updates live as each stage finishes.
-      </p>
+      <div>
+        <h1 className="text-2xl font-semibold">Trading Agents</h1>
+        <p className="text-sm text-foreground-muted">A team of AI analysts debates one stock and gives a verdict.</p>
+      </div>
+      <Collapsible variant="inline" title="How it works">
+        <p className="text-xs text-foreground-muted">
+          Technical, fundamentals, news and sentiment analysts report; a bull and a bear argue; a trader proposes a
+          plan; a risk team reviews it and a fund manager makes the call. It&apos;s about 12 chained AI calls, so a
+          run takes up to ~5 minutes — it keeps going on the server, and you can leave the page.
+        </p>
+      </Collapsible>
 
       <form onSubmit={startRun} className="flex gap-2">
         <input
@@ -153,9 +158,8 @@ export function TradingAgentsPanel({ initialSymbol }: TradingAgentsPanelProps = 
         </div>
       )}
 
-      <div>
-        <h3 className="text-sm font-medium mb-2">Past analyses</h3>
-        <ul className="card flex flex-col divide-y divide-border max-h-64 overflow-y-auto">
+      <Collapsible title="Past analyses" hint={history.length > 0 ? `${history.length}` : undefined}>
+        <ul className="flex flex-col divide-y divide-border max-h-64 overflow-y-auto">
           {!historyLoaded && (
             <li className="p-4 text-sm text-foreground-muted">Loading history…</li>
           )}
@@ -184,9 +188,9 @@ export function TradingAgentsPanel({ initialSymbol }: TradingAgentsPanelProps = 
             </li>
           ))}
         </ul>
-      </div>
+      </Collapsible>
 
-      <Disclaimer>{NOT_INVESTMENT_ADVICE}</Disclaimer>
+      <Disclaimer collapsible>{NOT_INVESTMENT_ADVICE}</Disclaimer>
     </div>
   );
 }

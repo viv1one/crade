@@ -23,7 +23,7 @@ export default function SharedWithMePage() {
   }, []);
 
   return (
-    <div className="font-sans min-h-screen flex flex-col items-center gap-16 p-8 pb-20 sm:p-20">
+    <div className="font-sans min-h-screen flex flex-col items-center gap-6 p-6 pb-24 sm:p-12">
       <AppShellNav />
       <main className="w-full max-w-2xl flex flex-col gap-6">
         <h1 className="text-2xl font-semibold">Shared with me</h1>

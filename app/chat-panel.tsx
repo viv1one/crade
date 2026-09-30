@@ -2,7 +2,6 @@
 
 import { fetchWithProgress } from "@/lib/progress/client";
 import type { ProgressUpdate } from "@/lib/progress/types";
-import { PageIntro } from "./page-intro";
 import { ProgressNote } from "./progress-note";
 import { useCallback, useEffect, useState } from "react";
 import type { ChatMessage, ChatTask } from "@/lib/ai";
@@ -122,9 +121,6 @@ export function ChatPanel({ initialSymbol }: ChatPanelProps = {}) {
 
   return (
     <div id="chat" className="w-full max-w-2xl flex flex-col gap-4 scroll-mt-8">
-      <h2 className="text-2xl font-semibold">AI Chat</h2>
-      <PageIntro kind="research">Ask why a stock moved or get a summary. Answers use its real price data and headlines — not advice.</PageIntro>
-
       <div className="flex flex-wrap gap-2">
         <input
           value={symbol}

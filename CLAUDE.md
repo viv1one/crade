@@ -720,10 +720,23 @@ model to reason about freshness at all and just gating the data before it gets t
 
 ### Onboarding, navigation & progress feedback
 
+- **One job per screen** (the design rule for every page — keep to it when adding features): each screen
+  opens on its primary content and nothing else; secondary tools sit behind tap-to-open rows
+  (`app/collapsible.tsx`, native `<details>`, marked ▸) and "add" forms open from a "+ Add/+ New" button
+  (auto-open only when the list is empty or arrived-at with a prefill). The home page (`app/page.tsx`)
+  is three tabs (`app/segmented-tabs.tsx`: Watchlist / Portfolio / Chat) with all panels kept mounted and
+  the inactive ones `hidden`, so switching is instant and nothing refetches; deep links ("/#chat",
+  "?symbol=") and the nav/tour switch tabs through the `crade-home-tab` window event or the URL hash.
+  Long explanations become a one-line subtitle plus a collapsed "How it works"; page-footer fine print
+  uses `<Disclaimer collapsible>` (a disclaimer next to AI output or a verdict stays visible). Lists are
+  one line per item with detail/actions behind a tap (watchlist ⋯, screener rows). Help topics are
+  collapsed by default. When testing visibility in a browser, use `element.checkVisibility()` — content
+  inside a closed `<details>` still has layout boxes, so `getClientRects()` lies.
+
 - **Nav** (`app/app-shell-nav.tsx`) is grouped by intent, not feature name: **Practice** (`/`, watchlist +
   paper portfolio), **Research** (Chat, Screener, Backtest, Trading Agents), **Track** (Holdings/Vault,
   Journal, Alerts), **Menu** (Shared with me, Help). Routes are unchanged; every link carries a one-line
-  `desc`. `app/page-intro.tsx` repeats the Research/Practice/Track badge under page titles. If you add a
+  `desc`. If you add a
   page, put it in a group *and* update `app/help/page.tsx` + `app/api/help-chat/route.ts` (both name the
   groups).
 - **First run**: `app/welcome-card.tsx` (dismissible checklist, `localStorage` flag

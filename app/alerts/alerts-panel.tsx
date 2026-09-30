@@ -1,6 +1,5 @@
 "use client";
 
-import { PageIntro } from "../page-intro";
 import { useEffect, useState } from "react";
 import { Disclaimer } from "../disclaimer";
 import { NOT_INVESTMENT_ADVICE } from "@/lib/disclaimers";
@@ -8,6 +7,7 @@ import { SymbolDatalist, SYMBOL_SUGGESTIONS_ID } from "../symbol-datalist";
 import { CONDITION_LABELS, type ConditionType } from "@/lib/alerts/labels";
 import { nextEvaluationTime } from "@/lib/alerts/next-evaluation";
 import { useToast } from "../toast-provider";
+import { Collapsible } from "../collapsible";
 import { safeJson, errorMessage } from "../fetch-json";
 
 interface Alert {
@@ -17,6 +17,13 @@ interface Alert {
   channel: "push" | "email";
   status: "active" | "paused" | "triggered";
   lastTriggeredAt?: string;
+}
+
+// Same convention as the watchlist: a bare ticker means NSE. An alert on "TCS"
+// (no exchange suffix) can't be priced by the data providers and would never fire.
+function normalizeSymbol(raw: string): string {
+  const s = raw.trim().toUpperCase();
+  return s.includes(".") ? s : `${s}.NS`;
 }
 
 export function AlertsPanel() {
@@ -29,6 +36,7 @@ export function AlertsPanel() {
   const [channel, setChannel] = useState<"push" | "email">("push");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
   const [pushGranted, setPushGranted] = useState(true);
 
   useEffect(() => {
@@ -61,7 +69,7 @@ export function AlertsPanel() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          symbol: symbol.trim().toUpperCase(),
+          symbol: normalizeSymbol(symbol),
           condition: { type: conditionType, value: numericValue },
           channel,
         }),
@@ -69,6 +77,7 @@ export function AlertsPanel() {
       const data = await safeJson<{ symbol: string }>(res);
       setSymbol("");
       setValue("");
+      setFormOpen(false);
       load();
       showToast(`Alert created for ${data.symbol}`, "success");
     } catch (err) {
@@ -105,21 +114,33 @@ export function AlertsPanel() {
     }
   }
 
+  const showForm = formOpen || (loaded && alerts.length === 0);
+
   return (
-    <div className="w-full max-w-2xl flex flex-col gap-6">
+    <div className="w-full max-w-2xl flex flex-col gap-4">
       <SymbolDatalist />
-      <h1 className="text-2xl font-semibold">Alerts</h1>
-      <PageIntro kind="track">Get a notification when a stock crosses a price, RSI, or volume level — checked every 4 hours.</PageIntro>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Alerts</h1>
+          <p className="text-sm text-foreground-muted">Get pinged when a stock crosses a level.</p>
+        </div>
+        {!showForm && (
+          <button onClick={() => setFormOpen(true)} className="btn-primary shrink-0">
+            + New
+          </button>
+        )}
+      </div>
 
       {!pushGranted && (
         <div className="alert-banner alert-banner-warning">
           <p className="text-sm text-warning">
-            Push notifications aren&apos;t enabled on this device yet — enable them above, or an
-            alert firing won&apos;t actually notify you.
+            Push notifications aren&apos;t enabled on this device yet — turn them on under
+            &ldquo;Notification settings&rdquo; below, or an alert firing won&apos;t notify you.
           </p>
         </div>
       )}
 
+      {showForm && (
       <form onSubmit={handleCreate} className="card p-4 flex flex-col gap-3">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <div className="flex-1 flex flex-col gap-1.5">
@@ -176,20 +197,8 @@ export function AlertsPanel() {
           Add alert
         </button>
       </form>
+      )}
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}
-      <p className="text-xs text-foreground-muted -mt-4">
-        {/* Forced to IST rather than the viewer's browser locale — NSE/BSE
-            only ever trade in IST, so this app's whole domain is IST
-            regardless of who's looking, unlike lastTriggeredAt elsewhere
-            (a plain timestamp of a real event) where local time is the
-            right call. */}
-        Evaluated every 4 hours. Next check: {nextEvaluationTime().toLocaleString("en-IN", {
-          hour: "numeric",
-          minute: "2-digit",
-          timeZone: "Asia/Kolkata",
-        })}{" "}
-        IST.
-      </p>
 
       <ul className="card flex flex-col divide-y divide-border overflow-hidden">
         {!loaded && (
@@ -243,7 +252,23 @@ export function AlertsPanel() {
         ))}
       </ul>
 
-      <Disclaimer>
+      <Collapsible variant="inline" title="When are alerts checked?">
+      <p className="text-xs text-foreground-muted">
+        {/* Forced to IST rather than the viewer's browser locale — NSE/BSE
+            only ever trade in IST, so this app's whole domain is IST
+            regardless of who's looking, unlike lastTriggeredAt elsewhere
+            (a plain timestamp of a real event) where local time is the
+            right call. */}
+        Evaluated every 4 hours. Next check: {nextEvaluationTime().toLocaleString("en-IN", {
+          hour: "numeric",
+          minute: "2-digit",
+          timeZone: "Asia/Kolkata",
+        })}{" "}
+        IST.
+      </p>
+      </Collapsible>
+
+      <Disclaimer collapsible>
         Alerts are checked periodically in the background and delivered as a push notification or
         an email, depending on the channel chosen when the alert was created. Push requires
         notification permission — see the browser prompt on first visit. {NOT_INVESTMENT_ADVICE}

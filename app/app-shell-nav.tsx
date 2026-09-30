@@ -92,6 +92,14 @@ export function AppShellNav() {
     return () => window.removeEventListener("crade-nav-expand", onExpand);
   }, []);
 
+  // "/#chat" while already on the home page changes no route, so nothing would
+  // tell the home page to switch tabs — say so explicitly.
+  function onLinkClick(href: string) {
+    setExpanded(null);
+    const hash = href === "/" ? "watchlist" : href.split("#")[1];
+    if (hash && pathname === "/") window.dispatchEvent(new CustomEvent("crade-home-tab", { detail: hash }));
+  }
+
   function toggle(key: string) {
     setExpanded((prev) => (prev === key ? null : key));
   }
@@ -125,6 +133,7 @@ export function AppShellNav() {
                   key={group.key}
                   href={group.href}
                   data-tour={`nav-${group.key}`}
+                  onClick={() => onLinkClick(group.href!)}
                   title={group.desc}
                   className={`text-sm font-medium transition-colors ${
                     isGroupActive(group, pathname) ? "text-foreground" : "text-foreground-muted hover:text-foreground"
@@ -156,7 +165,7 @@ export function AppShellNav() {
                 href={l.href}
                 data-tour={`link-${l.href}`}
                 className="flex flex-col rounded-md p-2 hover:bg-background"
-                onClick={() => setExpanded(null)}
+                onClick={() => onLinkClick(l.href)}
               >
                 <span className="text-sm font-medium">{l.label}</span>
                 <span className="text-xs text-foreground-muted">{l.desc}</span>
@@ -177,7 +186,7 @@ export function AppShellNav() {
                 href={l.href}
                 data-tour={`link-${l.href}`}
                 className="flex flex-col px-4 py-3 min-h-11"
-                onClick={() => setExpanded(null)}
+                onClick={() => onLinkClick(l.href)}
               >
                 <span className="text-sm font-medium">{l.label}</span>
                 <span className="text-xs text-foreground-muted">{l.desc}</span>
@@ -192,6 +201,7 @@ export function AppShellNav() {
                 key={group.key}
                 href={group.href}
                 data-tour={`nav-${group.key}`}
+                onClick={() => onLinkClick(group.href!)}
                 title={group.desc}
                 className={`flex flex-col items-center justify-center gap-0.5 py-2 min-h-14 text-[0.65rem] font-medium ${
                   isGroupActive(group, pathname) ? "text-accent" : "text-foreground-muted"

@@ -429,4 +429,93 @@ a:focus-visible {
       font-size: 1rem;
     }
   }
+
+  /* Progressive disclosure (app/collapsible.tsx): the heading is always shown,
+     the body is one tap away. */
+  .collapsible > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    cursor: pointer;
+    list-style: none;
+    min-height: 2.5rem;
+  }
+  .collapsible > summary::-webkit-details-marker {
+    display: none;
+  }
+  .collapsible > summary::before {
+    content: "▸";
+    flex: none;
+    color: var(--foreground-muted);
+    font-size: 0.8em;
+    transition: transform 0.15s ease;
+  }
+  .collapsible[open] > summary::before {
+    transform: rotate(90deg);
+  }
+  .collapsible-title {
+    flex: 1;
+    min-width: 0;
+  }
+  .collapsible-hint {
+    font-size: 0.75rem;
+    color: var(--foreground-muted);
+  }
+  .collapsible-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0 1rem;
+  }
+  .collapsible-card > summary {
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+  .collapsible-card .collapsible-body {
+    padding-bottom: 1rem;
+  }
+  .collapsible-inline > summary {
+    font-size: 0.75rem;
+    color: var(--foreground-muted);
+    min-height: 2rem;
+  }
+  .collapsible-inline .collapsible-body {
+    padding-bottom: 0.5rem;
+  }
+
+  /* Segmented tab strip (app/segmented-tabs.tsx). */
+  .segmented {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 9999px;
+    width: 100%;
+    max-width: 42rem;
+  }
+  .segmented-tab {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--foreground-muted);
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease;
+  }
+  .segmented-tab.is-active {
+    background: var(--accent);
+    color: white;
+  }
+  @media (pointer: coarse) {
+    .segmented-tab {
+      min-height: 2.75rem;
+    }
+    .collapsible > summary {
+      min-height: 2.75rem;
+    }
+  }
 }

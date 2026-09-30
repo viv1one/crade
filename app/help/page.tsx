@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { AppShellNav } from "../app-shell-nav";
 import { HelpChatPanel } from "./help-chat-panel";
+import { Collapsible } from "../collapsible";
 
 const QUICK_START = [
   "Add a stock to your Watchlist on the home page (top nav, Practice 📈) — try RELIANCE.NS or just \"Adani\".",
@@ -29,18 +30,19 @@ const SECTIONS: Section[] = [
       "Research (🔍) — understand a stock or an idea: Chat, Screener, Backtest a strategy, and Trading Agents.",
       "Track (🏦) — record and monitor: Holdings (Vault) for what you really own, Journal for your reasoning, and Alerts.",
       "Menu (☰) — Shared with me and Help.",
-      "Every page has a small Research / Practice / Track badge and a one-line summary under its title.",
+      "Each page opens on its main content; extra tools sit behind tap-to-open rows (marked ▸) so a screen only shows one job at a time.",
       "First time in? A welcome card on the home page lists four good first steps and offers a 1-minute spotlight tour (it highlights the watchlist, portfolio, Chat, Backtest and Alerts). You can replay the tour any time from the button below.",
       "On a phone, the home screen can be installed like an app; if you go offline you'll see a simple offline page rather than stale prices.",
     ],
   },
   {
-    title: "Home page dashboard — top of the home page",
-    intro: "A few small widgets above your Watchlist, meant to be glanced at, not read in depth:",
+    title: "Home — the Watchlist, Portfolio and Chat tabs",
+    intro: "The home screen shows one thing at a time. Switch with the three tabs at the top:",
     bullets: [
-      "Active/triggered alerts — a quiet line if nothing's fired, or a loud banner naming exactly which alerts just triggered.",
-      "Nifty 50 movers — the day's top 3 gainers and top 3 losers, pulled from the same data as the Screener.",
-      "Generate AI market digest — a button, not automatic (no reason to spend an AI call you didn't ask for) — summarizes what happened in the market today using the screener's cached data.",
+      "Watchlist — the stocks you follow, with Buy and Sell. \"Market today\" above the list opens the day's top gainers and losers and an on-demand AI digest.",
+      "Portfolio — your paper-trading results: cash, total value and profit or loss, then your positions. Performance, Trade history and the AI review open with a tap.",
+      "Chat — ask the AI about a stock.",
+      "A red banner appears at the top only when one of your alerts has actually fired; everything else about alerts lives under Track → Alerts.",
     ],
   },
   {
@@ -48,24 +50,24 @@ const SECTIONS: Section[] = [
     intro: "Your list of stocks to keep an eye on, and where you place paper trades.",
     bullets: [
       "Add a stock by symbol (RELIANCE.NS) or company name (\"Adani\") — a live price loads automatically, no extra click needed. New accounts start with a few starter stocks; if you empty the list, popular Nifty 50 stocks are offered as one-tap buttons.",
-      "Each row shows the price, day change %, and (if a Trading Agents analysis has been run on it) a BUY/SELL/HOLD badge — tap it to jump straight to that analysis. A badge older than 48 hours shows \"Stale\" instead, as a reminder to re-run it.",
-      "RSI/SMA toggle (top right) — turns on 14-day RSI plus 20-day and 50-day moving averages per row, flagging \"oversold\"/\"overbought\" when RSI crosses 30/70.",
-      "Buy and Sell buttons place a paper trade at the live price; on a touchscreen you can also swipe a row right to Buy or left to Sell — the buttons are always there too, swiping is just a shortcut.",
+      "Each row shows the symbol, price, day change %, and (if a Trading Agents analysis has been run on it) a BUY/SELL/HOLD badge — tap it to jump straight to that analysis. A badge older than 48 hours shows \"Stale\" instead, as a reminder to re-run it.",
+      "RSI / SMA (under the list) — shows 14-day RSI plus 20-day and 50-day moving averages on each row, flagging \"oversold\"/\"overbought\" when RSI crosses 30/70. Refresh all re-fetches every price.",
+      "Buy and Sell place a paper trade at the live price (1 share by default). Tap ⋯ on a row for more: quantity, Refresh price, and Remove. On a touchscreen you can also swipe a row right to Buy or left to Sell.",
       "A quote marked \"Stale\" (data provider hiccup — see the price when we couldn't refresh it) can't be traded on until it's fresh again.",
       "If Buy and Sell are greyed out, the row says why in plain text underneath: still fetching a quote, no quote available (tap Refresh to retry), the live price is unavailable, or the quantity needs to be 1 or more.",
       "If a trade is rejected (for example not enough cash), the message says the reason, not just that it failed.",
-      "Refresh re-fetches one row's price on demand; Refresh all does every row at once. ✕ removes a symbol.",
+      "Tap the symbol to ask the AI about it.",
     ],
   },
   {
     title: "Paper trading & Portfolio — home page, below the watchlist",
     intro: "\"Paper trading\" means practicing with fake money — no real broker, no real risk. This is where your simulated results live. A \"What is paper trading?\" box at the top of the portfolio explains it and stays open until your first trade.",
     bullets: [
-      "Starts at ₹1,00,000 fake cash. The summary row shows remaining Cash, Total value (cash + what your positions are worth now), and Total P&L.",
-      "Holdings list — each open position with its quantity, average cost, and live profit/loss in both ₹ and %.",
-      "Trade history — every buy/sell you've made: side, symbol, quantity @ price, realized profit/loss (for a closing trade), and timestamp.",
-      "\"Generate AI portfolio diagnostics\" — an on-demand button that reads your current holdings and describes concentration and sector exposure; tick \"Include deep factor analysis vs. the full Nifty 50 (slower)\" for a more thorough (and slower) read.",
-      "Reset wipes everything back to the ₹1,00,000 starting balance — use it whenever you want a clean slate.",
+      "Starts at ₹1,00,000 fake cash. The top card shows remaining Cash, Total value (cash + what your positions are worth now), and P&L.",
+      "Your open positions are listed with quantity, average cost, and live profit/loss in both ₹ and %.",
+      "Trade history (tap to open) — every buy/sell you've made: side, symbol, quantity @ price, realized profit/loss for a closing trade, and time.",
+      "\"AI review of my portfolio\" (tap to open) reads your current holdings and describes concentration and sector exposure; tick \"Include deep factor analysis vs. the full Nifty 50 (slower)\" where offered for a more thorough read.",
+      "Reset (bottom of the tab) wipes everything back to the ₹1,00,000 starting balance — use it whenever you want a clean slate.",
       "After a trade, a toast pops up with a \"Log it\" link straight into the Journal, pre-filled with that trade's symbol, side, and price plus a snapshot of the price and any Trading Agents verdict at that exact moment.",
     ],
   },
@@ -100,11 +102,11 @@ const SECTIONS: Section[] = [
     title: "Screener — Research → Screener",
     intro: "A filterable table of stocks for finding something worth researching further.",
     bullets: [
-      "Two tabs: Nifty 50 (the 50 largest, refreshed on demand) or All NSE stocks (~2,000 stocks, refreshed automatically in the background over the course of an hour, so rows can have slightly different freshnesses).",
-      "Table columns: Symbol (with company name underneath), Sector, Price, Change (day %), P/E, and Mkt cap — a stock with an unusually high P/E gets a \"High\" badge next to the number.",
-      "Filters: sector dropdown, min/max price, and max P/E, plus a sort-by dropdown (% change, price, P/E, or market cap).",
-      "The Ask box lets you describe what you want in plain English — e.g. \"5 stocks with positive momentum and a reasonable P/E\" — and the AI picks matching rows from the real table shown and explains why, without predicting future returns.",
-      "Each row has a \"+ Watchlist\" button to add it, and a \"⚡ Agents\" button that opens a full Trading Agents run for that stock right there.",
+      "Two lists: Nifty 50 (the 50 largest, refreshed on demand) or All NSE (~2,000 stocks, refreshed automatically in the background every few hours, so rows can have slightly different freshnesses).",
+      "Each stock is one line: symbol, company name, price and day change. Tap a line for sector, P/E (a \"High\" badge flags an unusually high one) and market cap, plus its actions.",
+      "Filters (tap to open): sector, min/max price, max P/E, and a sort-by (% change, price, P/E, or market cap).",
+      "\"Ask in plain English\" (tap to open) lets you describe what you want — e.g. \"5 stocks with positive momentum and a reasonable P/E\" — and the AI picks matching rows from the real list and explains why, without predicting future returns.",
+      "Tap a stock for \"+ Watchlist\", \"Ask AI\", and \"⚡ Deep analysis\", which opens a full Trading Agents run for that stock right there.",
       "Refreshing the Nifty 50 tab shows a live progress bar (\"Fetched stocks 23/51\") instead of a bare spinner.",
       "Arriving here from a triggered price alert filters the table down to just the stock(s) that fired, with a banner and a \"Clear filter\" link.",
     ],
@@ -118,7 +120,7 @@ const SECTIONS: Section[] = [
       "Cross-sectional (NIFTY 50) — rank all 50 stocks against each other every rebalance and hold the top performers; not tied to any one stock.",
       "Pairs — bet on two related stocks' prices converging again, a market-neutral trade (one long, one short position at the same time).",
       "Strategy leaderboard — runs every ranking strategy over the same period and shows which performed best historically, plus what each currently holds.",
-      "Pick a strategy (grouped by family, e.g. trend-following, mean-reversion), tune its parameters, choose a data interval (daily/weekly/monthly) and lookback range (3 months to 5 years), then Run.",
+      "Choose the type of backtest and a strategy from the dropdowns (strategies are grouped by family, e.g. trend-following, mean-reversion), tune its parameters, choose a data interval (daily/weekly/monthly) and lookback range (3 months to 5 years), then Run.",
       "Results show a metrics grid (total return, return vs. plain buy-and-hold, CAGR, max drawdown, Sharpe ratio, win rate, number of trades, final equity), an equity curve chart plotted against a benchmark, and a full trade log.",
       "While a backtest runs you'll see real progress — how many stocks' price history has been fetched so far, then the simulation step. The cross-sectional mode and the leaderboard fetch all 50 stocks, so up to a minute is normal.",
       "\"Synthesize results\" gets an optional AI summary of what the numbers actually show — it does not predict future returns.",
@@ -129,11 +131,10 @@ const SECTIONS: Section[] = [
     title: "Vault — Track → Holdings (Vault), 🏦, real holdings you already own",
     intro: "For tracking investments you hold in your actual brokerage account (e.g. Groww) — entered manually, for research only. Crade never connects to your broker, never verifies these numbers, and never places real trades here.",
     bullets: [
-      "Add one holding at a time (symbol, quantity, average cost, optional note and purchase date), or \"Add multiple at once\" to paste several lines in one go (one holding per line: symbol, quantity, avg cost).",
+      "Tap + Add to add a holding (symbol, quantity, average cost; \"More details\" adds a note and purchase date), or \"Add multiple at once\" to paste several lines in one go (one holding per line: symbol, quantity, avg cost).",
       "Summary row: total invested, current value, and total P&L (in ₹ and %); a per-holding annualized return (%/yr) appears once you've given it a purchase date.",
-      "Sector allocation — a pie chart of what sectors your money is actually in, plus your top-1 and top-3 concentration percentages.",
-      "Risk exposure — a chart weighing each holding's size in your portfolio against how volatile that stock has been.",
-      "\"Generate AI portfolio diagnostics\" (optionally with a deeper \"factor analysis vs. the full Nifty 50\" checkbox) and \"Suggest diversifiers\" (AI picks are real NIFTY 50 stocks that would fill a sector gap you don't have exposure to) — both on-demand, both describe patterns only, never predict returns.",
+      "Breakdown (tap to open) — a sector pie chart of where your money is, your top-1 and top-3 concentration, and a risk chart weighing each holding's size against how volatile that stock has been.",
+      "AI review (tap to open) — portfolio diagnostics (optionally with a deeper factor analysis vs. the full Nifty 50) and \"Suggest diversifiers\": real NIFTY 50 stocks that would fill a sector gap. Both describe patterns only and never predict returns.",
       "Swipe a holding row left (or tap the 🔔) to open a quick \"create an alert from this holding\" form, pre-filled 10% below the current price.",
     ],
   },
@@ -141,7 +142,7 @@ const SECTIONS: Section[] = [
     title: "Journal — Track → Journal",
     intro: "A place to write down your reasoning before a trade (or before deciding not to make one), separate from the actual trade log in Portfolio/Vault.",
     bullets: [
-      "Log an entry: symbol, action (Buy / Sell / Watch), your reasoning in your own words, and an optional price.",
+      "Tap + New to log an entry: symbol, action (Buy / Sell / Watch), your reasoning in your own words, and an optional price.",
       "Arriving here from a \"Log it\" trade toast pre-fills the symbol/action/price and shows a frozen snapshot of the price and any Trading Agents verdict at that exact moment, so you can see what the data looked like when you actually decided.",
       "Come back later and \"Add outcome\" to any entry once you know what happened.",
       "\"View outcome chart\" on any entry plots the stock's price since you logged it.",
@@ -152,7 +153,7 @@ const SECTIONS: Section[] = [
     title: "Alerts — Track → Alerts, 🔔",
     intro: "Get notified automatically when something happens to a stock you're watching.",
     bullets: [
-      "Conditions: price above a value, price below a value, RSI(14) below a value, or a volume spike vs. the 20-day average (\"When\" side of the form).",
+      "Tap + New to create one. Conditions: price above a value, price below a value, RSI(14) below a value, or a volume spike vs. the 20-day average; then choose push or email delivery.",
       "Delivery: a push notification on this device (click \"Enable push notifications\" once first) or an email — chosen per alert (\"Then\" side of the form).",
       "Checked automatically every 4 hours — the page shows the exact time of the next check.",
       "Pause/Activate and Remove tell you if they didn't work (with the reason), rather than silently doing nothing.",
@@ -191,17 +192,15 @@ const SECTIONS: Section[] = [
 
 export default function HelpPage() {
   return (
-    <div className="font-sans min-h-screen flex flex-col items-center gap-16 p-8 pb-20 sm:p-20">
+    <div className="font-sans min-h-screen flex flex-col items-center gap-6 p-6 pb-24 sm:p-12">
       <AppShellNav />
 
-      <main className="w-full max-w-2xl flex flex-col gap-6">
+      <main className="w-full max-w-2xl flex flex-col gap-4">
         <div>
           <h1 className="text-2xl font-semibold">How to use Crade</h1>
           <p className="text-sm text-foreground-muted mt-1">
-            Crade is a personal practice and research tool for Indian stocks. Every trade you place
-            here uses fake money — there is no connection to any real broker, and nothing on this
-            site is investment advice. Think of it as a safe place to learn, research, and track your
-            own thinking.
+            A practice and research tool for Indian stocks. Every trade uses fake money and nothing here is
+            investment advice.
           </p>
         </div>
 
@@ -217,17 +216,17 @@ export default function HelpPage() {
           </Link>
         </div>
 
-        <div className="card flex flex-col divide-y divide-border overflow-hidden">
+        {/* Topics, closed by default: the page is a short list; open what you need. */}
+        <div className="flex flex-col gap-2">
           {SECTIONS.map((s) => (
-            <div key={s.title} className="p-4">
-              <h2 className="text-sm font-medium mb-1">{s.title}</h2>
+            <Collapsible key={s.title} title={s.title}>
               <p className="text-sm text-foreground-muted mb-2">{s.intro}</p>
               <ul className="text-sm text-foreground-muted list-disc pl-5 flex flex-col gap-1.5">
                 {s.bullets.map((b, i) => (
                   <li key={i}>{b}</li>
                 ))}
               </ul>
-            </div>
+            </Collapsible>
           ))}
         </div>
 

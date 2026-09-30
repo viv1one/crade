@@ -1,6 +1,6 @@
 "use client";
 
-import { PageIntro } from "../page-intro";
+import { Collapsible } from "../collapsible";
 import { ProgressNote } from "../progress-note";
 import { useEffect, useState } from "react";
 import { STRATEGIES } from "@/lib/backtest/strategies";
@@ -185,25 +185,26 @@ export function BacktestPanel() {
     : leaderboard.error;
 
   return (
-    <div className="w-full max-w-2xl flex flex-col gap-6">
+    <div className="w-full max-w-2xl flex flex-col gap-4">
       <SymbolDatalist />
-      <h1 className="text-2xl font-semibold">Backtest</h1>
-      <PageIntro kind="research">Replay a trading rule over past prices to see how it would have done. Past results don&apos;t predict future returns.</PageIntro>
+      <div>
+        <h1 className="text-2xl font-semibold">Backtest</h1>
+        <p className="text-sm text-foreground-muted">See how a rule would have done on past prices.</p>
+      </div>
 
-      <div className="flex flex-col gap-2">
-        <div className="flex gap-2 flex-wrap">
+      <div className="flex flex-col gap-1.5">
+        <select
+          value={mode}
+          onChange={(e) => switchMode(e.target.value as Mode)}
+          aria-label="Backtest type"
+          className="input"
+        >
           {(["single", "portfolio", "cross_sectional", "pairs", "leaderboard"] as Mode[]).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => switchMode(m)}
-              aria-pressed={mode === m}
-              className={`btn-secondary-sm ${mode === m ? "is-active" : ""}`}
-            >
+            <option key={m} value={m}>
               {MODE_LABELS[m]}
-            </button>
+            </option>
           ))}
-        </div>
+        </select>
         <p className="text-xs text-foreground-muted">{MODE_BLURBS[mode]}</p>
       </div>
 
@@ -290,34 +291,28 @@ export function BacktestPanel() {
                 No cross-sectional strategies are wired up yet.
               </p>
             )}
-            {groupByFamily(visibleStrategies).map(([family, strategiesInFamily]) => (
-              <div key={family} className="flex flex-col gap-1.5">
-                <span className="text-[10px] uppercase tracking-wide text-foreground-muted">
-                  {family}
-                </span>
-                <div className="flex flex-wrap gap-2">
-                  {strategiesInFamily.map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => selectStrategy(s.id)}
-                      aria-pressed={strategyId === s.id}
-                      className={`btn-secondary-sm ${strategyId === s.id ? "is-active" : ""}`}
-                    >
-                      {s.name}
-                      {s.approximation && (
-                        <span
-                          title="Proxy: approximates data no current provider actually returns — see the note below once selected"
-                          className="badge badge-warning ml-1.5"
-                        >
-                          Proxy
-                        </span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
+            {visibleStrategies.length > 0 && (
+              <select
+                value={strategyId ?? ""}
+                onChange={(e) => selectStrategy(e.target.value as StrategyId)}
+                aria-label="Strategy"
+                className="input"
+              >
+                <option value="" disabled>
+                  Choose a strategy…
+                </option>
+                {groupByFamily(visibleStrategies).map(([family, strategiesInFamily]) => (
+                  <optgroup key={family} label={family}>
+                    {strategiesInFamily.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                        {s.approximation ? " (proxy)" : ""}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            )}
             {strategy && <p className="text-xs text-foreground-muted">{strategy.description}</p>}
             {strategy?.approximation && (
               <p className="text-xs text-warning">{strategy.approximation}</p>
@@ -444,9 +439,8 @@ export function BacktestPanel() {
       )}
 
       {mode !== "leaderboard" && (
-      <div>
-        <h3 className="text-sm font-medium mb-2">Past runs</h3>
-        <ul className="card flex flex-col divide-y divide-border max-h-64 overflow-y-auto">
+      <Collapsible title="Past runs">
+        <ul className="flex flex-col divide-y divide-border max-h-64 overflow-y-auto">
           {mode === "single" && (
             <>
               {!single.historyLoaded && (
@@ -570,10 +564,10 @@ export function BacktestPanel() {
             </>
           )}
         </ul>
-      </div>
+      </Collapsible>
       )}
 
-      <Disclaimer>
+      <Disclaimer collapsible>
         Backtests run against free Yahoo Finance historical data — prototyping only. Results are
         simulated, long-only (pairs mode is the one exception — it simulates a market-neutral
         spread), and do not account for slippage or brokerage charges. Portfolio mode splits

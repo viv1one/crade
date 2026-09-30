@@ -61,7 +61,7 @@ export function AiScreenerQuery({ rows, onResult, onClear }: AiScreenerQueryProp
   }
 
   return (
-    <div className="card flex flex-col gap-3 p-4">
+    <div className="flex flex-col gap-3">
       <form onSubmit={handleSubmit} className="flex gap-2">
         <input
           value={question}

@@ -2,7 +2,7 @@
 
 import { fetchWithProgress } from "@/lib/progress/client";
 import type { ProgressUpdate } from "@/lib/progress/types";
-import { PageIntro } from "../page-intro";
+import { Collapsible } from "../collapsible";
 import { ProgressNote } from "../progress-note";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -59,6 +59,7 @@ export function ScreenerPanel({ initialHighlighted }: ScreenerPanelProps = {}) {
   const [watchlist, setWatchlist] = useState<string[]>([]);
   const [addingSymbol, setAddingSymbol] = useState<string | null>(null);
   const [sheetSymbol, setSheetSymbol] = useState<string | null>(null);
+  const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
 
   async function load(currentUniverse: Universe, refresh = false) {
     setLoading(true);
@@ -134,31 +135,23 @@ export function ScreenerPanel({ initialHighlighted }: ScreenerPanelProps = {}) {
       .sort((a, b) => (b[sortKey] ?? -Infinity) - (a[sortKey] ?? -Infinity));
   }, [rows, sector, minPrice, maxPrice, maxPE, sortKey, onlyTriggered, highlighted]);
 
+  const activeFilters = [sector, minPrice, maxPrice, maxPE].filter(Boolean).length;
+
   return (
-    <div className="w-full max-w-4xl flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold">
-          Screener — {universe === "nifty50" ? "Nifty 50" : "All NSE stocks"}
-        </h1>
-        {universe === "nifty50" ? (
-          <button
-            onClick={() => load(universe, true)}
-            disabled={loading}
-            className="btn-secondary rounded-full disabled:opacity-40"
-          >
-            {loading ? "Refreshing…" : "Refresh"}
-          </button>
-        ) : (
-          <button
-            onClick={() => load(universe)}
-            disabled={loading}
-            className="btn-secondary rounded-full disabled:opacity-40"
-          >
-            {loading ? "Loading…" : "Reload cached data"}
-          </button>
-        )}
+    <div className="w-full max-w-2xl flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Screener</h1>
+          <p className="text-sm text-foreground-muted">Find stocks worth a closer look.</p>
+        </div>
+        <button
+          onClick={() => (universe === "nifty50" ? load(universe, true) : load(universe))}
+          disabled={loading}
+          className="btn-secondary-sm shrink-0"
+        >
+          {loading ? "Loading…" : universe === "nifty50" ? "Refresh" : "Reload"}
+        </button>
       </div>
-      <PageIntro kind="research">Filter stocks by sector, price and P/E, or ask in plain English. Data may be a few minutes old.</PageIntro>
       {loading && <ProgressNote progress={progress} fallback="Loading stock data…" />}
 
       {onlyTriggered && (
@@ -176,189 +169,121 @@ export function ScreenerPanel({ initialHighlighted }: ScreenerPanelProps = {}) {
         </div>
       )}
 
-      <div className="flex gap-2" role="tablist" aria-label="Screener universe">
+      <div className="segmented" role="tablist" aria-label="Screener universe">
         {(["nifty50", "all_nse"] as const).map((u) => (
           <button
             key={u}
             role="tab"
             aria-selected={universe === u}
             onClick={() => setUniverse(u)}
-            className={`btn-secondary-sm ${universe === u ? "is-active" : ""}`}
+            className={`segmented-tab ${universe === u ? "is-active" : ""}`}
           >
-            {u === "nifty50" ? "Nifty 50" : "All NSE stocks (~2,000)"}
+            {u === "nifty50" ? "Nifty 50" : "All NSE (~2,000)"}
           </button>
         ))}
       </div>
       {universe === "all_nse" && (
-        <p className="text-xs text-foreground-muted">
-          Refreshed automatically in the background, roughly once an hour, in batches — rows may
-          have slightly different freshnesses rather than one single snapshot moment.
-        </p>
+        <p className="text-xs text-foreground-muted">Refreshed in the background, so rows can be a little different in age.</p>
       )}
 
-      <AiScreenerQuery
-        rows={rows}
-        onResult={(symbols) => setHighlighted(new Set(symbols))}
-        onClear={() => setHighlighted(null)}
-      />
+      <Collapsible title="Ask in plain English" hint="AI picks">
+        <AiScreenerQuery
+          rows={rows}
+          onResult={(symbols) => setHighlighted(new Set(symbols))}
+          onClear={() => setHighlighted(null)}
+        />
+      </Collapsible>
 
-      <div className="flex flex-wrap gap-2 items-center">
-        <select
-          value={sector}
-          onChange={(e) => setSector(e.target.value)}
-          aria-label="Filter by sector"
-          className="input"
-        >
-          <option value="">All sectors</option>
-          {sectors.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-        <input
-          value={minPrice}
-          onChange={(e) => setMinPrice(e.target.value)}
-          type="number"
-          placeholder="Min price"
-          aria-label="Minimum price"
-          className="input w-28"
-        />
-        <input
-          value={maxPrice}
-          onChange={(e) => setMaxPrice(e.target.value)}
-          type="number"
-          placeholder="Max price"
-          aria-label="Maximum price"
-          className="input w-28"
-        />
-        <input
-          value={maxPE}
-          onChange={(e) => setMaxPE(e.target.value)}
-          type="number"
-          placeholder="Max P/E"
-          aria-label="Maximum P/E ratio"
-          className="input w-28"
-        />
-        <select
-          value={sortKey}
-          onChange={(e) => setSortKey(e.target.value as SortKey)}
-          aria-label="Sort by"
-          className="input"
-        >
-          <option value="changePercent">Sort: % change</option>
-          <option value="price">Sort: price</option>
-          <option value="peRatio">Sort: P/E</option>
-          <option value="marketCap">Sort: market cap</option>
-        </select>
-      </div>
+      <Collapsible title="Filters" hint={activeFilters > 0 ? `${activeFilters} on` : "sector, price, P/E, sort"}>
+        <div className="flex flex-wrap gap-2 items-center">
+          <select value={sector} onChange={(e) => setSector(e.target.value)} aria-label="Filter by sector" className="input">
+            <option value="">All sectors</option>
+            {sectors.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+          <input value={minPrice} onChange={(e) => setMinPrice(e.target.value)} type="number" placeholder="Min price" aria-label="Minimum price" className="input w-28" />
+          <input value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} type="number" placeholder="Max price" aria-label="Maximum price" className="input w-28" />
+          <input value={maxPE} onChange={(e) => setMaxPE(e.target.value)} type="number" placeholder="Max P/E" aria-label="Maximum P/E ratio" className="input w-28" />
+          <select value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)} aria-label="Sort by" className="input">
+            <option value="changePercent">Sort: % change</option>
+            <option value="price">Sort: price</option>
+            <option value="peRatio">Sort: P/E</option>
+            <option value="marketCap">Sort: market cap</option>
+          </select>
+        </div>
+      </Collapsible>
 
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}
 
-      <p className="text-xs text-foreground-muted sm:hidden">Scroll sideways to see all columns →</p>
-
-      <div className="card overflow-x-auto max-h-[32rem] overflow-y-auto">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 z-10 bg-surface">
-            <tr className="border-b border-border text-left text-xs text-foreground-muted">
-              <th className="p-3">Symbol</th>
-              <th className="p-3">Sector</th>
-              <th className="p-3 text-right">Price</th>
-              <th className="p-3 text-right">Change</th>
-              <th className="p-3 text-right">P/E</th>
-              <th className="p-3 text-right">Mkt cap</th>
-              <th className="p-3"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {!loaded &&
-              Array.from({ length: 8 }).map((_, i) => (
-                <tr key={i} className="border-b border-border">
-                  <td className="p-3" colSpan={7}>
-                    <div className="h-4 w-full animate-pulse rounded bg-background" />
-                  </td>
-                </tr>
-              ))}
-            {loaded && filtered.length === 0 && (
-              <tr>
-                <td className="p-4 text-sm text-foreground-muted" colSpan={7}>
-                  No stocks match these filters.
-                </td>
-              </tr>
-            )}
-            {filtered.map((row, i) => (
-              <tr
-                key={row.symbol}
-                className={`border-b border-border last:border-0 ${
-                  highlighted?.has(row.symbol)
-                    ? "bg-yellow-500/10"
-                    : i % 2 === 1
-                      ? "bg-background/60"
-                      : ""
-                }`}
+      {/* One tidy line per stock; tap a row for the details and actions. */}
+      <ul className="card flex max-h-[34rem] flex-col divide-y divide-border overflow-y-auto">
+        {!loaded &&
+          Array.from({ length: 8 }).map((_, i) => (
+            <li key={i} className="p-3">
+              <div className="h-4 w-full animate-pulse rounded bg-background" />
+            </li>
+          ))}
+        {loaded && filtered.length === 0 && (
+          <li className="p-4 text-sm text-foreground-muted">No stocks match these filters.</li>
+        )}
+        {filtered.map((row) => {
+          const open = expandedSymbol === row.symbol;
+          return (
+            <li key={row.symbol} className={highlighted?.has(row.symbol) ? "bg-yellow-500/10" : ""}>
+              <button
+                onClick={() => setExpandedSymbol(open ? null : row.symbol)}
+                aria-expanded={open}
+                className="flex w-full items-center justify-between gap-3 p-3 text-left hover:bg-background"
               >
-                <td className="p-3">
-                  <Link
-                    href={`/?symbol=${encodeURIComponent(row.symbol)}#chat`}
-                    className="font-mono font-medium underline-offset-4 hover:underline"
-                    title={`Research ${row.symbol} in AI Chat`}
-                  >
-                    {row.symbol}
-                  </Link>
-                  <div className="text-xs text-foreground-muted">{row.name}</div>
-                </td>
-                <td className="p-3 text-xs text-foreground-muted">{row.sector}</td>
-                <td className="p-3 text-right font-mono">₹{row.price.toFixed(2)}</td>
-                <td
-                  className={`p-3 text-right font-mono ${
-                    row.changePercent >= 0 ? "text-success" : "text-danger"
-                  }`}
-                >
-                  {row.changePercent >= 0 ? "+" : ""}
-                  {row.changePercent.toFixed(2)}%
-                </td>
-                <td className="p-3 text-right font-mono">
-                  <span
-                    title={
-                      row.peRatio != null && row.peRatio > HIGH_PE_THRESHOLD
-                        ? "Unusually high P/E"
-                        : undefined
-                    }
-                  >
-                    {row.peRatio != null ? row.peRatio.toFixed(1) : "—"}
+                <span className="min-w-0">
+                  <span className="block font-mono text-sm font-medium">{row.symbol}</span>
+                  <span className="block truncate text-xs text-foreground-muted">{row.name}</span>
+                </span>
+                <span className="shrink-0 text-right">
+                  <span className="block font-mono text-sm">₹{row.price.toFixed(2)}</span>
+                  <span className={`block font-mono text-xs ${row.changePercent >= 0 ? "text-success" : "text-danger"}`}>
+                    {row.changePercent >= 0 ? "+" : ""}
+                    {row.changePercent.toFixed(2)}%
                   </span>
-                  {row.peRatio != null && row.peRatio > HIGH_PE_THRESHOLD && (
-                    <span className="badge badge-warning ml-1.5 font-sans">High</span>
-                  )}
-                </td>
-                <td className="p-3 text-right font-mono">{formatMarketCap(row.marketCap)}</td>
-                <td className="p-3 text-right">
-                  <div className="flex items-center justify-end gap-1.5">
+                </span>
+              </button>
+              {open && (
+                <div className="flex flex-col gap-2 px-3 pb-3">
+                  <p className="text-xs text-foreground-muted">
+                    {row.sector} · P/E {row.peRatio != null ? row.peRatio.toFixed(1) : "—"}
+                    {row.peRatio != null && row.peRatio > HIGH_PE_THRESHOLD && (
+                      <span className="badge badge-warning ml-1.5">High</span>
+                    )}{" "}
+                    · Mkt cap {formatMarketCap(row.marketCap)}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
                     {watchlist.includes(row.symbol) ? (
-                      <span className="text-xs text-success">✓ Added</span>
+                      <span className="text-xs text-success">✓ On your watchlist</span>
                     ) : (
-                      <button
-                        onClick={() => addToWatchlist(row.symbol)}
-                        disabled={addingSymbol === row.symbol}
-                        className="btn-secondary-sm"
-                      >
+                      <button onClick={() => addToWatchlist(row.symbol)} disabled={addingSymbol === row.symbol} className="btn-secondary-sm">
                         {addingSymbol === row.symbol ? "Adding…" : "+ Watchlist"}
                       </button>
                     )}
+                    <Link href={`/?symbol=${encodeURIComponent(row.symbol)}#chat`} className="btn-secondary-sm" title={`Research ${row.symbol} in AI Chat`}>
+                      Ask AI
+                    </Link>
                     <button
                       onClick={() => setSheetSymbol(row.symbol)}
                       className="btn-secondary-sm"
                       title={`Run the Trading Agents pipeline on ${row.symbol}`}
                     >
-                      ⚡ Agents
+                      ⚡ Deep analysis
                     </button>
                   </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
 
       {fetchedAt && (
         <p className="text-xs text-foreground-muted">

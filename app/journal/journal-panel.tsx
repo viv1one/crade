@@ -8,6 +8,7 @@ import { SymbolDatalist, SYMBOL_SUGGESTIONS_ID } from "../symbol-datalist";
 import { JournalReviewChart } from "./journal-review-chart";
 import { VERDICT_BADGE_CLASS, type AgentPipelineResult } from "@/lib/agents/types";
 import { useToast } from "../toast-provider";
+import { Collapsible } from "../collapsible";
 import { safeJson, errorMessage } from "../fetch-json";
 
 interface JournalEntry {
@@ -152,6 +153,7 @@ export function JournalPanel({ prefill }: { prefill?: JournalPrefill } = {}) {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [chartOpenFor, setChartOpenFor] = useState<string | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
 
   const [symbol, setSymbol] = useState(prefill?.symbol ?? "");
   const [action, setAction] = useState<JournalEntry["action"]>(
@@ -216,6 +218,7 @@ export function JournalPanel({ prefill }: { prefill?: JournalPrefill } = {}) {
       setSymbol("");
       setReasoning("");
       setPrice("");
+      setFormOpen(false);
       load();
       showToast(`Journal entry logged for ${normalizedSymbol}`, "success");
     } catch (err) {
@@ -257,18 +260,24 @@ export function JournalPanel({ prefill }: { prefill?: JournalPrefill } = {}) {
     }
   }
 
+  const showForm = formOpen || !!prefill?.symbol || (loaded && entries.length === 0);
+
   return (
-    <div className="w-full max-w-2xl flex flex-col gap-6">
+    <div className="w-full max-w-2xl flex flex-col gap-4">
       <SymbolDatalist />
-      <div>
-        <h1 className="text-2xl font-semibold">Journal</h1>
-        <p className="text-sm text-foreground-muted mt-1">
-          Log your own reasoning for a real or considered trade, then come back later and record
-          what actually happened. A shadow record of your thinking, not a trade log — see
-          Portfolio/Holdings for actual positions.
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Journal</h1>
+          <p className="text-sm text-foreground-muted">Write down why you made a call, then note how it went.</p>
+        </div>
+        {!showForm && (
+          <button onClick={() => setFormOpen(true)} className="btn-primary shrink-0">
+            + New
+          </button>
+        )}
       </div>
 
+      {showForm && (
       <div className={prefill?.symbol ? "grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-start" : undefined}>
         <form onSubmit={handleAdd} className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
           <label className="flex flex-col gap-1 text-xs text-foreground-muted w-40">
@@ -322,13 +331,13 @@ export function JournalPanel({ prefill }: { prefill?: JournalPrefill } = {}) {
           </div>
         )}
       </div>
+      )}
       {error && (
         <p role="alert" className="text-sm text-danger">
           {error}
         </p>
       )}
 
-      {loaded && entries.length > 0 && <JournalReview />}
 
       <ul className="card flex flex-col divide-y divide-border overflow-hidden">
         {!loaded && <li className="p-4 text-sm text-foreground-muted">Loading journal…</li>}
@@ -422,7 +431,13 @@ export function JournalPanel({ prefill }: { prefill?: JournalPrefill } = {}) {
         ))}
       </ul>
 
-      <Disclaimer>
+      {loaded && entries.length > 0 && (
+        <Collapsible title="AI review of my journal">
+          <JournalReview />
+        </Collapsible>
+      )}
+
+      <Disclaimer collapsible>
         A personal record of your own reasoning — Crade doesn&apos;t verify outcomes or connect to
         your broker. {NOT_INVESTMENT_ADVICE}
       </Disclaimer>

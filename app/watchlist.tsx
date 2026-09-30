@@ -13,7 +13,6 @@ import { VERDICT_BADGE_CLASS, type AgentPipelineResult } from "@/lib/agents/type
 import { isVerdictStale } from "@/lib/agents/verdict-staleness";
 import { useSwipeAction } from "./use-swipe-action";
 import { useToast } from "./toast-provider";
-import { PageIntro } from "./page-intro";
 import { NIFTY_50 } from "@/lib/screener/universe";
 import { safeJson, errorMessage } from "./fetch-json";
 
@@ -103,6 +102,7 @@ function WatchlistRow({
   onQtyChange,
   onTrade,
 }: WatchlistRowProps) {
+  const [open, setOpen] = useState(false);
   const canTrade = !!row.quote && !row.quote.stale && !executing;
   const qty = Math.floor(Number(row.qtyInput));
   const qtyValid = Number.isFinite(qty) && qty > 0;
@@ -139,20 +139,23 @@ function WatchlistRow({
         {swipe.translateX > 0 ? "Buy" : "Sell"}
       </div>
       <div
-        className="relative bg-surface flex flex-col gap-3 p-4 touch-pan-y"
+        className="relative bg-surface flex flex-col gap-2 p-4 touch-pan-y"
         style={{
           transform: `translateX(${swipe.translateX}px)`,
           transition: swipe.dragging ? "none" : "transform 0.2s ease",
         }}
         {...swipe.handlers}
       >
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex flex-col">
+        {/* The row itself is just: what it is, its price, and the two actions.
+            Everything else (quantity, refresh, remove, indicators) is behind the
+            "more" toggle so a list of stocks reads as a list of stocks. */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-col">
             <span className="flex items-center gap-1.5">
               <Link
                 href={`/?symbol=${encodeURIComponent(symbol)}#chat`}
                 className="font-mono text-sm font-medium underline-offset-4 hover:underline"
-                title={`Research ${symbol} in AI Chat`}
+                title={`Ask the AI about ${symbol}`}
               >
                 {symbol}
               </Link>
@@ -175,115 +178,106 @@ function WatchlistRow({
                   );
                 })()}
             </span>
+            {row.quote ? (
+              <span className="flex items-center gap-1.5">
+                <span className={`text-sm font-semibold ${row.quote.change >= 0 ? "text-success" : "text-danger"}`}>
+                  {row.quote.price.toFixed(2)} ({row.quote.change >= 0 ? "+" : ""}
+                  {row.quote.changePercent.toFixed(2)}%)
+                </span>
+                {row.quote.stale && (
+                  <span className="badge badge-warning" title="Live data unavailable — showing the last known price">
+                    Stale
+                  </span>
+                )}
+              </span>
+            ) : row.loading ? (
+              <span className="inline-flex items-center gap-1.5 text-xs text-foreground-muted">
+                <span className="spinner" aria-hidden="true" /> Fetching…
+              </span>
+            ) : null}
             {row.error && (
               <span role="alert" className="text-xs text-danger">
                 {row.error}
               </span>
             )}
-            {row.quote && (
-              <span className="flex items-center gap-1.5">
-                <span
-                  className={`text-sm font-semibold ${
-                    row.quote.change >= 0 ? "text-success" : "text-danger"
-                  }`}
-                >
-                  {row.quote.price.toFixed(2)} ({row.quote.change >= 0 ? "+" : ""}
-                  {row.quote.changePercent.toFixed(2)}%)
-                </span>
-                {row.quote.stale && (
-                  <span
-                    className="badge badge-warning"
-                    title="Live data unavailable — showing the last known price"
-                  >
-                    Stale
-                  </span>
-                )}
-              </span>
-            )}
-            {showIndicators &&
-              (() => {
-                if (!indicator || indicator.loading) {
-                  return <span className="text-xs text-foreground-muted">Loading indicators…</span>;
-                }
-                if (indicator.error) {
-                  return <span className="text-xs text-foreground-muted">Indicators unavailable</span>;
-                }
-                const rsiValue = indicator.rsi14;
-                const rsiFlag =
-                  rsiValue !== undefined && rsiValue < 30
-                    ? " (oversold)"
-                    : rsiValue !== undefined && rsiValue > 70
-                      ? " (overbought)"
-                      : "";
-                return (
-                  <span className="text-xs text-foreground-muted">
-                    RSI(14): {rsiValue !== undefined ? rsiValue.toFixed(0) : "—"}
-                    {rsiFlag} · SMA20: {indicator.sma20 !== undefined ? indicator.sma20.toFixed(2) : "—"} · SMA50:{" "}
-                    {indicator.sma50 !== undefined ? indicator.sma50.toFixed(2) : "—"}
-                  </span>
-                );
-              })()}
           </div>
+
           <div className="flex items-center gap-2">
-            <button onClick={() => onFetchQuote(symbol)} disabled={row.loading} className="btn-secondary-sm">
-              {row.loading ? (
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="spinner" aria-hidden="true" /> Fetching…
-                </span>
-              ) : (
-                "Refresh"
-              )}
-            </button>
+            {executing ? (
+              <span className="inline-flex items-center gap-1.5 text-xs text-foreground-muted">
+                <span className="spinner" aria-hidden="true" /> Trading…
+              </span>
+            ) : (
+              <>
+                <button onClick={() => onTrade(symbol, "buy")} disabled={!canTrade || !qtyValid} className="btn-success-sm">
+                  Buy
+                </button>
+                <button onClick={() => onTrade(symbol, "sell")} disabled={!canTrade || !qtyValid} className="btn-danger-sm">
+                  Sell
+                </button>
+              </>
+            )}
             <button
-              onClick={() => onRemove(symbol)}
-              className="touch-target text-sm text-foreground-muted hover:text-danger transition-colors"
-              aria-label={`Remove ${symbol}`}
-              title={`Remove ${symbol}`}
+              onClick={() => setOpen((v) => !v)}
+              aria-expanded={open}
+              aria-label={`${open ? "Hide" : "Show"} options for ${symbol}`}
+              className="touch-target text-foreground-muted hover:text-foreground"
             >
-              ✕
+              {open ? "▴" : "⋯"}
             </button>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            type="number"
-            min={1}
-            step={1}
-            value={row.qtyInput}
-            onChange={(e) => onQtyChange(symbol, e.target.value)}
-            className="input w-20 px-2 py-1 text-xs"
-            aria-label={`Quantity for ${symbol}`}
-            disabled={executing}
-          />
-          {executing ? (
-            <span className="inline-flex items-center gap-1.5 text-xs text-foreground-muted px-3 py-1.5">
-              <span className="spinner" aria-hidden="true" /> Fetching live quote &amp; executing…
-            </span>
-          ) : (
-            <>
-              <button
-                onClick={() => onTrade(symbol, "buy")}
-                disabled={!canTrade || !qtyValid}
-                className="btn-success-sm"
-              >
-                Buy
-              </button>
-              <button
-                onClick={() => onTrade(symbol, "sell")}
-                disabled={!canTrade || !qtyValid}
-                className="btn-danger-sm"
-              >
-                Sell
-              </button>
-            </>
-          )}
-        </div>
-        {disabledReason && (
-          <p className="text-xs text-foreground-muted -mt-1">{disabledReason}</p>
-        )}
-        {!disabledReason && !executing && (
-          <p className="text-[0.7rem] text-foreground-muted -mt-1 sm:hidden">Tip: swipe right to buy, left to sell.</p>
+        {/* Why the buttons are off, in words — only when they are. */}
+        {disabledReason && <p className="text-xs text-foreground-muted">{disabledReason}</p>}
+
+        {showIndicators &&
+          (() => {
+            if (!indicator || indicator.loading) {
+              return <span className="text-xs text-foreground-muted">Loading indicators…</span>;
+            }
+            if (indicator.error) {
+              return <span className="text-xs text-foreground-muted">Indicators unavailable</span>;
+            }
+            const rsiValue = indicator.rsi14;
+            const rsiFlag =
+              rsiValue !== undefined && rsiValue < 30 ? " (oversold)" : rsiValue !== undefined && rsiValue > 70 ? " (overbought)" : "";
+            return (
+              <span className="text-xs text-foreground-muted">
+                RSI(14): {rsiValue !== undefined ? rsiValue.toFixed(0) : "—"}
+                {rsiFlag} · SMA20: {indicator.sma20 !== undefined ? indicator.sma20.toFixed(2) : "—"} · SMA50:{" "}
+                {indicator.sma50 !== undefined ? indicator.sma50.toFixed(2) : "—"}
+              </span>
+            );
+          })()}
+
+        {open && (
+          <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+            <label className="flex items-center gap-2 text-xs text-foreground-muted">
+              Quantity
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={row.qtyInput}
+                onChange={(e) => onQtyChange(symbol, e.target.value)}
+                className="input w-20 px-2 py-1 text-xs"
+                aria-label={`Quantity for ${symbol}`}
+                disabled={executing}
+              />
+            </label>
+            <button onClick={() => onFetchQuote(symbol)} disabled={row.loading} className="btn-secondary-sm">
+              {row.loading ? "Fetching…" : "Refresh price"}
+            </button>
+            <button
+              onClick={() => onRemove(symbol)}
+              className="btn-secondary-sm text-danger"
+              aria-label={`Remove ${symbol}`}
+              title={`Remove ${symbol} from your watchlist`}
+            >
+              Remove
+            </button>
+          </div>
         )}
       </div>
     </li>
@@ -291,11 +285,10 @@ function WatchlistRow({
 }
 
 export function Watchlist({ onBuy, onSell, getTradeError }: WatchlistProps) {
-  const { symbols, addSymbol, removeSymbol, loaded, isNew } = useWatchlist();
+  const { symbols, addSymbol, removeSymbol, loaded } = useWatchlist();
   const { showToast } = useToast();
   const [input, setInput] = useState("");
   const [rowState, setRowState] = useState<Record<string, RowUiState>>({});
-  const [starterNoteDismissed, setStarterNoteDismissed] = useState(false);
   const [showIndicators, setShowIndicators] = useState(false);
   const [indicatorState, setIndicatorState] = useState<Record<string, IndicatorState>>({});
   const indicatorFetchedRef = useRef<Set<string>>(new Set());
@@ -430,35 +423,7 @@ export function Watchlist({ onBuy, onSell, getTradeError }: WatchlistProps) {
   }
 
   return (
-    <div id="watchlist" className="w-full max-w-2xl flex flex-col gap-6 scroll-mt-8">
-      <div className="flex items-center justify-between gap-4">
-        {/* Cool-blue accent, the counterpart to Holdings' --vault-accent gold
-            treatment — distinguishes simulated Paper Trading from the
-            real-money Vault, reusing the app's existing --accent blue
-            rather than a new token (it already reads as "cool blue"). */}
-        <h1 className="text-2xl font-semibold text-accent border-l-[3px] border-accent pl-3 shrink-0">Watchlist</h1>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowIndicators((v) => !v)}
-            aria-pressed={showIndicators}
-            className={`btn-secondary-sm ${showIndicators ? "is-active" : ""}`}
-          >
-            RSI/SMA
-          </button>
-          <button
-            onClick={refreshAll}
-            disabled={!loaded}
-            className="btn-secondary rounded-full whitespace-nowrap disabled:opacity-40"
-          >
-            Refresh all
-          </button>
-        </div>
-      </div>
-
-      <PageIntro kind="practice">
-        Follow stocks and practice buying and selling with ₹1,00,000 of fake cash. Nothing here places a real order.
-      </PageIntro>
-
+    <div id="watchlist" className="w-full max-w-2xl flex flex-col gap-4 scroll-mt-8">
       <form onSubmit={handleAddSymbol} className="flex gap-2">
         <input
           value={input}
@@ -472,19 +437,6 @@ export function Watchlist({ onBuy, onSell, getTradeError }: WatchlistProps) {
           Add
         </button>
       </form>
-
-      {isNew && !starterNoteDismissed && (
-        <p className="text-xs text-foreground-muted -mt-4">
-          Starter picks — remove any you don&apos;t want.{" "}
-          <button
-            type="button"
-            onClick={() => setStarterNoteDismissed(true)}
-            className="underline underline-offset-4 hover:no-underline"
-          >
-            Dismiss
-          </button>
-        </p>
-      )}
 
       <ul className="card flex flex-col divide-y divide-border overflow-hidden">
         {!loaded && (
@@ -530,7 +482,22 @@ export function Watchlist({ onBuy, onSell, getTradeError }: WatchlistProps) {
         ))}
       </ul>
 
-      <Disclaimer>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowIndicators((v) => !v)}
+            aria-pressed={showIndicators}
+            className={`btn-secondary-sm ${showIndicators ? "is-active" : ""}`}
+          >
+            RSI / SMA
+          </button>
+          <button onClick={refreshAll} disabled={!loaded} className="btn-secondary-sm">
+            Refresh all
+          </button>
+        </div>
+      </div>
+
+      <Disclaimer collapsible>
         {FREE_DATA_SOURCE} {PAPER_TRADING_ONLY}
       </Disclaimer>
     </div>

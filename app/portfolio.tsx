@@ -5,6 +5,7 @@ import type { Trade, Holding } from "@/lib/paper-trading/types";
 import { STARTING_CASH } from "@/lib/paper-trading/types";
 import type { EquityPoint } from "@/lib/backtest/types";
 import { PortfolioDiagnostics } from "./portfolio-diagnostics";
+import { Collapsible } from "./collapsible";
 import { EquityChart } from "./backtest/equity-chart";
 import { useBenchmarkCurve } from "./backtest/use-benchmark-curve";
 import { safeJson } from "./fetch-json";
@@ -62,137 +63,83 @@ export function Portfolio({ cash, holdings, trades, equityCurve, error, loaded, 
   const { benchmarkCurve } = useBenchmarkCurve(equityCurve, STARTING_CASH);
 
   return (
-    <div id="portfolio" className="w-full max-w-2xl flex flex-col gap-6 scroll-mt-8">
-      <div className="flex items-center justify-between gap-4">
-        {/* Same cool-blue accent as Watchlist — the two are the "Paper
-            Trading" half of the spec's Cool Blue / Warm Gold split, the
-            other half being Holdings' --vault-accent gold. */}
-        <h2 className="text-2xl font-semibold text-accent border-l-[3px] border-accent pl-3">Paper Portfolio</h2>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={refreshPrices}
-            disabled={!loaded || loading || symbols.length === 0}
-            className="btn-secondary rounded-full disabled:opacity-40"
-          >
-            {loading ? "Refreshing…" : "Refresh"}
-          </button>
-          <button
-            onClick={onReset}
-            disabled={!loaded}
-            className="btn-secondary rounded-full disabled:opacity-40"
-          >
-            Reset
-          </button>
-        </div>
-      </div>
-
-      <details className="card p-4 text-sm" open={loaded && trades.length === 0}>
-        <summary className="cursor-pointer font-medium">What is paper trading?</summary>
-        <p className="mt-2 text-xs text-foreground-muted">
-          You start with ₹1,00,000 of fake cash. Buy and sell from your watchlist and each trade fills instantly at
-          the latest quote — no real money, no broker, no orders. It&apos;s a safe way to test your instincts and see
-          how a position would have played out. To invest for real, use your own broker (e.g. Groww).
-        </p>
-      </details>
-
+    <div id="portfolio" className="w-full max-w-2xl flex flex-col gap-4 scroll-mt-8">
       {error && (
         <p role="alert" className="text-sm text-danger">
           {error}
         </p>
       )}
-      {!loaded && (
-        <p className="text-sm text-foreground-muted">Loading portfolio…</p>
-      )}
+      {!loaded && <p className="text-sm text-foreground-muted">Loading portfolio…</p>}
 
       {loaded && (
         <>
-          <div className="card grid grid-cols-1 sm:grid-cols-3 gap-4 p-4">
+          {/* The answer to "how am I doing?" first: three numbers. */}
+          <div className="card grid grid-cols-3 gap-3 p-4">
             <div>
               <div className="text-xs text-foreground-muted">Cash</div>
-              <div className="font-mono text-sm font-medium">₹{cash.toFixed(2)}</div>
+              <div className="font-mono text-sm font-medium">₹{cash.toFixed(0)}</div>
             </div>
             <div>
               <div className="text-xs text-foreground-muted">Total value</div>
-              <div className="font-mono text-sm font-medium">₹{totalValue.toFixed(2)}</div>
+              <div className="font-mono text-sm font-medium">₹{totalValue.toFixed(0)}</div>
             </div>
             <div>
-              <div className="text-xs text-foreground-muted">Total P&amp;L</div>
-              <div
-                className={`font-mono text-base font-semibold ${
-                  totalPnl >= 0 ? "text-success" : "text-danger"
-                }`}
-              >
-                {totalPnl >= 0 ? "+" : ""}₹{totalPnl.toFixed(2)}
+              <div className="text-xs text-foreground-muted">P&amp;L</div>
+              <div className={`font-mono text-sm font-semibold ${totalPnl >= 0 ? "text-success" : "text-danger"}`}>
+                {totalPnl >= 0 ? "+" : ""}₹{totalPnl.toFixed(0)}
               </div>
             </div>
           </div>
 
+          <ul className="card flex flex-col divide-y divide-border overflow-hidden">
+            {symbols.length === 0 && (
+              <li className="p-4 text-sm text-foreground-muted">
+                No open positions yet. Tap Buy on a stock in your watchlist to place your first simulated trade.
+              </li>
+            )}
+            {symbols.map((symbol) => {
+              const holding = holdings[symbol];
+              const price = prices[symbol] ?? holding.avgCost;
+              const pnl = (price - holding.avgCost) * holding.qty;
+              const pnlPct = ((price - holding.avgCost) / holding.avgCost) * 100;
+              return (
+                <li key={symbol} className="flex items-center justify-between gap-4 p-4">
+                  <div className="flex flex-col">
+                    <span className="font-mono text-sm font-medium">{symbol}</span>
+                    <span className="text-xs text-foreground-muted">
+                      {holding.qty} @ avg ₹{holding.avgCost.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className={`text-sm font-semibold text-right ${pnl >= 0 ? "text-success" : "text-danger"}`}>
+                    <div>
+                      {pnl >= 0 ? "+" : ""}₹{pnl.toFixed(2)}
+                    </div>
+                    <div className="text-xs font-normal">
+                      ({pnl >= 0 ? "+" : ""}
+                      {pnlPct.toFixed(2)}%)
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+
+          {/* Everything below is optional depth, one tap away. */}
           {equityCurve.length > 1 && (
-            <div className="card p-4 flex flex-col gap-2">
-              <h3 className="text-sm font-medium">Performance</h3>
-              <p className="text-xs text-foreground-muted -mt-1">
-                One point per trade, marked to the live quote at that moment — not a continuous
-                daily curve, so it only moves when you actually buy or sell.
+            <Collapsible title="Performance">
+              <p className="mb-2 text-xs text-foreground-muted">
+                One point per trade, marked to the live quote at that moment — it only moves when you buy or sell.
               </p>
               <EquityChart equityCurve={equityCurve} startingCash={STARTING_CASH} benchmarkCurve={benchmarkCurve ?? undefined} />
-            </div>
+            </Collapsible>
           )}
 
-          <PortfolioDiagnostics endpoint="/api/portfolio/diagnostics" hasHoldings={symbols.length > 0} />
-
-          <div>
-            <h3 className="text-sm font-medium mb-2">Holdings</h3>
-            <ul className="card flex flex-col divide-y divide-border overflow-hidden">
-              {symbols.length === 0 && (
-                <li className="p-4 text-sm text-foreground-muted">
-                  No open positions yet. Tap Buy on a stock in your watchlist above to place your first simulated trade.
-                </li>
-              )}
-              {symbols.map((symbol) => {
-                const holding = holdings[symbol];
-                const price = prices[symbol] ?? holding.avgCost;
-                const pnl = (price - holding.avgCost) * holding.qty;
-                const pnlPct = ((price - holding.avgCost) / holding.avgCost) * 100;
-                return (
-                  <li key={symbol} className="flex items-center justify-between gap-4 p-4">
-                    <div className="flex flex-col">
-                      <span className="font-mono text-sm font-medium">{symbol}</span>
-                      <span className="text-xs text-foreground-muted">
-                        {holding.qty} @ avg ₹{holding.avgCost.toFixed(2)}
-                      </span>
-                    </div>
-                    <div
-                      className={`text-sm font-semibold text-right ${
-                        pnl >= 0 ? "text-success" : "text-danger"
-                      }`}
-                    >
-                      <div>
-                        {pnl >= 0 ? "+" : ""}₹{pnl.toFixed(2)}
-                      </div>
-                      <div className="text-xs font-normal">
-                        ({pnl >= 0 ? "+" : ""}
-                        {pnlPct.toFixed(2)}%)
-                      </div>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-medium mb-2">Trade history</h3>
-            <ul className="card flex flex-col divide-y divide-border max-h-64 overflow-y-auto">
-              {trades.length === 0 && (
-                <li className="p-4 text-sm text-foreground-muted">No trades yet.</li>
-              )}
+          <Collapsible title="Trade history" hint={trades.length > 0 ? `${trades.length}` : undefined}>
+            <ul className="flex max-h-64 flex-col divide-y divide-border overflow-y-auto">
+              {trades.length === 0 && <li className="py-2 text-sm text-foreground-muted">No trades yet.</li>}
               {trades.map((trade) => (
-                <li key={trade.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 p-3 text-xs">
-                  <span
-                    className={`font-medium ${
-                      trade.side === "buy" ? "text-success" : "text-danger"
-                    }`}
-                  >
+                <li key={trade.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2 text-xs">
+                  <span className={`font-medium ${trade.side === "buy" ? "text-success" : "text-danger"}`}>
                     {trade.side.toUpperCase()}
                   </span>
                   <span className="font-mono">{trade.symbol}</span>
@@ -204,20 +151,36 @@ export function Portfolio({ cash, holdings, trades, equityCurve, error, loaded, 
                       {trade.realizedPnl >= 0 ? "+" : ""}₹{trade.realizedPnl.toFixed(2)}
                     </span>
                   )}
-                  <span className="text-foreground-muted">
-                    {new Date(trade.timestamp).toLocaleTimeString()}
-                  </span>
+                  <span className="text-foreground-muted">{new Date(trade.timestamp).toLocaleTimeString()}</span>
                 </li>
               ))}
             </ul>
+          </Collapsible>
+
+          {symbols.length > 0 && (
+            <Collapsible title="AI review of my portfolio">
+              <PortfolioDiagnostics endpoint="/api/portfolio/diagnostics" hasHoldings />
+            </Collapsible>
+          )}
+
+          <Collapsible variant="inline" title="What is paper trading?">
+            <p className="text-xs text-foreground-muted">
+              You start with ₹1,00,000 of fake cash. Buy and sell from your watchlist and each trade fills instantly at
+              the latest quote — no real money, no broker, no orders. It&apos;s a safe way to test your instincts. To
+              invest for real, use your own broker (e.g. Groww).
+            </p>
+          </Collapsible>
+
+          <div className="flex items-center justify-between gap-2">
+            <button onClick={refreshPrices} disabled={loading || symbols.length === 0} className="btn-secondary-sm">
+              {loading ? "Refreshing…" : "Refresh prices"}
+            </button>
+            <button onClick={onReset} className="btn-secondary-sm text-danger">
+              Reset to ₹1,00,000
+            </button>
           </div>
         </>
       )}
-
-      <p className="text-xs text-foreground-muted">
-        Simulated only — starting balance ₹1,00,000 fake cash, no real orders placed. For live
-        trading, use your broker (e.g. Groww) directly.
-      </p>
     </div>
   );
 }

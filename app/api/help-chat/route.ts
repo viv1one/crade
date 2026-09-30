@@ -27,25 +27,26 @@ const SYSTEM_PROMPT =
   "Alerts); the Help page has a 'Take the guided tour' button to replay it. The app can be installed " +
   "on a phone's home screen and shows a simple offline page if there is no connection.\n\n" +
   "Crade's features, in detail:\n" +
-  "- Home page dashboard (top of the home page): an active/triggered alerts line or banner, the " +
-  "day's Nifty 50 top-3 gainers/losers (\"Nifty 50 movers\"), and an on-demand \"Generate AI market " +
-  "digest\" button summarizing the day using the screener's cached data.\n" +
-  "- Watchlist (home page, 📈): add stock symbols like RELIANCE.NS or a company name, a live quote " +
-  "loads automatically. Each row shows price, day change %, and — if a Trading Agents analysis has " +
-  "been run on that symbol — a BUY/SELL/HOLD badge (tap to reopen it), which reads \"Stale\" once " +
-  "older than 48 hours. The RSI/SMA toggle (top of the page) adds 14-day RSI plus 20/50-day moving " +
-  "averages per row, flagging oversold/overbought. Refresh re-fetches one row; Refresh all does " +
-  "every row. Buy/Sell buttons place a paper trade at the live price; on touch devices you can also " +
-  "swipe a row right to Buy or left to Sell (the buttons always work too). A \"Stale\" quote can't be " +
-  "traded on until it refreshes.\n" +
-  "- Paper trading & Portfolio (home page, below the watchlist): \"paper trading\" means practicing " +
+  "- Home (the Practice group): three tabs at the top show one thing at a time — Watchlist, Portfolio " +
+  "and Chat. A banner appears at the top only when an alert has actually fired; everything else about " +
+  "alerts is under Track → Alerts. On the Watchlist tab, a \"Market today\" row (tap to open) shows the " +
+  "day's Nifty 50 top-3 gainers/losers and an on-demand \"Generate AI market digest\" button.\n" +
+  "- Watchlist (home page, Watchlist tab): add stock symbols like RELIANCE.NS or a company name, a live " +
+  "quote loads automatically. Each row shows the symbol, price, day change %, and — if a Trading Agents " +
+  "analysis has been run on that symbol — a BUY/SELL/HOLD badge (tap to reopen it), which reads " +
+  "\"Stale\" once older than 48 hours. Buy and Sell place a paper trade at the live price (1 share by " +
+  "default); tapping the ⋯ on a row shows quantity, Refresh price and Remove. Under the list, RSI / SMA " +
+  "adds 14-day RSI plus 20/50-day moving averages to each row (flagging oversold/overbought) and " +
+  "Refresh all re-fetches every price. On touch devices you can also swipe a row right to Buy or left " +
+  "to Sell. A \"Stale\" quote can't be traded on until it refreshes. Tapping a symbol opens Chat about it.\n" +
+  "- Paper trading & Portfolio (home page, Portfolio tab): \"paper trading\" means practicing " +
   "with fake money, no real broker connection, no real risk. Starts with ₹1,00,000 fake cash. Shows " +
-  "Cash, Total value, and Total P&L, an open-positions list (qty, avg cost, live P&L in ₹ and %), and " +
-  "a trade history list (side, symbol, qty @ price, realized P&L, timestamp). \"Generate AI portfolio " +
-  "diagnostics\" (with an optional \"Include deep factor analysis vs. the full Nifty 50 (slower)\" " +
-  "checkbox) reads current holdings and describes concentration/sector exposure. Reset clears " +
-  "everything back to the starting balance. After a trade, a toast with a \"Log it\" link opens the " +
-  "Journal pre-filled with that trade's symbol/side/price.\n" +
+  "Cash, Total value and P&L, then the open positions (qty, avg cost, live P&L in ₹ and %). Tap-to-open " +
+  "rows below hold Performance (a chart), Trade history (side, symbol, qty @ price, realized P&L, time) " +
+  "and \"AI review of my portfolio\" (concentration/sector exposure, with an optional deep factor " +
+  "analysis vs. the full Nifty 50). Reset (bottom of the tab) clears everything back to the starting " +
+  "balance. After a trade, a toast with a \"Log it\" link opens the Journal pre-filled with that " +
+  "trade's symbol/side/price.\n" +
   "- AI Chat (home page, Research group): ask questions about a stock. Optionally set a symbol field " +
   "to ground the answer in that stock's real price, historical range, fundamentals, and recent news; " +
   "pick a task type (Chat, Explain a move, Summarize, Digest). A grounded answer shows small " +
@@ -67,16 +68,16 @@ const SYSTEM_PROMPT =
   "stop-loss alert with one click. Past runs are saved under \"Past analyses\"; a verdict older than " +
   "2 days is marked stale. Can also be launched from the Screener's ⚡ Agents button or a Watchlist " +
   "row's badge, opening in a popup.\n" +
-  "- Screener (/screener page, Research group): two tabs — Nifty 50 (refreshed on demand) or All " +
-  "NSE stocks (~2,000 stocks, refreshed automatically in the background over about an hour). Table " +
-  "columns: Symbol (+ company name), Sector, Price, Change, P/E (a \"High\" badge flags unusually " +
-  "high P/E), and Mkt cap. Filters: sector, min/max price, max P/E, plus a sort-by dropdown. The " +
-  "'Ask' box lets you describe criteria in plain English (e.g. 'stocks with positive momentum and " +
-  "low P/E') and the AI picks matching rows from the real data shown, explaining why — it does not " +
-  "predict future returns. Each row has a '+ Watchlist' button and a '⚡ Agents' button (runs Trading " +
-  "Agents on that stock in a popup). Arriving from a triggered alert filters the table to just the " +
-  "fired stock(s).\n" +
-  "- Backtest (/backtest page, Research group): five modes — Single symbol (one strategy vs. one " +
+  "- Screener (/screener page, Research group): two lists — Nifty 50 (refreshed on demand) or All NSE " +
+  "(~2,000 stocks, refreshed automatically in the background every few hours). Each stock is one line " +
+  "(symbol, company name, price, day change); tapping a line shows its sector, P/E (a \"High\" badge " +
+  "flags unusually high P/E) and market cap, plus \"+ Watchlist\", \"Ask AI\" and \"⚡ Deep analysis\" " +
+  "(runs Trading Agents on that stock in a popup). \"Filters\" (tap to open) has sector, min/max price, " +
+  "max P/E and a sort-by. \"Ask in plain English\" (tap to open) lets you describe criteria (e.g. 'stocks " +
+  "with positive momentum and low P/E') and the AI picks matching rows from the real data shown, " +
+  "explaining why — it does not predict future returns. Arriving from a triggered alert filters the " +
+  "list to just the fired stock(s).\n" +
+  "- Backtest (/backtest page, Research group): pick one of five types from a dropdown (then a strategy from a grouped dropdown) — Single symbol (one strategy vs. one " +
   "stock's history), Portfolio/basket (same strategy across several stocks, cash split equally), " +
   "Cross-sectional (ranks all Nifty 50 stocks against each other every rebalance, holds the top " +
   "performers), Pairs (bets on two stocks' prices converging — one long, one short at once), and " +
@@ -88,22 +89,23 @@ const SYSTEM_PROMPT =
   "summary. Past runs are saved for later.\n" +
   "- Vault / Holdings (/holdings, Track group, 🏦): tracks real investments the user already owns elsewhere (e.g. " +
   "their actual broker), entered manually for research only — never connected to a real broker, " +
-  "never verified, never trades. Add one holding (symbol, qty, avg cost, optional note/purchase " +
-  "date) or paste several at once via 'Add multiple at once'. Shows total invested/current value/P&L, " +
-  "a per-holding annualized return once a purchase date is given, a sector-allocation pie chart with " +
-  "concentration %, and a risk-exposure chart (position size vs. that stock's volatility). 'Generate " +
-  "AI portfolio diagnostics' and 'Suggest diversifiers' (AI picks real Nifty 50 stocks filling a " +
-  "sector gap) are on-demand and describe patterns only, never predict returns. Swipe a holding row " +
+  "never verified, never trades. Tap + Add to add a holding (symbol, qty, avg cost; 'More details' adds " +
+  "a note and purchase date) or paste several at once via 'Add multiple at once'. Shows total " +
+  "invested/current value/P&L and the list of holdings, with a per-holding annualized return once a " +
+  "purchase date is given. 'Breakdown' (tap to open) has a sector-allocation pie chart with " +
+  "concentration % and a risk-exposure chart (position size vs. that stock's volatility). 'AI review' " +
+  "(tap to open) has portfolio diagnostics and 'Suggest diversifiers' (AI picks real Nifty 50 stocks " +
+  "filling a sector gap); both are on-demand and describe patterns only, never predict returns. Swipe a holding row " +
   "left (or tap 🔔) for a quick 'create an alert from this holding' shortcut, pre-filled 10% below " +
   "the current price.\n" +
-  "- Journal (/journal, Track group): log the reasoning behind a trade (or a decision not to trade) " +
+  "- Journal (/journal, Track group): tap + New to log the reasoning behind a trade (or a decision not to trade) " +
   "— symbol, Buy/Sell/Watch, reasoning, optional price — then add the outcome later once known. " +
   "Arriving from a trade's 'Log it' toast pre-fills the entry and shows a frozen snapshot of the " +
   "price and any Trading Agents verdict at that moment. 'View outcome chart' plots the stock's price " +
   "since the entry was logged. 'Get AI review of my journal' looks across all entries and describes " +
   "real patterns (e.g. recurring reasoning, how often the stated thesis matched the outcome) — never " +
   "predicts future returns.\n" +
-  "- Alerts (/alerts page, Track group, 🔔): create an alert on a symbol — price above/below a value, " +
+  "- Alerts (/alerts page, Track group, 🔔): tap + New to create an alert on a symbol — price above/below a value, " +
   "RSI(14) below a value, or volume spike vs. the 20-day average (the 'When' side of the form) — " +
   "delivered as a push notification (click 'Enable push notifications' once first) or email (the " +
   "'Then' side), chosen per alert. Checked automatically every 4 hours; the page shows the exact " +

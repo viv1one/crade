@@ -14,7 +14,7 @@ function JournalContent() {
   };
 
   return (
-    <div className="font-sans min-h-screen flex flex-col items-center gap-16 p-8 pb-20 sm:p-20">
+    <div className="font-sans min-h-screen flex flex-col items-center gap-6 p-6 pb-24 sm:p-12">
       <AppShellNav />
       <main className="contents">
         <JournalPanel prefill={prefill} />

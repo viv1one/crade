@@ -26,7 +26,8 @@ replacement for it.
 - **Intent-based navigation** — the nav is grouped by what you're doing: **Practice** (watchlist +
   paper portfolio), **Research** (Chat, Screener, Backtest, Trading Agents), **Track** (Holdings,
   Journal, Alerts) and **Menu** (Shared with me, Help). Every destination has a one-line
-  description and every page a Research / Practice / Track badge.
+  description. Each screen shows one job: the home page is three tabs (Watchlist, Portfolio, Chat),
+  and secondary tools sit behind tap-to-open rows instead of on the page.
 - **Watchlist** — track symbols, auto-fetch live quotes. Buy/Sell explain in text why they are
   disabled (stale quote, no quote, invalid quantity).
 - **Paper trading** — a simulated cash + holdings portfolio; buys/sells fill at the live quote,

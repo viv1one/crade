@@ -31,12 +31,9 @@ export function AlertsSummary() {
   if (alerts === null) return null;
 
   const triggered = alerts.filter((a) => a.status === "triggered");
-  const activeCount = alerts.filter((a) => a.status === "active").length;
 
-  if (triggered.length === 0 && activeCount === 0) {
-    return null;
-  }
-
+  // Active-but-quiet alerts live on /alerts; the home screen only interrupts
+  // for one that has actually fired.
   if (triggered.length > 0) {
     return (
       <div className="w-full max-w-2xl alert-banner alert-banner-warning">
@@ -62,12 +59,5 @@ export function AlertsSummary() {
     );
   }
 
-  return (
-    <div className="w-full max-w-2xl flex items-center justify-between text-sm text-foreground-muted">
-      <span>{activeCount} active alert{activeCount > 1 ? "s" : ""}</span>
-      <Link href="/alerts" className="text-xs underline underline-offset-4 hover:no-underline">
-        Manage alerts →
-      </Link>
-    </div>
-  );
+  return null;
 }

@@ -6,30 +6,10 @@ import Link from "next/link";
 const STORAGE_KEY = "crade_welcome_dismissed";
 
 const STEPS = [
-  {
-    title: "Watch a few stocks",
-    body: "Your watchlist below starts with three picks. Add any NSE symbol — quotes load automatically.",
-    href: "#watchlist",
-    cta: "Go to watchlist",
-  },
-  {
-    title: "Ask the AI about one",
-    body: "Chat explains a move or summarizes a stock using its real price data and headlines.",
-    href: "#chat",
-    cta: "Open Chat",
-  },
-  {
-    title: "Get pinged when it moves",
-    body: "Alerts push a notification on price, RSI, or volume — no need to keep the app open.",
-    href: "/alerts",
-    cta: "Set an alert",
-  },
-  {
-    title: "Test an idea on past data",
-    body: "Backtest runs a strategy over history so you can see how it would have done — before risking anything.",
-    href: "/backtest",
-    cta: "Try a backtest",
-  },
+  { label: "Watch a few stocks", href: "#watchlist" },
+  { label: "Ask the AI about one", href: "#chat" },
+  { label: "Get pinged when it moves", href: "/alerts" },
+  { label: "Test an idea on past data", href: "/backtest" },
 ];
 
 interface WelcomeCardProps {
@@ -63,14 +43,11 @@ export function WelcomeCard({ onStartTour }: WelcomeCardProps) {
   if (!visible) return null;
 
   return (
-    <section className="card w-full max-w-2xl flex flex-col gap-4 p-5" aria-label="Getting started">
+    <section className="card w-full max-w-2xl flex flex-col gap-3 p-4" aria-label="Getting started">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold">Welcome to Crade</h2>
-          <p className="text-sm text-foreground-muted">
-            A research and practice space for Indian stocks. Everything here is simulated — no real money moves. Four
-            good first steps:
-          </p>
+          <h2 className="text-base font-semibold">Welcome to Crade</h2>
+          <p className="text-sm text-foreground-muted">Practice with fake money — nothing here is real. Start here:</p>
         </div>
         <button
           onClick={dismiss}
@@ -80,28 +57,37 @@ export function WelcomeCard({ onStartTour }: WelcomeCardProps) {
           ✕
         </button>
       </div>
-      <ol className="flex flex-col gap-3">
+      <ol className="flex flex-col">
         {STEPS.map((step, i) => (
-          <li key={step.title} className="flex items-start gap-3">
-            <span
-              className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-semibold text-white"
-              aria-hidden="true"
+          <li key={step.label}>
+            <Link
+              href={step.href}
+              // A "#chat" link only changes the hash (no route change, no hashchange
+              // event from Next's router), so tell the home page which tab to show.
+              onClick={() => {
+                if (step.href.startsWith("#")) {
+                  window.dispatchEvent(new CustomEvent("crade-home-tab", { detail: step.href.slice(1) }));
+                }
+              }}
+              className="flex items-center gap-3 rounded-md py-2 text-sm hover:bg-background"
             >
-              {i + 1}
-            </span>
-            <div className="flex flex-col gap-0.5">
-              <span className="text-sm font-medium">{step.title}</span>
-              <span className="text-xs text-foreground-muted">{step.body}</span>
-              <Link href={step.href} className="text-xs text-accent underline-offset-4 hover:underline w-fit py-1">
-                {step.cta} →
-              </Link>
-            </div>
+              <span
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-semibold text-white"
+                aria-hidden="true"
+              >
+                {i + 1}
+              </span>
+              <span className="flex-1">{step.label}</span>
+              <span className="text-foreground-muted" aria-hidden="true">
+                →
+              </span>
+            </Link>
           </li>
         ))}
       </ol>
       <div className="flex items-center justify-between gap-3">
         <Link href="/help" className="text-xs text-foreground-muted underline underline-offset-4 hover:no-underline">
-          Full feature guide
+          Help
         </Link>
         <div className="flex gap-2">
           <button

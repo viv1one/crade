@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { Collapsible } from "../collapsible";
 import { Disclaimer } from "../disclaimer";
 import { NOT_INVESTMENT_ADVICE, FREE_DATA_SOURCE, MANUAL_HOLDINGS_ONLY } from "@/lib/disclaimers";
 import { annualizedReturnPct } from "@/lib/holdings-cagr";
@@ -222,6 +223,7 @@ export function HoldingsPanel() {
   const [alertConditionType, setAlertConditionType] = useState<ConditionType>("price_below");
   const [alertValue, setAlertValue] = useState("");
   const [alertSubmitting, setAlertSubmitting] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const [alertCreatedFor, setAlertCreatedFor] = useState<string | null>(null);
 
   function load() {
@@ -327,6 +329,7 @@ export function HoldingsPanel() {
       setAvgCost("");
       setNote("");
       setPurchasedAt("");
+      setAddOpen(false);
       load();
     } catch (err) {
       setError(errorMessage(err, "Failed to add holding"));
@@ -440,18 +443,77 @@ export function HoldingsPanel() {
   const totalPnl = totalValue - totalInvested;
   const totalPnlPct = totalInvested > 0 ? (totalPnl / totalInvested) * 100 : 0;
 
+  const showAdd = addOpen || (loaded && holdings.length === 0);
+
   return (
-    <div className="w-full max-w-2xl flex flex-col gap-6">
+    <div className="w-full max-w-2xl flex flex-col gap-4">
       <SymbolDatalist />
-      <div className="border-l-[3px] border-vault-accent pl-3">
-        <h1 className="text-2xl font-semibold vault-heading">My Holdings — Vault</h1>
-        <p className="text-sm text-foreground-muted mt-1">
-          Investments you already own, bought elsewhere (e.g. via your broker) — tracked here for
-          research only. Separate from the simulated Paper Portfolio on the home page: no fake cash,
-          no trades placed through Crade.
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="border-l-[3px] border-vault-accent pl-3">
+          <h1 className="text-2xl font-semibold vault-heading">Holdings</h1>
+          <p className="text-sm text-foreground-muted">What you already own — tracked for research only.</p>
+        </div>
+        {!showAdd && (
+          <button onClick={() => setAddOpen(true)} className="btn-primary shrink-0">
+            + Add
+          </button>
+        )}
       </div>
 
+      {loaded && holdings.length > 0 && (
+        <div className="card grid grid-cols-3 gap-4 p-4">
+          <div>
+            <div className="text-xs text-foreground-muted">Invested</div>
+            <div className="font-mono text-sm font-medium">₹{totalInvested.toFixed(2)}</div>
+          </div>
+          <div>
+            <div className="text-xs text-foreground-muted">Current value</div>
+            <div className="font-mono text-sm font-medium">₹{totalValue.toFixed(2)}</div>
+          </div>
+          <div>
+            <div className="text-xs text-foreground-muted">Total P&amp;L</div>
+            <div
+              className={`font-mono text-sm font-semibold ${totalPnl >= 0 ? "text-success" : "text-danger"}`}
+            >
+              {totalPnl >= 0 ? "+" : ""}₹{totalPnl.toFixed(2)} ({totalPnl >= 0 ? "+" : ""}
+              {totalPnlPct.toFixed(2)}%)
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      <ul className="card flex flex-col divide-y divide-border overflow-hidden">
+        {!loaded && <li className="p-4 text-sm text-foreground-muted">Loading holdings…</li>}
+        {loaded && holdings.length === 0 && (
+          <li className="p-4 text-sm text-foreground-muted">
+            No holdings yet — add one above. Try: RELIANCE.NS, 10 shares @ ₹1300.
+          </li>
+        )}
+        {holdings.map((h) => (
+          <HoldingRow
+            key={h._id}
+            h={h}
+            price={prices[h.symbol] ?? h.avgCost}
+            removingId={removingId}
+            alertFormFor={alertFormFor}
+            alertConditionType={alertConditionType}
+            alertValue={alertValue}
+            alertSubmitting={alertSubmitting}
+            alertCreatedFor={alertCreatedFor}
+            onOpenAlertForm={openAlertForm}
+            onRemove={remove}
+            onAlertConditionTypeChange={setAlertConditionType}
+            onAlertValueChange={setAlertValue}
+            onCreateQuickAlert={createQuickAlert}
+            onCancelAlertForm={() => setAlertFormFor(null)}
+          />
+        ))}
+      </ul>
+
+
+      {showAdd && (
+        <div className="card flex flex-col gap-3 p-4">
       <form onSubmit={handleAdd} className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
         <label className="flex flex-col gap-1 text-xs text-foreground-muted flex-1 min-w-[10rem]">
           Symbol
@@ -483,6 +545,9 @@ export function HoldingsPanel() {
             className="input"
           />
         </label>
+        <div className="basis-full">
+          <Collapsible variant="inline" title="More details (note, purchase date)">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
         <label className="flex flex-col gap-1 text-xs text-foreground-muted flex-1 min-w-[10rem]">
           Note (optional)
           <input
@@ -505,6 +570,9 @@ export function HoldingsPanel() {
             className="input"
           />
         </label>
+            </div>
+          </Collapsible>
+        </div>
         <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-40">
           Add
         </button>
@@ -514,7 +582,6 @@ export function HoldingsPanel() {
           {error}
         </p>
       )}
-
       <button
         type="button"
         onClick={() => setBulkMode((v) => !v)}
@@ -575,82 +642,52 @@ export function HoldingsPanel() {
         </form>
       )}
 
-      {loaded && holdings.length > 0 && (
-        <div className="card grid grid-cols-1 sm:grid-cols-3 gap-4 p-4">
-          <div>
-            <div className="text-xs text-foreground-muted">Invested</div>
-            <div className="font-mono text-sm font-medium">₹{totalInvested.toFixed(2)}</div>
-          </div>
-          <div>
-            <div className="text-xs text-foreground-muted">Current value</div>
-            <div className="font-mono text-sm font-medium">₹{totalValue.toFixed(2)}</div>
-          </div>
-          <div>
-            <div className="text-xs text-foreground-muted">Total P&amp;L</div>
-            <div
-              className={`font-mono text-base font-semibold ${totalPnl >= 0 ? "text-success" : "text-danger"}`}
-            >
-              {totalPnl >= 0 ? "+" : ""}₹{totalPnl.toFixed(2)} ({totalPnl >= 0 ? "+" : ""}
-              {totalPnlPct.toFixed(2)}%)
-            </div>
-          </div>
+          {holdings.length > 0 && (
+            <button type="button" onClick={() => setAddOpen(false)} className="self-start text-xs text-foreground-muted underline underline-offset-4">
+              Close
+            </button>
+          )}
         </div>
       )}
 
-      {sectorData && sectorData.sectorAllocations.length > 0 && (
-        <div className="card p-4 flex flex-col gap-2">
-          <h3 className="text-sm font-semibold">Sector allocation</h3>
-          <SectorPieChart
-            sectorAllocations={sectorData.sectorAllocations}
-            topHoldingPct={sectorData.topHoldingPct}
-            top3ConcentrationPct={sectorData.top3ConcentrationPct}
-          />
-        </div>
+      {sectorData && (sectorData.sectorAllocations.length > 0 || sectorData.riskExposure.length > 0) && (
+        <Collapsible title="Breakdown" hint="sectors + risk">
+          <div className="flex flex-col gap-4">
+            {sectorData.sectorAllocations.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <h3 className="text-sm font-semibold">Sector allocation</h3>
+                <SectorPieChart
+                  sectorAllocations={sectorData.sectorAllocations}
+                  topHoldingPct={sectorData.topHoldingPct}
+                  top3ConcentrationPct={sectorData.top3ConcentrationPct}
+                />
+              </div>
+            )}
+            {sectorData.riskExposure.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <h3 className="text-sm font-semibold">Risk exposure</h3>
+                <RiskExposureChart entries={sectorData.riskExposure} />
+              </div>
+            )}
+          </div>
+        </Collapsible>
       )}
 
-      {sectorData && sectorData.riskExposure.length > 0 && (
-        <div className="card p-4 flex flex-col gap-2">
-          <h3 className="text-sm font-semibold">Risk exposure</h3>
-          <RiskExposureChart entries={sectorData.riskExposure} />
-        </div>
-      )}
-
-      <PortfolioDiagnostics
-        endpoint="/api/holdings/diagnostics"
-        hasHoldings={holdings.length > 0}
-        allowDeepAnalysis
+      {holdings.length > 0 && (
+        <Collapsible title="AI review" hint="diagnostics + diversifiers">
+          <div className="flex flex-col gap-3">
+            <PortfolioDiagnostics
+              endpoint="/api/holdings/diagnostics"
+              hasHoldings={holdings.length > 0}
+              allowDeepAnalysis
       />
-      <HoldingsDiversify hasHoldings={holdings.length > 0} />
+                  <HoldingsDiversify hasHoldings={holdings.length > 0} />
 
-      <ul className="card flex flex-col divide-y divide-border overflow-hidden">
-        {!loaded && <li className="p-4 text-sm text-foreground-muted">Loading holdings…</li>}
-        {loaded && holdings.length === 0 && (
-          <li className="p-4 text-sm text-foreground-muted">
-            No holdings yet — add one above. Try: RELIANCE.NS, 10 shares @ ₹1300.
-          </li>
-        )}
-        {holdings.map((h) => (
-          <HoldingRow
-            key={h._id}
-            h={h}
-            price={prices[h.symbol] ?? h.avgCost}
-            removingId={removingId}
-            alertFormFor={alertFormFor}
-            alertConditionType={alertConditionType}
-            alertValue={alertValue}
-            alertSubmitting={alertSubmitting}
-            alertCreatedFor={alertCreatedFor}
-            onOpenAlertForm={openAlertForm}
-            onRemove={remove}
-            onAlertConditionTypeChange={setAlertConditionType}
-            onAlertValueChange={setAlertValue}
-            onCreateQuickAlert={createQuickAlert}
-            onCancelAlertForm={() => setAlertFormFor(null)}
-          />
-        ))}
-      </ul>
+          </div>
+        </Collapsible>
+      )}
 
-      <Disclaimer>
+      <Disclaimer collapsible>
         {MANUAL_HOLDINGS_ONLY} {FREE_DATA_SOURCE} {NOT_INVESTMENT_ADVICE}
       </Disclaimer>
     </div>
